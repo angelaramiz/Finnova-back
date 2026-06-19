@@ -1231,3 +1231,104 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
   });
 });
 
+/**
+ * POST /api/auth/request-password-reset
+ * Genera un OTP temporal para restablecer la contraseña
+ */
+authRouter.post('/request-password-reset', async (req: any, res: Response): Promise<void> => {
+  const { email } = req.body;
+  if (!email) {
+    res.status(400).json({ error: 'Bad Request', message: 'Correo institucional requerido.' });
+    return;
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data: allowed } = await supabaseAdmin
+        .from('allowed_emails')
+        .select('*')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (!allowed) {
+        res.status(404).json({ error: 'Not Found', message: 'La cuenta de correo no está registrada en el sistema.' });
+        return;
+      }
+
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      const authUser = authUsers?.users?.find((u: any) => u.email === normalizedEmail);
+
+      if (!authUser) {
+        res.status(404).json({ error: 'Not Found', message: 'La cuenta no tiene un perfil activo en la base de datos de autenticación.' });
+        return;
+      }
+
+      // Generar OTP para recuperación
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min expiración para reset
+
+      // Guardamos la OTP y habilitamos temporalmente mustChangePassword para forzar el reset
+      const { error } = await supabaseAdmin
+        .from('profiles')
+        .update({ otpCode, otpExpires, mustChangePassword: true })
+        .eq('id', authUser.id);
+
+      if (error) {
+        res.status(500).json({ error: 'Database Error', message: error.message });
+        return;
+      }
+
+      const textContent = `Has solicitado restablecer tu contraseña en AuraFi Academy.
+Tu código OTP de restablecimiento es: ${otpCode}
+
+Este código expira en 10 minutos. No lo compartas con nadie.`;
+
+      const htmlContent = `
+        <h3>Restablecimiento de Contraseña</h3>
+        <p>Has solicitado restablecer tu contraseña en AuraFi Academy. Tu código OTP de un solo uso es:</p>
+        <div style="font-size: 24px; font-weight: bold; letter-spacing: 4px; padding: 10px; background-color: #f3f4f6; text-align: center; border-radius: 8px; margin: 15px 0; font-family: monospace;">
+          ${otpCode}
+        </div>
+        <p>Este código expira en 10 minutos. Una vez verificado, podrás elegir una contraseña nueva.</p>
+      `;
+
+      EmailProvider.sendEmail({
+        to: normalizedEmail,
+        subject: `Recuperar Contraseña - Código: ${otpCode}`,
+        html: htmlContent,
+        text: textContent,
+        type: 'otp'
+      }).catch(err => console.error('Error enviando correo de reset OTP:', err));
+
+      res.status(200).json({ message: 'Código de recuperación enviado.' });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  const profile = MemoryDatabase.profiles.find(p => {
+    const allowed = MemoryDatabase.allowedEmails.find(a => a.email.toLowerCase() === normalizedEmail);
+    return allowed && p.fullName === allowed.fullName;
+  });
+
+  if (!profile) {
+    res.status(404).json({ error: 'Not Found', message: 'La cuenta de correo no existe.' });
+    return;
+  }
+
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+  profile.otpCode = otpCode;
+  profile.otpExpires = otpExpires;
+  profile.mustChangePassword = true;
+
+  console.log(`[RESET PASSWORD MOCK OTP] Código enviado a ${normalizedEmail}: ${otpCode}`);
+
+  res.status(200).json({ message: 'Código de recuperación enviado (simulación local).' });
+});
+
+
