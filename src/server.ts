@@ -5,6 +5,7 @@
 
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 
@@ -152,15 +153,24 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Production: Host SPA static resources
+// Production: Host SPA static resources (Solo si existe la ruta localmente en el contenedor)
 const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction) {
   const distPath = path.join(__dirname, '../../alumnos/dist');
-  app.use(express.static(distPath));
-  
-  app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
+  if (fs.existsSync(distPath)) {
+    app.use(express.static(distPath));
+    app.get('*', (req: Request, res: Response) => {
+      res.sendFile(path.join(distPath, 'index.html'));
+    });
+  } else {
+    // Si no está el build de alumnos, retornar un mensaje simple de API
+    app.get('*', (req: Request, res: Response) => {
+      res.status(200).json({
+        message: 'AuraFi Academy API is running.',
+        docs: 'Use API clients to communicate with available resources.'
+      });
+    });
+  }
 }
 
 // Global Exception error handler
