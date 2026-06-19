@@ -5,6 +5,7 @@
 
 import { Router, Response } from 'express';
 import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { MemoryDatabase, AllowedEmail, StudentQuestion } from '../lib/memoryDb';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { EmailProvider } from '../providers/email';
@@ -658,7 +659,12 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         return;
       }
 
+      // Generate random 8-character temporary password
       const tempPassword = Math.random().toString(36).substring(2, 10).toUpperCase();
+
+      // Encriptar la contraseña temporal usando bcryptjs
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
       // Create allowedEmail record
       const { error: allowedErr } = await supabaseAdmin
@@ -685,7 +691,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(request.fullName)}`,
         role: request.role,
         pointsEarned: request.role === 'student' ? 100 : 0,
-        passwordHash: tempPassword,
+        passwordHash: hashedPassword,
         mustChangePassword: true,
         updatedAt: new Date().toISOString()
       };
@@ -766,6 +772,9 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
   // Generate random 8-character temporary password
   const tempPassword = Math.random().toString(36).substring(2, 10).toUpperCase();
 
+  // Encriptar la contraseña temporal usando bcryptjs
+  const hashedPassword = bcrypt.hashSync(tempPassword, 10);
+
   // Create allowedEmail record
   const newAllowed = {
     email: request.email,
@@ -785,7 +794,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
     avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(request.fullName)}`,
     role: request.role as 'student' | 'instructor',
     pointsEarned: request.role === 'student' ? 100 : 0,
-    passwordHash: tempPassword, // Simplificación de sandbox: guardar contraseña temporal
+    passwordHash: hashedPassword, // Guardar contraseña temporal encriptada
     mustChangePassword: true
   };
   MemoryDatabase.profiles.push(newProfile);
@@ -940,7 +949,22 @@ authRouter.post('/login-credentials', async (req: any, res: Response): Promise<v
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (!profile || profile.passwordHash !== password) {
+      if (!profile) {
+        res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas.' });
+        return;
+      }
+
+      // Validar contraseña (soporta texto plano heredado o bcrypt)
+      let isMatch = false;
+      if (profile.passwordHash) {
+        if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
+          isMatch = await bcrypt.compare(password, profile.passwordHash);
+        } else {
+          isMatch = profile.passwordHash === password;
+        }
+      }
+
+      if (!isMatch) {
         res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas.' });
         return;
       }
@@ -998,7 +1022,22 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
     return allowed && p.fullName === allowed.fullName;
   });
 
-  if (!profile || profile.passwordHash !== password) {
+  if (!profile) {
+    res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas.' });
+    return;
+  }
+
+  // Validar contraseña localmente con bcrypt
+  let isMatch = false;
+  if (profile.passwordHash) {
+    if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
+      isMatch = bcrypt.compareSync(password, profile.passwordHash);
+    } else {
+      isMatch = profile.passwordHash === password;
+    }
+  }
+
+  if (!isMatch) {
     res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas.' });
     return;
   }
@@ -1081,7 +1120,22 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
         .eq('id', authUser.id)
         .maybeSingle();
 
-      if (!profile || profile.passwordHash !== currentTempPassword) {
+      if (!profile) {
+        res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
+        return;
+      }
+
+      // Validar contraseña temporal encriptada
+      let isMatch = false;
+      if (profile.passwordHash) {
+        if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
+          isMatch = await bcrypt.compare(currentTempPassword, profile.passwordHash);
+        } else {
+          isMatch = profile.passwordHash === currentTempPassword;
+        }
+      }
+
+      if (!isMatch) {
         res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
         return;
       }
@@ -1091,9 +1145,13 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
         return;
       }
 
+      // Encriptar la nueva contraseña definitiva
+      const salt = await bcrypt.genSalt(10);
+      const newHashedPassword = await bcrypt.hash(newPassword, salt);
+
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ passwordHash: newPassword, mustChangePassword: false })
+        .update({ passwordHash: newHashedPassword, mustChangePassword: false })
         .eq('id', profile.id);
 
       if (error) {
@@ -1113,7 +1171,22 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
     return allowed && p.fullName === allowed.fullName;
   });
 
-  if (!profile || profile.passwordHash !== currentTempPassword) {
+  if (!profile) {
+    res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
+    return;
+  }
+
+  // Validar contraseña localmente
+  let isTempMatch = false;
+  if (profile.passwordHash) {
+    if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
+      isTempMatch = bcrypt.compareSync(currentTempPassword, profile.passwordHash);
+    } else {
+      isTempMatch = profile.passwordHash === currentTempPassword;
+    }
+  }
+
+  if (!isTempMatch) {
     res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
     return;
   }
@@ -1123,7 +1196,8 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
     return;
   }
 
-  profile.passwordHash = newPassword;
+  // Encriptar nueva contraseña definitiva local
+  profile.passwordHash = bcrypt.hashSync(newPassword, 10);
   profile.mustChangePassword = false;
 
   res.status(200).json({ message: 'Contraseña actualizada correctamente. Procede a iniciar sesión.' });
