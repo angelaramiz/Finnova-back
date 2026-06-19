@@ -1,0 +1,16 @@
+# Dependency directories
+node_modules/
+
+# Compiled output
+dist/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.local
+
+# Sensitive files or custom private folders
+no_public/
+*.log
+npm-debug.log*
