@@ -686,12 +686,36 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         return;
       }
 
-      // Generate deterministic UUID
-      const userId = generateDeterministicUUID(request.email);
+      // 1. Check if auth user already exists in auth.users
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      let authUser = authUsers?.users?.find((u: any) => u.email === request.email);
+
+      let targetUserId: string;
+
+      if (!authUser) {
+        // Create the user in Supabase auth.users
+        const { data: newAuthUser, error: authErr } = await supabaseAdmin.auth.admin.createUser({
+          email: request.email,
+          password: tempPassword,
+          email_confirm: true,
+          user_metadata: {
+            role: request.role,
+            full_name: request.fullName
+          }
+        });
+
+        if (authErr || !newAuthUser.user) {
+          res.status(500).json({ error: 'Auth Creation Error', message: authErr?.message || 'Fallo al crear el usuario en Supabase Auth.' });
+          return;
+        }
+        targetUserId = newAuthUser.user.id;
+      } else {
+        targetUserId = authUser.id;
+      }
 
       // Create Profile with temp password
       const newProfile = {
-        id: userId,
+        id: targetUserId,
         fullName: request.fullName,
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(request.fullName)}`,
         role: request.role,
@@ -703,7 +727,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
 
       const { error: profileErr } = await supabaseAdmin
         .from('profiles')
-        .insert(newProfile);
+        .upsert(newProfile);
 
       if (profileErr) {
         res.status(500).json({ error: 'Database Error', message: profileErr.message });
