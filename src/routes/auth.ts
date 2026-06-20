@@ -35,6 +35,11 @@ function signMockJWT(userId: string, email: string, role: string, fullName: stri
   return `${message}.${signature}`;
 }
 
+function generateDeterministicUUID(email: string): string {
+  const hash = crypto.createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+  return `${hash.substring(0, 8)}-${hash.substring(8, 12)}-${hash.substring(12, 16)}-${hash.substring(16, 20)}-${hash.substring(20, 32)}`;
+}
+
 export const authRouter = Router();
 
 /**
@@ -352,7 +357,7 @@ authRouter.post('/login-simulated', async (req: any, res: Response): Promise<voi
       } else if (normalizedEmail === 'student_tester@gmail.com') {
         userId = '22222222-2222-2222-2222-222222222222';
       } else {
-        userId = crypto.createHash('sha256').update(normalizedEmail).digest('hex').substring(0, 36);
+        userId = generateDeterministicUUID(normalizedEmail);
       }
 
       let { data: profile } = await supabaseAdmin
@@ -404,7 +409,7 @@ authRouter.post('/login-simulated', async (req: any, res: Response): Promise<voi
     userId = '22222222-2222-2222-2222-222222222222';
   } else {
     // Generate deterministic UUID based on email
-    userId = crypto.createHash('sha256').update(normalizedEmail).digest('hex').substring(0, 36);
+    userId = generateDeterministicUUID(normalizedEmail);
   }
 
   // Find or create profile
@@ -669,12 +674,12 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
       // Create allowedEmail record
       const { error: allowedErr } = await supabaseAdmin
         .from('allowed_emails')
-        .insert({
+        .upsert({
           email: request.email,
           role: request.role,
           fullName: request.fullName,
           createdAt: new Date().toISOString()
-        });
+        }, { onConflict: 'email' });
 
       if (allowedErr) {
         res.status(500).json({ error: 'Database Error', message: allowedErr.message });
@@ -682,7 +687,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
       }
 
       // Generate deterministic UUID
-      const userId = crypto.createHash('sha256').update(request.email).digest('hex').substring(0, 36);
+      const userId = generateDeterministicUUID(request.email);
 
       // Create Profile with temp password
       const newProfile = {
@@ -785,7 +790,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
   MemoryDatabase.allowedEmails.push(newAllowed);
 
   // Generate deterministic UUID
-  const userId = crypto.createHash('sha256').update(request.email).digest('hex').substring(0, 36);
+  const userId = generateDeterministicUUID(request.email);
 
   // Create Profile with temp password
   const newProfile = {
