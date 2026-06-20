@@ -740,12 +740,17 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         .eq('id', id);
 
       const portalName = request.role === 'instructor' ? 'Personal/Docente' : 'Alumnos';
+      const loginUrl = request.role === 'instructor'
+        ? 'https://finnova-staff.onrender.com'
+        : 'https://finnova-academy.onrender.com';
+
       const textContent = `¡Hola ${request.fullName}!
 
-Tu cuenta para ingresar a AuraFi Academy ha sido creada.
+Tu cuenta para ingresar a FinNova Academy ha sido creada.
 Usa las siguientes credenciales para acceder a la plataforma:
 
   - Portal: ${portalName}
+  - Enlace de Acceso: ${loginUrl}
   - Correo: ${request.email}
   - Contraseña Temporal: ${tempPassword}
 
@@ -756,10 +761,11 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
 
       const htmlContent = `
         <h2>¡Hola ${request.fullName}!</h2>
-        <p>Tu cuenta para ingresar a <strong>AuraFi Academy</strong> ha sido creada.</p>
+        <p>Tu cuenta para ingresar a <strong>FinNova Academy</strong> ha sido creada.</p>
         <p>Usa las siguientes credenciales para acceder a la plataforma:</p>
         <ul>
           <li><strong>Portal:</strong> ${portalName}</li>
+          <li><strong>Enlace de Acceso:</strong> <a href="${loginUrl}" target="_blank" style="color: #0d9488; font-weight: bold; text-decoration: underline;">${loginUrl}</a></li>
           <li><strong>Correo:</strong> ${request.email}</li>
           <li><strong>Contraseña Temporal:</strong> <code>${tempPassword}</code></li>
         </ul>
@@ -769,7 +775,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
 
       EmailProvider.sendEmail({
         to: request.email,
-        subject: 'Tu cuenta en AuraFi Academy ha sido creada',
+        subject: 'Tu cuenta en FinNova Academy ha sido creada',
         html: htmlContent,
         text: textContent,
         type: 'credentials'
