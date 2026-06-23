@@ -17,6 +17,7 @@ import { exercisesRouter } from './routes/exercises';
 import { pipelineRouter } from './routes/pipeline';
 import { webhookRouter } from './webhooks/n8n';
 import { simulatorRouter } from './routes/simulator';
+import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
 
 // Constants for ES Module path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -153,6 +154,20 @@ app.get('/api/health', (req: Request, res: Response) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Email queue diagnostics endpoint
+app.get('/api/health/email-queue', async (req: Request, res: Response) => {
+  try {
+    const stats = await getQueueStats();
+    res.status(200).json({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      queue: stats,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Could not fetch queue stats', message: err.message });
+  }
+});
+
 // Production: Host SPA static resources (Solo si existe la ruta localmente en el contenedor)
 const isProduction = process.env.NODE_ENV === 'production';
 if (isProduction) {
@@ -208,5 +223,8 @@ if (process.env.RUN_STANDALONE === 'true' || isProduction || process.env.RENDER)
         }
       })
     );
+
+    // Iniciar worker de cola de correos (reintenta envíos fallidos cada 2 min)
+    startEmailQueueWorker();
   });
 }
