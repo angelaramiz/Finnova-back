@@ -7,7 +7,7 @@ import { Router, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { MemoryDatabase, AllowedEmail, StudentQuestion } from '../lib/memoryDb';
-import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
+import { requireSupabaseAuth, optionalSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { EmailProvider } from '../providers/email';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 
@@ -1118,14 +1118,16 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
  * POST /api/auth/change-password-force
  * Change password when forced (mustChangePassword flag is true)
  */
-authRouter.post('/change-password-force', async (req: any, res: Response): Promise<void> => {
+authRouter.post('/change-password-force', optionalSupabaseAuth, async (req: any, res: Response): Promise<void> => {
   const { email, currentTempPassword, newPassword } = req.body;
-  if (!email || !currentTempPassword || !newPassword) {
+  
+  const normalizedEmail = email?.trim().toLowerCase();
+  const hasValidJwt = req.user && req.user.email?.toLowerCase() === normalizedEmail;
+
+  if (!email || (!currentTempPassword && !hasValidJwt) || !newPassword) {
     res.status(400).json({ error: 'Bad Request', message: 'Faltan campos obligatorios.' });
     return;
   }
-
-  const normalizedEmail = email.trim().toLowerCase();
 
   if (isSupabaseConfigured) {
     try {
@@ -1167,10 +1169,14 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
         mustChangePassword: profile.mustChangePassword,
         hasPasswordHash: !!profile.passwordHash,
         passwordHashPrefix: profile.passwordHash ? profile.passwordHash.substring(0, 8) : 'null',
-        currentTempPasswordSent: currentTempPassword
+        currentTempPasswordSent: currentTempPassword,
+        hasValidJwt
       });
 
-      if (profile.passwordHash) {
+      if (hasValidJwt && profile.id === req.user.id) {
+        console.log('[Auth Debug] change-password-force: Valid JWT token matches profile, bypassing password check');
+        isMatch = true;
+      } else if (profile.passwordHash && currentTempPassword) {
         if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
           isMatch = await bcrypt.compare(currentTempPassword, profile.passwordHash);
         } else {
@@ -1222,7 +1228,9 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
 
   // Validar contraseña localmente
   let isTempMatch = false;
-  if (profile.passwordHash) {
+  if (hasValidJwt && profile.id === req.user.id) {
+    isTempMatch = true;
+  } else if (profile.passwordHash && currentTempPassword) {
     if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
       isTempMatch = bcrypt.compareSync(currentTempPassword, profile.passwordHash);
     } else {
