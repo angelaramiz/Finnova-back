@@ -1289,9 +1289,18 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
         return;
       }
 
+      // Si el perfil tiene mustChangePassword: true, guardamos el hash del otpCode como passwordHash
+      // para que sirva de contraseña temporal en el cambio de contraseña forzado (flujo de reset).
+      const salt = await bcrypt.genSalt(10);
+      const hashedOtp = await bcrypt.hash(otpCode, salt);
+
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ otpCode: null, otpExpires: null })
+        .update({ 
+          otpCode: null, 
+          otpExpires: null,
+          ...(profile.mustChangePassword ? { passwordHash: hashedOtp } : {})
+        })
         .eq('id', profile.id);
 
       if (error) {
@@ -1330,6 +1339,9 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
   // Clear OTP code
   profile.otpCode = undefined;
   profile.otpExpires = undefined;
+  if (profile.mustChangePassword) {
+    profile.passwordHash = bcrypt.hashSync(otpCode, 10);
+  }
 
   // Sign mock JWT token using the HS256 algorithm defined in auth middleware
   const token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
