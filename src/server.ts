@@ -18,6 +18,7 @@ import { pipelineRouter } from './routes/pipeline';
 import { webhookRouter } from './webhooks/n8n';
 import { simulatorRouter } from './routes/simulator';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
+import { supabaseAdmin } from './lib/supabaseClient';
 
 // Constants for ES Module path resolution
 const __filename = fileURLToPath(import.meta.url);
@@ -149,9 +150,44 @@ app.use('/api/pipeline', pipelineRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/simulator', simulatorRouter);
 
-// Health check endpoint
-app.get('/api/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+// Health check endpoint with background pre-warming for database and n8n
+app.get('/api/health', async (req: Request, res: Response) => {
+  // 1. Wake up n8n by sending a non-blocking GET request to its webhook URL
+  const n8nUrl = process.env.N8N_EMAIL_WEBHOOK_URL;
+  if (n8nUrl) {
+    fetch(n8nUrl, { 
+      method: 'GET',
+      signal: AbortSignal.timeout(5000) 
+    }).catch(() => {
+      // Catch errors quietly since GET on POST webhooks usually returns 404/405
+    });
+  }
+
+  // 2. Wake up/query Supabase database (with a 5s timeout to avoid blocking)
+  let dbStatus = 'skipped';
+  try {
+    if (process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('placeholder')) {
+      const dbPromise = supabaseAdmin.from('allowed_emails').select('email').limit(1);
+      const result = await Promise.race([
+        dbPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Database query timeout')), 5000))
+      ]) as any;
+
+      if (result.error) {
+        dbStatus = 'error: ' + result.error.message;
+      } else {
+        dbStatus = 'ok';
+      }
+    }
+  } catch (err: any) {
+    dbStatus = 'error: ' + err.message;
+  }
+
+  res.status(200).json({ 
+    status: 'ok', 
+    db: dbStatus,
+    timestamp: new Date().toISOString() 
+  });
 });
 
 // Email queue diagnostics endpoint
