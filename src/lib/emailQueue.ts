@@ -175,7 +175,7 @@ async function attemptSend(email: QueuedEmail, webhookUrl: string, webhookSecret
         queued:    true,        // indica que es un reintento de cola
         queueId:   email.id,
       }),
-      signal: AbortSignal.timeout(8000), // timeout de 8s
+      signal: AbortSignal.timeout(60000), // timeout de 60s (n8n cold start)
     });
 
     return response.ok;

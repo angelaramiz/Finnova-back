@@ -62,7 +62,7 @@ ${params.text}
           type:      params.type,
           timestamp: new Date().toISOString(),
         }),
-        signal: AbortSignal.timeout(7000), // timeout de 7s
+        signal: AbortSignal.timeout(60000), // timeout de 60s (n8n cold start)
       });
 
       if (response.ok) {
