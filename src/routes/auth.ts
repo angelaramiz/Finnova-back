@@ -1162,6 +1162,14 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
 
       // Validar contraseña temporal encriptada
       let isMatch = false;
+      console.log('[Auth Debug] change-password-force profile:', {
+        id: profile.id,
+        mustChangePassword: profile.mustChangePassword,
+        hasPasswordHash: !!profile.passwordHash,
+        passwordHashPrefix: profile.passwordHash ? profile.passwordHash.substring(0, 8) : 'null',
+        currentTempPasswordSent: currentTempPassword
+      });
+
       if (profile.passwordHash) {
         if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
           isMatch = await bcrypt.compare(currentTempPassword, profile.passwordHash);
@@ -1169,6 +1177,7 @@ authRouter.post('/change-password-force', async (req: any, res: Response): Promi
           isMatch = profile.passwordHash === currentTempPassword;
         }
       }
+      console.log('[Auth Debug] change-password-force isMatch:', isMatch);
 
       if (!isMatch) {
         res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
@@ -1294,13 +1303,24 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
       const salt = await bcrypt.genSalt(10);
       const hashedOtp = await bcrypt.hash(otpCode, salt);
 
+      console.log('[Auth Debug] verify-otp profile:', {
+        id: profile.id,
+        mustChangePassword: profile.mustChangePassword,
+        otpCode: profile.otpCode,
+        hasPasswordHash: !!profile.passwordHash
+      });
+
+      const updatePayload = { 
+        otpCode: null, 
+        otpExpires: null,
+        ...(profile.mustChangePassword ? { passwordHash: hashedOtp } : {})
+      };
+
+      console.log('[Auth Debug] verify-otp updatePayload:', updatePayload);
+
       const { error } = await supabaseAdmin
         .from('profiles')
-        .update({ 
-          otpCode: null, 
-          otpExpires: null,
-          ...(profile.mustChangePassword ? { passwordHash: hashedOtp } : {})
-        })
+        .update(updatePayload)
         .eq('id', profile.id);
 
       if (error) {
