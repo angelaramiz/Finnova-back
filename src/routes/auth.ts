@@ -1630,4 +1630,150 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
   res.status(200).json({ message: 'Código de recuperación enviado (simulación local).' });
 });
 
+/**
+ * GET /api/auth/admin/users
+ * List all users/profiles (Instructor/Admin only)
+ */
+authRouter.get('/admin/users', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const isAuthorized = req.user?.role === 'instructor' || req.user?.role === 'admin';
+  if (!isAuthorized) {
+    res.status(403).json({ error: 'Forbidden', message: 'Restricted to instructors and admins.' });
+    return;
+  }
+
+  const isSupabaseConfigured = isSupabaseReady();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .select('*');
+
+      if (error) {
+        res.status(500).json({ error: 'Database Error', message: error.message });
+        return;
+      }
+
+      const mapped = (data || []).map((p: any) => ({
+        id: p.id,
+        fullName: p.fullName || p.full_name,
+        email: p.email || '',
+        role: p.role,
+        verifiedIdentity: p.verifiedIdentity || p.verified_identity || false,
+        points: p.pointsEarned || p.points_earned || 0
+      }));
+
+      res.status(200).json(mapped);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  const mapped = MemoryDatabase.profiles.map(p => {
+    const allowed = MemoryDatabase.allowedEmails.find(a => a.fullName === p.fullName);
+    return {
+      id: p.id,
+      fullName: p.fullName,
+      email: allowed?.email || '',
+      role: p.role,
+      verifiedIdentity: true,
+      points: p.pointsEarned
+    };
+  });
+
+  res.status(200).json(mapped);
+});
+
+/**
+ * POST /api/auth/admin/users/:id/role
+ * Toggle or update user role (Admin only)
+ */
+authRouter.post('/admin/users/:id/role', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden', message: 'Restricted to administrators.' });
+    return;
+  }
+
+  const { id } = req.params;
+  const { role } = req.body;
+  const isSupabaseConfigured = isSupabaseReady();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .update({ role })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+
+      if (error || !data) {
+        res.status(404).json({ error: 'Not Found', message: 'Profile not found.' });
+        return;
+      }
+
+      res.status(200).json({ success: true, profile: data });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  const profile = MemoryDatabase.profiles.find(p => p.id === id);
+  if (!profile) {
+    res.status(404).json({ error: 'Not Found', message: 'Profile not found.' });
+    return;
+  }
+
+  profile.role = role;
+  res.status(200).json({ success: true, profile });
+});
+
+/**
+ * POST /api/auth/admin/users/:id/kyc
+ * Toggle user KYC status (Admin only)
+ */
+authRouter.post('/admin/users/:id/kyc', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (req.user?.role !== 'admin') {
+    res.status(403).json({ error: 'Forbidden', message: 'Restricted to administrators.' });
+    return;
+  }
+
+  const { id } = req.params;
+  const { verifiedIdentity } = req.body;
+  const isSupabaseConfigured = isSupabaseReady();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('profiles')
+        .update({ verified_identity: verifiedIdentity })
+        .eq('id', id)
+        .select()
+        .maybeSingle();
+
+      if (error || !data) {
+        res.status(404).json({ error: 'Not Found', message: 'Profile not found.' });
+        return;
+      }
+
+      res.status(200).json({ success: true, profile: data });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  const profile = MemoryDatabase.profiles.find(p => p.id === id);
+  if (!profile) {
+    res.status(404).json({ error: 'Not Found', message: 'Profile not found.' });
+    return;
+  }
+
+  (profile as any).verifiedIdentity = verifiedIdentity;
+  res.status(200).json({ success: true, profile });
+});
+
+
 
