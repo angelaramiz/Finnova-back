@@ -1605,7 +1605,7 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
       id: Math.random().toString(36).substring(2, 9),
       email: normalizedEmail,
       fullName,
-      role: profile.role,
+      role: profile.role as 'student' | 'instructor',
       specialty: 'PASSWORD_RESET',
       status: 'pending',
       createdAt: new Date().toISOString()
