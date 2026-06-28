@@ -1010,6 +1010,12 @@ authRouter.post('/login-credentials', async (req: any, res: Response): Promise<v
         return;
       }
 
+      if (process.env.DISABLE_OTP === 'true') {
+        const token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+        res.status(200).json({ token, profile });
+        return;
+      }
+
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
@@ -1080,6 +1086,12 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
   // Check if password must be changed first
   if (profile.mustChangePassword) {
     res.status(200).json({ status: 'MUST_CHANGE_PASSWORD', email: normalizedEmail });
+    return;
+  }
+
+  if (process.env.DISABLE_OTP === 'true') {
+    const token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+    res.status(200).json({ token, profile });
     return;
   }
 
