@@ -671,6 +671,56 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
       const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(tempPassword, salt);
 
+      // 1. Check if auth user already exists in auth.users
+      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+      let authUser = authUsers?.users?.find((u: any) => u.email === request.email);
+
+      let targetUserId: string;
+
+      if (request.specialty === 'PASSWORD_RESET') {
+        if (!authUser) {
+          res.status(404).json({ error: 'Not Found', message: 'Usuario no encontrado en la base de datos de autenticación.' });
+          return;
+        }
+        targetUserId = authUser.id;
+
+        // Update password in Supabase Auth
+        const { error: authErr } = await supabaseAdmin.auth.admin.updateUserById(targetUserId, {
+          password: tempPassword
+        });
+        if (authErr) {
+          res.status(500).json({ error: 'Auth Update Error', message: authErr.message });
+          return;
+        }
+
+        // Update profile in profiles
+        const { error: profileErr } = await supabaseAdmin
+          .from('profiles')
+          .update({
+            passwordHash: hashedPassword,
+            mustChangePassword: true,
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', targetUserId);
+
+        if (profileErr) {
+          res.status(500).json({ error: 'Database Error', message: profileErr.message });
+          return;
+        }
+
+        await supabaseAdmin
+          .from('account_requests')
+          .update({ status: 'approved' })
+          .eq('id', id);
+
+        res.status(200).json({
+          message: 'Solicitud de recuperación aprobada y nueva contraseña asignada.',
+          tempPassword,
+          request: { ...request, status: 'approved' }
+        });
+        return;
+      }
+
       // Create allowedEmail record
       const { error: allowedErr } = await supabaseAdmin
         .from('allowed_emails')
@@ -685,12 +735,6 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         res.status(500).json({ error: 'Database Error', message: allowedErr.message });
         return;
       }
-
-      // 1. Check if auth user already exists in auth.users
-      const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      let authUser = authUsers?.users?.find((u: any) => u.email === request.email);
-
-      let targetUserId: string;
 
       if (!authUser) {
         // Create the user in Supabase auth.users
@@ -809,6 +853,21 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
 
   // Encriptar la contraseña temporal usando bcryptjs
   const hashedPassword = bcrypt.hashSync(tempPassword, 10);
+
+  if (request.specialty === 'PASSWORD_RESET') {
+    const profile = MemoryDatabase.profiles.find(p => p.fullName === request.fullName.replace('[RECUPERACIÓN] ', ''));
+    if (profile) {
+      profile.passwordHash = hashedPassword;
+      profile.mustChangePassword = true;
+    }
+    request.status = 'approved';
+    res.status(200).json({
+      message: 'Solicitud de recuperación aprobada y nueva contraseña asignada.',
+      tempPassword,
+      request
+    });
+    return;
+  }
 
   // Create allowedEmail record
   const newAllowed = {
@@ -1426,6 +1485,56 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
         return;
       }
 
+      if (process.env.DISABLE_OTP === 'true') {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('id', authUser.id)
+          .maybeSingle();
+
+        const fullName = profile ? `[RECUPERACIÓN] ${profile.fullName}` : `[RECUPERACIÓN] Usuario`;
+        const role = profile ? profile.role : 'student';
+
+        // Check if there is already a pending reset request to avoid duplicates
+        const { data: existing } = await supabaseAdmin
+          .from('account_requests')
+          .select('*')
+          .eq('email', normalizedEmail)
+          .eq('specialty', 'PASSWORD_RESET')
+          .eq('status', 'pending')
+          .maybeSingle();
+
+        if (existing) {
+          res.status(200).json({
+            status: 'ADMIN_APPROVAL_REQUIRED',
+            message: 'Ya tienes una solicitud de recuperación pendiente de aprobación. Comunícate con el administrador.'
+          });
+          return;
+        }
+
+        const { error: reqError } = await supabaseAdmin
+          .from('account_requests')
+          .insert({
+            email: normalizedEmail,
+            fullName,
+            role,
+            specialty: 'PASSWORD_RESET',
+            status: 'pending',
+            createdAt: new Date().toISOString()
+          });
+
+        if (reqError) {
+          res.status(500).json({ error: 'Database Error', message: reqError.message });
+          return;
+        }
+
+        res.status(200).json({
+          status: 'ADMIN_APPROVAL_REQUIRED',
+          message: 'Solicitud de recuperación registrada. El administrador debe aprobarla y proporcionarte tu contraseña temporal.'
+        });
+        return;
+      }
+
       // Generar OTP para recuperación
       const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min expiración para reset
@@ -1477,6 +1586,35 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
 
   if (!profile) {
     res.status(404).json({ error: 'Not Found', message: 'La cuenta de correo no existe.' });
+    return;
+  }
+
+  if (process.env.DISABLE_OTP === 'true') {
+    const fullName = `[RECUPERACIÓN] ${profile.fullName}`;
+    // Check if there is already a pending request to avoid duplicates
+    const existing = MemoryDatabase.accountRequests.find(r => r.email === normalizedEmail && r.specialty === 'PASSWORD_RESET' && r.status === 'pending');
+    if (existing) {
+      res.status(200).json({
+        status: 'ADMIN_APPROVAL_REQUIRED',
+        message: 'Ya tienes una solicitud de recuperación pendiente. Comunícate con el administrador.'
+      });
+      return;
+    }
+
+    MemoryDatabase.accountRequests.push({
+      id: Math.random().toString(36).substring(2, 9),
+      email: normalizedEmail,
+      fullName,
+      role: profile.role,
+      specialty: 'PASSWORD_RESET',
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    });
+
+    res.status(200).json({
+      status: 'ADMIN_APPROVAL_REQUIRED',
+      message: 'Solicitud de recuperación registrada. El administrador debe aprobarla y proporcionarte tu contraseña temporal.'
+    });
     return;
   }
 
