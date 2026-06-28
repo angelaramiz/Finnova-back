@@ -16,6 +16,8 @@ const CourseCreateSchema = z.object({
   description: z.string().min(10),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   imageUrl: z.string().url().optional(),
+  category: z.string().optional(),
+  learningPath: z.string().optional(),
 });
 
 function mapCourse(dbCourse: any) {
@@ -29,6 +31,8 @@ function mapCourse(dbCourse: any) {
     imageUrl: dbCourse.image_url,
     instructorId: dbCourse.instructor_id,
     isPublished: dbCourse.is_published,
+    category: dbCourse.category,
+    learningPath: dbCourse.learning_path,
     createdAt: dbCourse.created_at
   };
 }
@@ -46,6 +50,7 @@ function mapClip(dbClip: any) {
     sequenceOrder: dbClip.sequence_order,
     status: dbClip.status,
     section: dbClip.section,
+    videoFormat: dbClip.video_format || '9:16',
     createdAt: dbClip.created_at
   };
 }
@@ -232,7 +237,7 @@ coursesRouter.post('/', requireSupabaseAuth, async (req: AuthenticatedRequest, r
      return;
   }
 
-  const { title, description, difficulty, imageUrl } = parseResult.data;
+  const { title, description, difficulty, imageUrl, category, learningPath } = parseResult.data;
   const isSupabaseConfigured = isSupabaseReady();
 
   if (isSupabaseConfigured) {
@@ -247,7 +252,9 @@ coursesRouter.post('/', requireSupabaseAuth, async (req: AuthenticatedRequest, r
           slug,
           image_url: imageUrl || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&q=80&w=600',
           instructor_id: req.user.id,
-          is_published: false
+          is_published: false,
+          category: category || 'General',
+          learning_path: learningPath || 'Ruta General'
         })
         .select()
         .maybeSingle();
@@ -273,6 +280,8 @@ coursesRouter.post('/', requireSupabaseAuth, async (req: AuthenticatedRequest, r
     imageUrl: imageUrl || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&q=80&w=600',
     instructorId: req.user.id,
     isPublished: false,
+    category: category || 'General',
+    learningPath: learningPath || 'Ruta General',
     createdAt: new Date().toISOString(),
   };
 
@@ -291,7 +300,7 @@ coursesRouter.put('/:id', requireSupabaseAuth, async (req: AuthenticatedRequest,
   }
 
   const { id } = req.params;
-  const { title, description, difficulty, imageUrl, isPublished } = req.body;
+  const { title, description, difficulty, imageUrl, isPublished, category, learningPath } = req.body;
   const isSupabaseConfigured = isSupabaseReady();
 
   if (isSupabaseConfigured) {
@@ -305,6 +314,8 @@ coursesRouter.put('/:id', requireSupabaseAuth, async (req: AuthenticatedRequest,
       if (difficulty !== undefined) updateData.difficulty = difficulty;
       if (imageUrl !== undefined) updateData.image_url = imageUrl;
       if (isPublished !== undefined) updateData.is_published = !!isPublished;
+      if (category !== undefined) updateData.category = category;
+      if (learningPath !== undefined) updateData.learning_path = learningPath;
 
       const { data: updatedCourse, error } = await supabaseAdmin
         .from('courses')
@@ -344,6 +355,8 @@ coursesRouter.put('/:id', requireSupabaseAuth, async (req: AuthenticatedRequest,
   if (difficulty !== undefined) course.difficulty = difficulty;
   if (imageUrl !== undefined) course.imageUrl = imageUrl;
   if (isPublished !== undefined) course.isPublished = !!isPublished;
+  if (category !== undefined) course.category = category;
+  if (learningPath !== undefined) course.learningPath = learningPath;
 
   res.status(200).json(course);
 });
@@ -407,7 +420,7 @@ coursesRouter.post('/:id/clips', requireSupabaseAuth, async (req: AuthenticatedR
   }
 
   const { id } = req.params;
-  const { title, description, videoUrl, duration, sequenceOrder, section } = req.body;
+  const { title, description, videoUrl, duration, sequenceOrder, section, videoFormat } = req.body;
 
   if (!title || !videoUrl) {
     res.status(400).json({ error: 'Bad Request', message: 'Title and videoUrl are required.' });
@@ -429,7 +442,8 @@ coursesRouter.post('/:id/clips', requireSupabaseAuth, async (req: AuthenticatedR
           duration: Number(duration) || 60,
           sequence_order: Number(sequenceOrder) || 1,
           status: 'approved',
-          section: section || 'General'
+          section: section || 'General',
+          video_format: videoFormat || '9:16'
         })
         .select()
         .maybeSingle();
@@ -457,6 +471,7 @@ coursesRouter.post('/:id/clips', requireSupabaseAuth, async (req: AuthenticatedR
     sequenceOrder: Number(sequenceOrder) || 1,
     status: 'approved' as const,
     section: section || 'General',
+    videoFormat: videoFormat || '9:16',
   };
 
   MemoryDatabase.clips.push(newClip);
@@ -474,7 +489,7 @@ coursesRouter.put('/:id/clips/:clipId', requireSupabaseAuth, async (req: Authent
   }
 
   const { id, clipId } = req.params;
-  const { title, description, videoUrl, duration, sequenceOrder, section } = req.body;
+  const { title, description, videoUrl, duration, sequenceOrder, section, videoFormat } = req.body;
   const isSupabaseConfigured = isSupabaseReady();
 
   if (isSupabaseConfigured) {
@@ -486,6 +501,7 @@ coursesRouter.put('/:id/clips/:clipId', requireSupabaseAuth, async (req: Authent
       if (duration !== undefined) updateData.duration = Number(duration);
       if (sequenceOrder !== undefined) updateData.sequence_order = Number(sequenceOrder);
       if (section !== undefined) updateData.section = section;
+      if (videoFormat !== undefined) updateData.video_format = videoFormat;
 
       const { data: updatedClip, error } = await supabaseAdmin
         .from('clips')
@@ -524,6 +540,7 @@ coursesRouter.put('/:id/clips/:clipId', requireSupabaseAuth, async (req: Authent
   if (duration !== undefined) clip.duration = Number(duration);
   if (sequenceOrder !== undefined) clip.sequenceOrder = Number(sequenceOrder);
   if (section !== undefined) clip.section = section;
+  if (videoFormat !== undefined) clip.videoFormat = videoFormat;
 
   res.status(200).json(clip);
 });

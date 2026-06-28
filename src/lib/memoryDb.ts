@@ -36,6 +36,8 @@ export interface Course {
   imageUrl: string;
   instructorId: string;
   isPublished: boolean;
+  category?: string;
+  learningPath?: string;
   createdAt: string;
 }
 
@@ -50,6 +52,7 @@ export interface Clip {
   sequenceOrder: number;
   status: 'draft' | 'reviewing' | 'approved';
   section?: string;
+  videoFormat?: '9:16' | '16:9';
 }
 
 export interface UserProgress {
@@ -200,6 +203,8 @@ export class MemoryDatabase {
       imageUrl: 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&q=80&w=600',
       instructorId: '11111111-1111-1111-1111-111111111111',
       isPublished: true,
+      category: 'Finanzas Corporativas',
+      learningPath: 'Ruta Máster en Finanzas',
       createdAt: new Date().toISOString(),
     },
     {
@@ -211,6 +216,8 @@ export class MemoryDatabase {
       imageUrl: 'https://images.unsplash.com/photo-1590283603385-17ffb3a7f29f?auto=format&fit=crop&q=80&w=600',
       instructorId: '11111111-1111-1111-1111-111111111111',
       isPublished: true,
+      category: 'Inversión y Mercados de Capitales',
+      learningPath: 'Ruta de Análisis de Inversiones',
       createdAt: new Date().toISOString(),
     },
   ];
@@ -227,6 +234,7 @@ export class MemoryDatabase {
       sequenceOrder: 1,
       status: 'approved',
       section: 'Fundamentos de Crecimiento',
+      videoFormat: '9:16',
     },
     {
       id: 'f0000001-0000-0000-0000-000000000002',
@@ -239,6 +247,7 @@ export class MemoryDatabase {
       sequenceOrder: 2,
       status: 'approved',
       section: 'Fundamentos de Crecimiento',
+      videoFormat: '9:16',
     },
     {
       id: 'f0000002-0000-0000-0000-000000000001',
@@ -251,6 +260,7 @@ export class MemoryDatabase {
       sequenceOrder: 1,
       status: 'approved',
       section: 'Múltiplos de Valuación',
+      videoFormat: '9:16',
     },
     {
       id: 'f0000002-0000-0000-0000-000000000002',
@@ -263,6 +273,7 @@ export class MemoryDatabase {
       sequenceOrder: 2,
       status: 'approved',
       section: 'Múltiplos de Valuación',
+      videoFormat: '9:16',
     },
   ];
 
