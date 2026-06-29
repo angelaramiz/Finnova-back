@@ -33,12 +33,13 @@ export const app = express();
 // Set up rawBody preservation for Webhook HMAC Cryptographic checks
 app.use(
   express.json({
+    limit: '10mb',
     verify: (req: any, res, buf) => {
       req.rawBody = buf;
     },
   })
 );
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // Memory rate limiter mapping IPs to request counts
 const rateLimitWindow = 60 * 1000; // 1 minute

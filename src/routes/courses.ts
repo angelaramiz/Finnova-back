@@ -15,7 +15,7 @@ const CourseCreateSchema = z.object({
   title: z.string().min(5),
   description: z.string().min(10),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
-  imageUrl: z.string().url().optional(),
+  imageUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
   category: z.string().optional(),
   learningPath: z.string().optional(),
 });
@@ -588,4 +588,56 @@ coursesRouter.delete('/:id/clips/:clipId', requireSupabaseAuth, async (req: Auth
   MemoryDatabase.exercises = MemoryDatabase.exercises.filter(ex => ex.clipId !== clipId);
 
   res.status(200).json({ success: true, message: 'Clip deleted.' });
+});
+
+/**
+ * POST /api/courses/upload-image
+ * Upload a base64 course image to Supabase Storage or return base64 fallback.
+ */
+coursesRouter.post('/upload-image', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { base64Image } = req.body;
+  if (!base64Image) {
+    res.status(400).json({ error: 'Bad Request', message: 'Se requiere la imagen en base64.' });
+    return;
+  }
+
+  const isSupabaseConfigured = isSupabaseReady();
+  if (isSupabaseConfigured) {
+    try {
+      const match = base64Image.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!match) {
+        res.status(400).json({ error: 'Bad Request', message: 'Formato de base64 no válido.' });
+        return;
+      }
+      const contentType = match[1];
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+      const fileName = `course_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.png`;
+
+      await supabaseAdmin.storage.createBucket('course-images', { public: true });
+
+      const { data, error } = await supabaseAdmin.storage
+        .from('course-images')
+        .upload(fileName, buffer, {
+          contentType,
+          upsert: true
+        });
+
+      if (error) {
+        res.status(500).json({ error: 'Storage Error', message: error.message });
+        return;
+      }
+
+      const { data: publicUrlData } = supabaseAdmin.storage
+        .from('course-images')
+        .getPublicUrl(fileName);
+
+      res.status(200).json({ imageUrl: publicUrlData.publicUrl });
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  res.status(200).json({ imageUrl: base64Image });
 });
