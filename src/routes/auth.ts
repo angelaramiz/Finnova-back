@@ -1512,6 +1512,12 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
           return;
         }
 
+        // Delete any old processed requests (approved/rejected) to avoid email unique constraint violation
+        await supabaseAdmin
+          .from('account_requests')
+          .delete()
+          .eq('email', normalizedEmail);
+
         const { error: reqError } = await supabaseAdmin
           .from('account_requests')
           .insert({
@@ -1601,6 +1607,9 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
       });
       return;
     }
+
+    // Filter out old approved/rejected requests for this email to avoid duplicate simulation
+    MemoryDatabase.accountRequests = MemoryDatabase.accountRequests.filter(r => r.email !== normalizedEmail);
 
     MemoryDatabase.accountRequests.push({
       id: Math.random().toString(36).substring(2, 9),
