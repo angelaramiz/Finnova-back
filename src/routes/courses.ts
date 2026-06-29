@@ -28,12 +28,12 @@ function mapCourse(dbCourse: any) {
     description: dbCourse.description,
     difficulty: dbCourse.difficulty,
     slug: dbCourse.slug,
-    imageUrl: dbCourse.image_url,
-    instructorId: dbCourse.instructor_id,
-    isPublished: dbCourse.is_published,
+    imageUrl: dbCourse.imageUrl !== undefined ? dbCourse.imageUrl : dbCourse.image_url,
+    instructorId: dbCourse.instructorId !== undefined ? dbCourse.instructorId : dbCourse.instructor_id,
+    isPublished: dbCourse.isPublished !== undefined ? dbCourse.isPublished : dbCourse.is_published,
     category: dbCourse.category,
-    learningPath: dbCourse.learning_path,
-    createdAt: dbCourse.created_at
+    learningPath: dbCourse.learningPath !== undefined ? dbCourse.learningPath : dbCourse.learning_path,
+    createdAt: dbCourse.createdAt !== undefined ? dbCourse.createdAt : dbCourse.created_at
   };
 }
 
@@ -41,17 +41,17 @@ function mapClip(dbClip: any) {
   if (!dbClip) return null;
   return {
     id: dbClip.id,
-    courseId: dbClip.course_id,
+    courseId: dbClip.courseId !== undefined ? dbClip.courseId : dbClip.course_id,
     title: dbClip.title,
     description: dbClip.description,
-    videoProviderId: dbClip.video_provider_id,
-    videoUrl: dbClip.video_url,
+    videoProviderId: dbClip.videoProviderId !== undefined ? dbClip.videoProviderId : dbClip.video_provider_id,
+    videoUrl: dbClip.videoUrl !== undefined ? dbClip.videoUrl : dbClip.video_url,
     duration: dbClip.duration,
-    sequenceOrder: dbClip.sequence_order,
+    sequenceOrder: dbClip.sequenceOrder !== undefined ? dbClip.sequenceOrder : dbClip.sequence_order,
     status: dbClip.status,
     section: dbClip.section,
-    videoFormat: dbClip.video_format || '9:16',
-    createdAt: dbClip.created_at
+    videoFormat: dbClip.videoFormat !== undefined ? dbClip.videoFormat : (dbClip.video_format || '9:16'),
+    createdAt: dbClip.createdAt !== undefined ? dbClip.createdAt : dbClip.created_at
   };
 }
 
@@ -59,14 +59,14 @@ function mapExercise(dbEx: any) {
   if (!dbEx) return null;
   return {
     id: dbEx.id,
-    clipId: dbEx.clip_id,
+    clipId: dbEx.clipId !== undefined ? dbEx.clipId : dbEx.clip_id,
     title: dbEx.title,
-    exerciseType: dbEx.exercise_type,
+    exerciseType: dbEx.exerciseType !== undefined ? dbEx.exerciseType : dbEx.exercise_type,
     question: dbEx.question,
     prompt: dbEx.prompt,
-    correctAnswer: dbEx.correct_answer,
+    correctAnswer: dbEx.correctAnswer !== undefined ? dbEx.correctAnswer : dbEx.correct_answer,
     rubrics: dbEx.rubrics,
-    maxPoints: dbEx.max_points
+    maxPoints: dbEx.maxPoints !== undefined ? dbEx.maxPoints : dbEx.max_points
   };
 }
 
@@ -164,9 +164,9 @@ coursesRouter.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
       const { data: clips, error: clipsErr } = await supabaseAdmin
         .from('clips')
         .select('*')
-        .eq('course_id', id)
+        .eq('courseId', id)
         .eq('status', 'approved')
-        .order('sequence_order', { ascending: true });
+        .order('sequenceOrder', { ascending: true });
 
       if (clipsErr) {
         res.status(500).json({ error: 'Database Error', message: clipsErr.message });
@@ -178,7 +178,7 @@ coursesRouter.get('/:id', async (req: AuthenticatedRequest, res: Response) => {
         const { data: exercises, error: exErr } = await supabaseAdmin
           .from('exercises')
           .select('*')
-          .eq('clip_id', clip.id);
+          .eq('clipId', clip.id);
         
         clipsWithExercises.push({
           ...mapClip(clip),
@@ -250,9 +250,9 @@ coursesRouter.post('/', requireSupabaseAuth, async (req: AuthenticatedRequest, r
           description,
           difficulty,
           slug,
-          image_url: imageUrl || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&q=80&w=600',
-          instructor_id: req.user.id,
-          is_published: false,
+          imageUrl: imageUrl || 'https://images.unsplash.com/photo-1559526324-4b87b5e36e44?auto=format&fit=crop&q=80&w=600',
+          instructorId: req.user.id,
+          isPublished: false,
           category: category || 'General',
           learning_path: learningPath || 'Ruta General'
         })
@@ -312,8 +312,8 @@ coursesRouter.put('/:id', requireSupabaseAuth, async (req: AuthenticatedRequest,
       }
       if (description !== undefined) updateData.description = description;
       if (difficulty !== undefined) updateData.difficulty = difficulty;
-      if (imageUrl !== undefined) updateData.image_url = imageUrl;
-      if (isPublished !== undefined) updateData.is_published = !!isPublished;
+      if (imageUrl !== undefined) updateData.imageUrl = imageUrl;
+      if (isPublished !== undefined) updateData.isPublished = !!isPublished;
       if (category !== undefined) updateData.category = category;
       if (learningPath !== undefined) updateData.learning_path = learningPath;
 
@@ -434,16 +434,16 @@ coursesRouter.post('/:id/clips', requireSupabaseAuth, async (req: AuthenticatedR
       const { data: newClip, error } = await supabaseAdmin
         .from('clips')
         .insert({
-          course_id: id,
+          courseId: id,
           title,
           description: description || '',
-          video_provider_id: `local-provider-${Math.random().toString(36).substring(5)}`,
-          video_url: videoUrl,
+          videoProviderId: `local-provider-${Math.random().toString(36).substring(5)}`,
+          videoUrl: videoUrl,
           duration: Number(duration) || 60,
-          sequence_order: Number(sequenceOrder) || 1,
+          sequenceOrder: Number(sequenceOrder) || 1,
           status: 'approved',
           section: section || 'General',
-          video_format: videoFormat || '9:16'
+          videoFormat: videoFormat || '9:16'
         })
         .select()
         .maybeSingle();
@@ -497,17 +497,17 @@ coursesRouter.put('/:id/clips/:clipId', requireSupabaseAuth, async (req: Authent
       const updateData: any = {};
       if (title !== undefined) updateData.title = title;
       if (description !== undefined) updateData.description = description;
-      if (videoUrl !== undefined) updateData.video_url = videoUrl;
+      if (videoUrl !== undefined) updateData.videoUrl = videoUrl;
       if (duration !== undefined) updateData.duration = Number(duration);
-      if (sequenceOrder !== undefined) updateData.sequence_order = Number(sequenceOrder);
+      if (sequenceOrder !== undefined) updateData.sequenceOrder = Number(sequenceOrder);
       if (section !== undefined) updateData.section = section;
-      if (videoFormat !== undefined) updateData.video_format = videoFormat;
+      if (videoFormat !== undefined) updateData.videoFormat = videoFormat;
 
       const { data: updatedClip, error } = await supabaseAdmin
         .from('clips')
         .update(updateData)
         .eq('id', clipId)
-        .eq('course_id', id)
+        .eq('courseId', id)
         .select()
         .maybeSingle();
 
@@ -564,7 +564,7 @@ coursesRouter.delete('/:id/clips/:clipId', requireSupabaseAuth, async (req: Auth
         .from('clips')
         .delete()
         .eq('id', clipId)
-        .eq('course_id', id);
+        .eq('courseId', id);
 
       if (error) {
         res.status(500).json({ error: 'Database Error', message: error.message });
