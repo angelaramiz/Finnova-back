@@ -12,8 +12,8 @@ import { z } from 'zod';
 export const coursesRouter = Router();
 
 const CourseCreateSchema = z.object({
-  title: z.string().min(5),
-  description: z.string().min(10),
+  title: z.string().min(2),
+  description: z.string().min(2),
   difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
   imageUrl: z.string().url().optional().or(z.literal('')).or(z.null()),
   category: z.string().optional(),
