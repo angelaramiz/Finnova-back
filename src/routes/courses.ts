@@ -106,7 +106,32 @@ coursesRouter.get('/', optionalSupabaseAuth, async (req: AuthenticatedRequest, r
         return;
       }
 
-      res.status(200).json((data || []).map(mapCourse));
+      // Fetch clips for these courses to populate list for the frontends
+      const courseIds = (data || []).map(c => c.id);
+      let clipsData: any[] = [];
+      if (courseIds.length > 0) {
+        const { data: clips, error: clipsError } = await supabaseAdmin
+          .from('clips')
+          .select('*')
+          .in('courseId', courseIds)
+          .order('sequenceOrder', { ascending: true });
+        if (!clipsError && clips) {
+          clipsData = clips;
+        }
+      }
+
+      const mapped = (data || []).map(dbCourse => {
+        const course = mapCourse(dbCourse);
+        const courseClips = clipsData
+          .filter(clip => (clip.courseId || clip.course_id) === dbCourse.id)
+          .map(mapClip);
+        return {
+          ...course,
+          clips: courseClips
+        };
+      });
+
+      res.status(200).json(mapped);
     } catch (err: any) {
       res.status(500).json({ error: 'Internal Server Error', message: err.message });
     }
@@ -132,7 +157,17 @@ coursesRouter.get('/', optionalSupabaseAuth, async (req: AuthenticatedRequest, r
     list = list.filter(c => c.difficulty === difficulty);
   }
 
-  res.status(200).json(list);
+  const listWithClips = list.map(course => {
+    const courseClips = MemoryDatabase.clips
+      .filter(clip => clip.courseId === course.id)
+      .sort((a, b) => a.sequenceOrder - b.sequenceOrder);
+    return {
+      ...course,
+      clips: courseClips
+    };
+  });
+
+  res.status(200).json(listWithClips);
 });
 
 /**
