@@ -8,8 +8,16 @@ import { MemoryDatabase } from '../lib/memoryDb';
 import { requireSupabaseAuth, optionalSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { z } from 'zod';
+import multer from 'multer';
+import { exec } from 'child_process';
+import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 export const coursesRouter = Router();
+
+// Setup multer temporary storage
+const upload = multer({ dest: os.tmpdir() });
 
 const CourseCreateSchema = z.object({
   title: z.string().min(2),
@@ -675,4 +683,78 @@ coursesRouter.post('/upload-image', requireSupabaseAuth, async (req: Authenticat
   }
 
   res.status(200).json({ imageUrl: base64Image });
+});
+
+/**
+ * POST /api/courses/upload-video
+ * Upload a local video file, optimize it via FFmpeg (H.264), and save it to Supabase Storage.
+ */
+coursesRouter.post('/upload-video', requireSupabaseAuth, upload.single('video'), async (req: AuthenticatedRequest, res: Response) => {
+  if (req.user?.role !== 'instructor' && req.user?.role !== 'admin') {
+     res.status(403).json({ error: 'Forbidden', message: 'Restricted to instructors or admins.' });
+     return;
+  }
+
+  const file = req.file;
+  if (!file) {
+    res.status(400).json({ error: 'Bad Request', message: 'No video file uploaded.' });
+    return;
+  }
+
+  const isSupabaseConfigured = isSupabaseReady();
+  if (!isSupabaseConfigured) {
+    res.status(200).json({ videoUrl: `https://mock-storage.com/videos/${file.originalname}` });
+    return;
+  }
+
+  const inputPath = file.path;
+  const outputFileName = `optimized_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.mp4`;
+  const outputPath = path.join(os.tmpdir(), outputFileName);
+
+  try {
+    // 1. Optimize video via FFmpeg (MP4 H.264 / AAC)
+    await new Promise<void>((resolve, reject) => {
+      exec(`ffmpeg -i "${inputPath}" -vcodec libx264 -crf 23 -preset fast -pix_fmt yuv420p -acodec aac -b:a 128k -y "${outputPath}"`, (err, stdout, stderr) => {
+        if (err) {
+          console.error('FFmpeg error:', stderr);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+
+    // 2. Read optimized file into buffer
+    const optimizedBuffer = await fs.promises.readFile(outputPath);
+
+    // 3. Create bucket in Supabase if it doesn't exist
+    await supabaseAdmin.storage.createBucket('course-videos', { public: true });
+
+    // 4. Upload optimized video to Supabase Storage
+    const { data, error } = await supabaseAdmin.storage
+      .from('course-videos')
+      .upload(outputFileName, optimizedBuffer, {
+        contentType: 'video/mp4',
+        upsert: true
+      });
+
+    if (error) {
+      res.status(500).json({ error: 'Storage Error', message: error.message });
+      return;
+    }
+
+    // 5. Get public URL
+    const { data: publicUrlData } = supabaseAdmin.storage
+      .from('course-videos')
+      .getPublicUrl(outputFileName);
+
+    res.status(200).json({ videoUrl: publicUrlData.publicUrl });
+  } catch (err: any) {
+    console.error('Error optimizing/uploading video:', err);
+    res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  } finally {
+    // Clean up temporary files asynchronously
+    fs.unlink(inputPath, () => {});
+    fs.unlink(outputPath, () => {});
+  }
 });
