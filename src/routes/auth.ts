@@ -673,7 +673,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
 
       // 1. Check if auth user already exists in auth.users
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      let authUser = authUsers?.users?.find((u: any) => u.email === request.email);
+      let authUser = authUsers?.users?.find((u: any) => u.email?.toLowerCase() === request.email.toLowerCase());
 
       let targetUserId: string;
 
@@ -1030,7 +1030,7 @@ authRouter.post('/login-credentials', async (req: any, res: Response): Promise<v
 
       // Buscar perfil directamente por email en auth.users → luego por su id en profiles
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find((u: any) => u.email === normalizedEmail);
+      const authUser = authUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
       if (!authUser) {
         res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas.' });
@@ -1215,7 +1215,7 @@ authRouter.post('/change-password-force', optionalSupabaseAuth, async (req: any,
 
       // Buscar perfil por email en auth.users → id en profiles
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find((u: any) => u.email === normalizedEmail);
+      const authUser = authUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
       if (!authUser) {
         res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
@@ -1478,7 +1478,7 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
       }
 
       const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
-      const authUser = authUsers?.users?.find((u: any) => u.email === normalizedEmail);
+      const authUser = authUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
 
       if (!authUser) {
         res.status(404).json({ error: 'Not Found', message: 'La cuenta no tiene un perfil activo en la base de datos de autenticación.' });
@@ -1515,6 +1515,7 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
         const { error: reqError } = await supabaseAdmin
           .from('account_requests')
           .insert({
+            id: `req-${Math.random().toString(36).substring(2, 10)}`,
             email: normalizedEmail,
             fullName,
             role,
