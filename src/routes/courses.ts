@@ -93,7 +93,7 @@ coursesRouter.get('/', optionalSupabaseAuth, async (req: AuthenticatedRequest, r
       }
 
       if (!isInstructor) {
-        query = query.eq('is_published', true);
+        query = query.eq('isPublished', true);
       }
 
       if (difficulty) {
