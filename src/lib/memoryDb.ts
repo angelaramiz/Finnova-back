@@ -149,32 +149,7 @@ export class MemoryDatabase {
     }
   ];
 
-  static questions: StudentQuestion[] = [
-    {
-      id: 'q1',
-      studentId: '22222222-2222-2222-2222-222222222222',
-      studentName: 'Inversor Novato',
-      courseId: 'c0000000-0000-0000-0000-000000000001',
-      courseTitle: 'Mentalidad y Fundamentos de Inversión',
-      clipId: 'f0000001-0000-0000-0000-000000000001',
-      clipTitle: 'El Superpoder del Interés Compuesto',
-      questionText: '¿Por qué el interés compuesto se acelera tanto después del año 10 en la proyección?',
-      replyText: 'Es por la naturaleza de la función exponencial. Al principio, los intereses se calculan sobre una base pequeña. Con el tiempo, los intereses acumulados se suman al capital principal, haciendo que la base crezca exponencialmente y la curva se dispare verticalmente.',
-      createdAt: new Date(Date.now() - 3600000 * 24).toISOString(), // 1 day ago
-      repliedAt: new Date(Date.now() - 3600000 * 23.5).toISOString() // 23.5 hours ago
-    },
-    {
-      id: 'q2',
-      studentId: '22222222-2222-2222-2222-222222222222',
-      studentName: 'Inversor Novato',
-      courseId: 'c0000000-0000-0000-0000-000000000002',
-      courseTitle: 'Análisis de Empresas y Ratios Financieros',
-      clipId: 'f0000002-0000-0000-0000-000000000001',
-      clipTitle: '¿Qué es el P/E Ratio (Price to Earnings)?',
-      questionText: 'Si una empresa de tecnología tiene un ratio P/E muy alto, ¿debo asumir que siempre está sobrevalorada?',
-      createdAt: new Date(Date.now() - 3600000 * 2).toISOString() // 2 hours ago
-    }
-  ];
+  static questions: StudentQuestion[] = [];
 
   static profiles: Profile[] = [
     {
