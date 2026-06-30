@@ -13,6 +13,8 @@ import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
+// @ts-ignore
+import ffmpegPath from 'ffmpeg-static';
 
 export const coursesRouter = Router();
 
@@ -714,7 +716,7 @@ coursesRouter.post('/upload-video', requireSupabaseAuth, upload.single('video'),
   try {
     // 1. Optimize video via FFmpeg (MP4 H.264 / AAC)
     await new Promise<void>((resolve, reject) => {
-      exec(`ffmpeg -i "${inputPath}" -vcodec libx264 -crf 23 -preset fast -pix_fmt yuv420p -acodec aac -b:a 128k -y "${outputPath}"`, (err, stdout, stderr) => {
+      exec(`"${ffmpegPath}" -i "${inputPath}" -vcodec libx264 -crf 23 -preset fast -pix_fmt yuv420p -acodec aac -b:a 128k -y "${outputPath}"`, (err, stdout, stderr) => {
         if (err) {
           console.error('FFmpeg error:', stderr);
           reject(err);
