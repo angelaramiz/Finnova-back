@@ -535,8 +535,20 @@ authRouter.post('/register-requests', async (req: any, res: Response): Promise<v
         .maybeSingle();
 
       if (allowed) {
-        res.status(400).json({ error: 'Conflict', message: 'El correo electrónico ya está registrado.' });
-        return;
+        // Double check if the user actually exists in Supabase Auth
+        const { data: authUsers } = await supabaseAdmin.auth.admin.listUsers();
+        const authUser = authUsers?.users?.find((u: any) => u.email?.toLowerCase() === normalizedEmail);
+
+        if (!authUser) {
+          // The user was deleted from Supabase Auth, so allowed_emails record is stale. Clean it up.
+          await supabaseAdmin
+            .from('allowed_emails')
+            .delete()
+            .eq('email', normalizedEmail);
+        } else {
+          res.status(400).json({ error: 'Conflict', message: 'El correo electrónico ya está registrado y activo.' });
+          return;
+        }
       }
 
       const { data: requestPending } = await supabaseAdmin
@@ -550,6 +562,13 @@ authRouter.post('/register-requests', async (req: any, res: Response): Promise<v
         res.status(400).json({ error: 'Conflict', message: 'Ya existe una solicitud de registro pendiente para este correo.' });
         return;
       }
+
+      // Delete any previous approved/rejected requests for this email to avoid UNIQUE constraint violation
+      await supabaseAdmin
+        .from('account_requests')
+        .delete()
+        .eq('email', normalizedEmail)
+        .neq('status', 'pending');
 
       const newRequest = {
         id: `req-${Math.random().toString(36).substring(2, 10)}`,
