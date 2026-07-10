@@ -1254,17 +1254,7 @@ authRouter.post('/change-password-force', optionalSupabaseAuth, async (req: any,
 
       // Validar contraseña temporal encriptada
       let isMatch = false;
-      console.log('[Auth Debug] change-password-force profile:', {
-        id: profile.id,
-        mustChangePassword: profile.mustChangePassword,
-        hasPasswordHash: !!profile.passwordHash,
-        passwordHashPrefix: profile.passwordHash ? profile.passwordHash.substring(0, 8) : 'null',
-        currentTempPasswordSent: currentTempPassword,
-        hasValidJwt
-      });
-
       if (hasValidJwt && profile.id === req.user.id) {
-        console.log('[Auth Debug] change-password-force: Valid JWT token matches profile, bypassing password check');
         isMatch = true;
       } else if (profile.passwordHash && currentTempPassword) {
         if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
@@ -1273,8 +1263,6 @@ authRouter.post('/change-password-force', optionalSupabaseAuth, async (req: any,
           isMatch = profile.passwordHash === currentTempPassword;
         }
       }
-      console.log('[Auth Debug] change-password-force isMatch:', isMatch);
-
       if (!isMatch) {
         res.status(401).json({ error: 'Unauthorized', message: 'Contraseña temporal incorrecta.' });
         return;
@@ -1401,20 +1389,11 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
       const salt = await bcrypt.genSalt(10);
       const hashedOtp = await bcrypt.hash(otpCode, salt);
 
-      console.log('[Auth Debug] verify-otp profile:', {
-        id: profile.id,
-        mustChangePassword: profile.mustChangePassword,
-        otpCode: profile.otpCode,
-        hasPasswordHash: !!profile.passwordHash
-      });
-
       const updatePayload = { 
         otpCode: null, 
         otpExpires: null,
         ...(profile.mustChangePassword ? { passwordHash: hashedOtp } : {})
       };
-
-      console.log('[Auth Debug] verify-otp updatePayload:', updatePayload);
 
       const { error } = await supabaseAdmin
         .from('profiles')
@@ -1653,8 +1632,6 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
   profile.otpCode = otpCode;
   profile.otpExpires = otpExpires;
   profile.mustChangePassword = true;
-
-  console.log(`[RESET PASSWORD MOCK OTP] Código enviado a ${normalizedEmail}: ${otpCode}`);
 
   res.status(200).json({ message: 'Código de recuperación enviado (simulación local).' });
 });
