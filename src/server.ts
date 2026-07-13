@@ -18,6 +18,7 @@ import { exercisesRouter } from './routes/exercises';
 import { pipelineRouter } from './routes/pipeline';
 import { webhookRouter } from './webhooks/n8n';
 import { simulatorRouter } from './routes/simulator';
+import { marketRouter } from './routes/market';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
 import { supabaseAdmin } from './lib/supabaseClient';
 
@@ -167,6 +168,7 @@ app.use('/api/exercises', exercisesRouter);
 app.use('/api/pipeline', pipelineRouter);
 app.use('/api/webhooks', webhookRouter);
 app.use('/api/simulator', simulatorRouter);
+app.use('/api/market', marketRouter);
 
 // Health check endpoint with background pre-warming for database and n8n
 app.get('/api/health', async (req: Request, res: Response) => {

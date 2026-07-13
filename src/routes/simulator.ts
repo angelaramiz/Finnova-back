@@ -91,10 +91,10 @@ const REAL_PRICES: Record<string, number[]> = {
 };
 
 const LAST_KNOWN: Record<string, { price: number; date: string; source: string }> = {
-  USDMXN: { price: 17.4975, date: '2026-06-06', source: 'Yahoo Finance (cierre real)' },
-  SPY:    { price: 602.4,  date: '2026-06-05', source: 'Yahoo Finance' },
-  GLD:    { price: 411.3,  date: '2026-06-04', source: 'MacroTrends' },
-  UNG:    { price: 7.20,   date: '2026-06-05', source: 'Yahoo Finance' },
+  USDMXN: { price: 17.50, date: '2026-07-10', source: 'Yahoo Finance (cierre real)' },
+  SPY:    { price: 602.4,  date: '2026-07-10', source: 'Yahoo Finance' },
+  GLD:    { price: 411.3,  date: '2026-07-10', source: 'MacroTrends' },
+  UNG:    { price: 7.20,   date: '2026-07-10', source: 'Yahoo Finance' },
 };
 
 const ASSET_LABELS: Record<string, string> = {
