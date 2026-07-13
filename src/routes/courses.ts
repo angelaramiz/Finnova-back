@@ -636,6 +636,81 @@ coursesRouter.delete('/:id/clips/:clipId', requireSupabaseAuth, async (req: Auth
 });
 
 /**
+ * POST /api/courses/:courseId/clips/:clipId/exercises
+ * Add an exercise to a clip (Instructor/Admin only)
+ */
+const ExerciseCreateSchema = z.object({
+  title: z.string().min(1),
+  exerciseType: z.enum(['multiple_choice', 'formula', 'ratio_calculation', 'portfolio_weight']),
+  question: z.string().min(1),
+  prompt: z.string().optional(),
+  correctAnswer: z.string().min(1),
+  rubrics: z.any().optional(),
+  maxPoints: z.number().int().positive().default(10),
+});
+
+coursesRouter.post('/:courseId/clips/:clipId/exercises', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  if (req.user?.role !== 'instructor' && req.user?.role !== 'admin') {
+     res.status(403).json({ error: 'Forbidden', message: 'Restricted to instructors or admins.' });
+     return;
+  }
+
+  const { clipId } = req.params;
+  const parseResult = ExerciseCreateSchema.safeParse(req.body);
+  if (!parseResult.success) {
+     res.status(400).json({ error: 'Bad Request', details: parseResult.error.format() });
+     return;
+  }
+
+  const { title, exerciseType, question, prompt, correctAnswer, rubrics, maxPoints } = parseResult.data;
+  const isSupabaseConfigured = isSupabaseReady();
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data: newExercise, error } = await supabaseAdmin
+        .from('exercises')
+        .insert({
+          clip_id: clipId,
+          title,
+          exercise_type: exerciseType,
+          question,
+          prompt: prompt || '',
+          correct_answer: correctAnswer,
+          rubrics: rubrics || null,
+          max_points: maxPoints,
+        })
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        res.status(500).json({ error: 'Database Error', message: error.message });
+        return;
+      }
+
+      res.status(201).json(mapExercise(newExercise));
+    } catch (err: any) {
+      res.status(500).json({ error: 'Internal Server Error', message: err.message });
+    }
+    return;
+  }
+
+  const newExercise = {
+    id: `e0000000-0000-0000-0000-${Math.random().toString(10).substring(2, 14)}`,
+    clipId,
+    title,
+    exerciseType,
+    question,
+    prompt: prompt || '',
+    correctAnswer,
+    rubrics: rubrics || null,
+    maxPoints,
+  };
+
+  MemoryDatabase.exercises.push(newExercise);
+  res.status(201).json(mapExercise(newExercise));
+});
+
+/**
  * POST /api/courses/upload-image
  * Upload a base64 course image to Supabase Storage or return base64 fallback.
  */
