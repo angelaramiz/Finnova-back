@@ -20,7 +20,10 @@ function verifySupabaseJWT(token: string): any {
 
   const [headerB64, payloadB64, signatureB64] = parts;
   const message = `${headerB64}.${payloadB64}`;
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'your-default-local-supabase-jwt-secret-for-signing';
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  if (!jwtSecret) {
+    throw new Error('SUPABASE_JWT_SECRET no configurado en el entorno');
+  }
 
   // Calculate HMAC SHA256 signature using standard node crypto
   const expectedSignature = crypto
@@ -55,10 +58,10 @@ export function requireSupabaseAuth(req: AuthenticatedRequest, res: Response, ne
   const authHeader = req.headers.authorization;
   const mockUserId = req.headers['x-mock-user-id'] as string || '22222222-2222-2222-2222-222222222222';
   
-  const rawMockFlag = process.env.ENABLE_DOCKER_MOCKS || '';
-  const isMockAllowed = rawMockFlag.trim().toLowerCase().replace(/['"]/g, '') !== 'false' && process.env.REQUIRE_REAL_AUTH !== 'true';
+  const rawMockFlag = process.env.ENABLE_DOCKER_MOCKS || 'false';
+  const isMockAllowed = rawMockFlag.trim().toLowerCase().replace(/['"]/g, '') === 'true';
 
-  console.log(`[Auth Debug] Path: ${req.originalUrl} | rawMockFlag: "${rawMockFlag}" | isMockAllowed: ${isMockAllowed} | authHeader: ${!!authHeader}`);
+  console.log(`[Auth Debug] Path: ${req.originalUrl} | ENABLE_DOCKER_MOCKS: "${rawMockFlag}" | isMockAllowed: ${isMockAllowed} | authHeader: ${!!authHeader}`);
 
   if (!authHeader) {
     if (isMockAllowed) {

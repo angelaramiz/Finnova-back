@@ -4,6 +4,7 @@
  */
 
 import express, { Request, Response, NextFunction } from 'express';
+import helmet from 'helmet';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -46,6 +47,16 @@ const rateLimitWindow = 60 * 1000; // 1 minute
 const rateLimitMax = 45; // limit to 45 requests per minute per IP
 const ipRequestCounts = new Map<string, { count: number; resetTime: number }>();
 
+// Cleanup stale entries every 5 minutes to avoid memory leak
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, record] of ipRequestCounts) {
+    if (now > record.resetTime) {
+      ipRequestCounts.delete(ip);
+    }
+  }
+}, 5 * 60 * 1000);
+
 function apiRateLimiter(req: Request, res: Response, next: NextFunction) {
   const ip = req.ip || req.headers['x-forwarded-for'] as string || 'unknown';
   const now = Date.now();
@@ -68,6 +79,12 @@ function apiRateLimiter(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Apply helmet security headers
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // Ya se define manualmente abajo
+}));
+
 // Custom high-performance CORS, security headers and rate limiter middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
   const origin = req.headers.origin;
@@ -83,7 +100,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     'http://localhost:3000',
   ].filter(Boolean) as string[];
 
-  if (origin && ALLOWED_ORIGINS.some(o => origin.startsWith(o))) {
+  if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
   } else if (!isProduction) {
     // En desarrollo local sin origin definido, permitir cualquiera
