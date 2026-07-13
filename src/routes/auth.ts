@@ -684,7 +684,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
       }
 
       // Generate random 8-character temporary password
-      const tempPassword = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const tempPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
 
       // Encriptar la contraseña temporal usando bcryptjs
       const salt = await bcrypt.genSalt(10);
@@ -868,7 +868,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
   }
 
   // Generate random 8-character temporary password
-  const tempPassword = Math.random().toString(36).substring(2, 10).toUpperCase();
+  const tempPassword = crypto.randomBytes(6).toString('hex').toUpperCase();
 
   // Encriptar la contraseña temporal usando bcryptjs
   const hashedPassword = bcrypt.hashSync(tempPassword, 10);
@@ -1094,7 +1094,7 @@ authRouter.post('/login-credentials', async (req: any, res: Response): Promise<v
         return;
       }
 
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpCode = (crypto.randomInt(900000) + 100000).toString();
       const otpExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString();
 
       const { error } = await supabaseAdmin
@@ -1174,8 +1174,8 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
   }
 
   // Generate 6 digit OTP code
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes expiration
+	const otpCode = (crypto.randomInt(900000) + 100000).toString();
+	const otpExpires = new Date(Date.now() + 5 * 60 * 1000).toISOString(); // 5 minutes expiration
 
   profile.otpCode = otpCode;
   profile.otpExpires = otpExpires;
@@ -1562,7 +1562,7 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
       }
 
       // Generar OTP para recuperación
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const otpCode = (crypto.randomInt(900000) + 100000).toString();
       const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min expiración para reset
 
       // Guardamos la OTP y habilitamos temporalmente mustChangePassword para forzar el reset
@@ -1647,8 +1647,8 @@ Este código expira en 10 minutos. No lo compartas con nadie.`;
     return;
   }
 
-  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-  const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+	const otpCode = (crypto.randomInt(900000) + 100000).toString();
+	const otpExpires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
   profile.otpCode = otpCode;
   profile.otpExpires = otpExpires;
