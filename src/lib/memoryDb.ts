@@ -146,6 +146,12 @@ export class MemoryDatabase {
       role: 'student',
       fullName: 'Inversor Novato',
       createdAt: new Date().toISOString()
+    },
+    {
+      email: 'demo@simulador.com',
+      role: 'student',
+      fullName: 'Demo Simulador',
+      createdAt: new Date().toISOString()
     }
   ];
 
@@ -158,6 +164,7 @@ export class MemoryDatabase {
       avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=200',
       role: 'instructor',
       pointsEarned: 500,
+      passwordHash: '$2b$10$gPDR21bvVjKVLc5jjqov9u40uc7AIy7gihrJPT49HMWlUtx8bYPoW',
     },
     {
       id: '22222222-2222-2222-2222-222222222222',
@@ -165,6 +172,15 @@ export class MemoryDatabase {
       avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
       role: 'student',
       pointsEarned: 80,
+      passwordHash: '$2b$10$gPDR21bvVjKVLc5jjqov9u40uc7AIy7gihrJPT49HMWlUtx8bYPoW',
+    },
+    {
+      id: '44444444-4444-4444-4444-444444444444',
+      fullName: 'Demo Simulador',
+      avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=200',
+      role: 'student',
+      pointsEarned: 100,
+      passwordHash: '$2b$10$gPDR21bvVjKVLc5jjqov9u40uc7AIy7gihrJPT49HMWlUtx8bYPoW',
     },
   ];
 
@@ -324,4 +340,70 @@ export class MemoryDatabase {
       updatedAt: new Date().toISOString(),
     },
   ];
+
+  // ================================================================
+  // SIMULADOR LABORAL - SEED DATA (Fase 1)
+  // ================================================================
+
+  static simCompanies: SimCompany[] = [
+    { id: '00000001-0000-0000-0000-000000000001', name: 'Operadora Logística del Norte S.A. de C.V.', taxId: 'OLN-220701-ABC', industry: 'logística', address: 'Av. Industria 452, Col. Industrial, Monterrey, NL', phone: '81-2345-6789', fiscalRegime: 'Régimen General de Ley Personas Morales', complexity: 2 },
+    { id: '00000001-0000-0000-0000-000000000002', name: 'Grupo Financiero Corporativo S.A.B. de C.V.', taxId: 'GFC-880315-XYZ', industry: 'financiero', address: 'Paseo de la Reforma 350, Col. Juárez, CDMX', phone: '55-9876-5432', fiscalRegime: 'Régimen General de Ley Personas Morales', complexity: 4 },
+  ];
+
+  static simClients: SimClient[] = [
+    { id: 'a0000000-0000-0000-0000-000000000001', companyId: '00000001-0000-0000-0000-000000000001', name: 'Comercial del Norte S.A.', taxId: 'CNS-990101-HIJ', creditLimit: 500000, paymentTerms: '30 días', status: 'active' },
+    { id: 'a0000000-0000-0000-0000-000000000002', companyId: '00000001-0000-0000-0000-000000000001', name: 'Transportes Rápidos S.A.', taxId: 'TRA-880202-KLM', creditLimit: 300000, paymentTerms: '60 días', status: 'active' },
+    { id: 'a0000000-0000-0000-0000-000000000003', companyId: '00000001-0000-0000-0000-000000000001', name: 'Almacenes del Bajío S.P.R.', taxId: 'ALB-770303-NOP', creditLimit: 750000, paymentTerms: '30 días', status: 'active' },
+    { id: 'a0000000-0000-0000-0000-000000000004', companyId: '00000001-0000-0000-0000-000000000002', name: 'Inversiones del Valle S.A.', taxId: 'INV-660404-QRS', creditLimit: 2000000, paymentTerms: '15 días', status: 'active' },
+    { id: 'a0000000-0000-0000-0000-000000000005', companyId: '00000001-0000-0000-0000-000000000002', name: 'Corporativo Trust S.A.', taxId: 'CTR-550505-TUV', creditLimit: 5000000, paymentTerms: '7 días', status: 'active' },
+  ];
+
+  static simJobs: SimJob[] = [
+    { id: 'b0000000-0000-0000-0000-000000000001', title: 'Auxiliar Contable', description: 'Apoyo en registro de operaciones diarias, facturación y conciliación bancaria.', difficulty: 1, requiredCompletion: 0, unlocksJobId: 'b0000000-0000-0000-0000-000000000002', category: 'contabilidad', minScoreToPass: 60 },
+    { id: 'b0000000-0000-0000-0000-000000000002', title: 'Analista de Cuentas por Pagar', description: 'Gestión de proveedores, registro de facturas recibidas, programación de pagos.', difficulty: 2, requiredCompletion: 5, unlocksJobId: '', category: 'contabilidad', minScoreToPass: 65 },
+  ];
+
+  static simTasks: SimTask[] = [
+    { id: 'c0000000-0000-0000-0000-000000000001', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Emisión de Factura', description: 'Genera una factura para el cliente por servicios de logística.', taskType: 'invoice_emission', difficulty: 1, estimatedMinutes: 15, sequenceOrder: 1 },
+    { id: 'c0000000-0000-0000-0000-000000000002', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Registro de Pago', description: 'Registra el pago recibido de cliente por factura del periodo.', taskType: 'payment_registration', difficulty: 1, estimatedMinutes: 10, sequenceOrder: 2 },
+    { id: 'c0000000-0000-0000-0000-000000000003', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Conciliación Bancaria', description: 'Concilia movimientos del mes contra estado de cuenta.', taskType: 'bank_reconciliation', difficulty: 2, estimatedMinutes: 25, sequenceOrder: 3 },
+    { id: 'c0000000-0000-0000-0000-000000000004', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Cálculo de IVA', description: 'Calcula IVA del mes: ingresos gravados, IVA trasladado y por pagar.', taskType: 'tax_calculation', difficulty: 2, estimatedMinutes: 20, sequenceOrder: 4 },
+    { id: 'c0000000-0000-0000-0000-000000000005', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Póliza de Diario', description: 'Registra depreciación del mes de equipo de cómputo.', taskType: 'journal_entry', difficulty: 2, estimatedMinutes: 20, sequenceOrder: 5 },
+    { id: 'c0000000-0000-0000-0000-000000000009', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Cálculo de Nómina', description: 'Calcula la nómina quincenal del personal administrativo.', taskType: 'payroll', difficulty: 3, estimatedMinutes: 25, sequenceOrder: 6 },
+    { id: 'c0000000-0000-0000-0000-000000000006', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Registro de Factura de Proveedor', description: 'Registra factura recibida de proveedor de transporte.', taskType: 'supplier_invoice', difficulty: 2, estimatedMinutes: 15, sequenceOrder: 1 },
+    { id: 'c0000000-0000-0000-0000-000000000007', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Programación de Pagos', description: 'Programa pagos a proveedores según vencimientos.', taskType: 'payment_scheduling', difficulty: 2, estimatedMinutes: 20, sequenceOrder: 2 },
+    { id: 'c0000000-0000-0000-0000-000000000008', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Conciliación de CxP', description: 'Concilia saldo de proveedores contra auxiliar de CxP.', taskType: 'ap_reconciliation', difficulty: 3, estimatedMinutes: 30, sequenceOrder: 3 },
+  ];
+
+  // Onboarding data store (simulado)
+  static onboardingData: Map<string, any> = new Map();
+  static userStats: Map<string, any> = new Map();
+}
+
+// ================================================================
+// INTERFACES DEL SIMULADOR
+// ================================================================
+
+export interface SimCompany {
+  id: string; name: string; taxId: string; industry?: string;
+  address?: string; phone?: string; fiscalRegime?: string;
+  complexity: number; logoUrl?: string;
+}
+
+export interface SimClient {
+  id: string; companyId: string; name: string; taxId?: string;
+  creditLimit?: number; paymentTerms?: string; status?: string;
+}
+
+export interface SimJob {
+  id: string; title: string; description: string;
+  difficulty: number; requiredCompletion: number;
+  unlocksJobId?: string; category?: string; minScoreToPass: number;
+}
+
+export interface SimTask {
+  id: string; jobId: string; title: string; description: string;
+  taskType: string; difficulty: number; estimatedMinutes: number;
+  requiredFields?: any; validationRules?: any; documentTemplate?: string;
+  sequenceOrder: number;
 }

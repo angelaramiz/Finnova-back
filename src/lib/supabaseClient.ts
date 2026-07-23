@@ -34,6 +34,11 @@ export function isSupabaseReady(): boolean {
   if (url.includes('placeholder')) return false;
   if (key.includes('placeholder')) return false;
 
+  // En modo mock, usar MemoryDatabase aunque Supabase esté configurado
+  const rawMockFlag = process.env.ENABLE_DOCKER_MOCKS || '';
+  const isMocking = rawMockFlag.trim().toLowerCase().replace(/['"]/g, '') === 'true';
+  if (isMocking) return false;
+
   // Acepta formato nuevo: sb_secret_...
   const isNewFormat = key.startsWith('sb_secret_');
   // Acepta formato legacy JWT: eyJ...

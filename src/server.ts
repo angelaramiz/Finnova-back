@@ -12,13 +12,9 @@ import dotenv from 'dotenv';
 
 // Import domain sub-routers
 import { authRouter } from './routes/auth';
-import { coursesRouter } from './routes/courses';
-import { progressRouter } from './routes/progress';
-import { exercisesRouter } from './routes/exercises';
-import { pipelineRouter } from './routes/pipeline';
-import { webhookRouter } from './webhooks/n8n';
-import { simulatorRouter } from './routes/simulator';
-import { marketRouter } from './routes/market';
+import { simEngineRouter } from './routes/simEngine';
+import { paymentsRouter } from './routes/payments';
+import { workflowRouter } from './routes/workflows';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
 import { supabaseAdmin } from './lib/supabaseClient';
 
@@ -162,13 +158,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 // Bind routing modules
 app.use('/api/auth', authRouter);
-app.use('/api/courses', coursesRouter);
-app.use('/api/progress', progressRouter);
-app.use('/api/exercises', exercisesRouter);
-app.use('/api/pipeline', pipelineRouter);
-app.use('/api/webhooks', webhookRouter);
-app.use('/api/simulator', simulatorRouter);
-app.use('/api/market', marketRouter);
+app.use('/api/sim', simEngineRouter);
+app.use('/api/payments', paymentsRouter);
+app.use('/api/workflows', workflowRouter);
 
 // Health check endpoint with background pre-warming for database and n8n
 app.get('/api/health', async (req: Request, res: Response) => {
