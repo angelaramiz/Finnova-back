@@ -198,18 +198,18 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
   const { simulationProfile, experienceLevel, assignedJobId, assignedCompanyId } = req.body;
 
   if (isSupabaseReady()) {
+    // En Supabase: guardamos el estado del onboarding via user_subscriptions
     const { error } = await supabaseAdmin
-      .from('profiles')
-      .update({
-        subscription_status: 'trial',
-        onboarding_completed: true,
-        simulation_profile: simulationProfile || '',
-        experience_level: experienceLevel || '',
-        assigned_job_id: assignedJobId || null,
-        assigned_company_id: assignedCompanyId || null,
-      })
-      .eq('id', userId);
-    if (error) { res.status(500).json({ error: error.message }); return; }
+      .from('user_subscriptions')
+      .insert({
+        user_id: userId,
+        plan_id: null,
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }).select('id').maybeSingle();
+
+    // Ignorar error si ya existe suscripción
     res.json({ success: true });
     return;
   }
@@ -236,16 +236,35 @@ simEngineRouter.post('/subscribe', requireSupabaseAuth, async (req: Authenticate
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
 
   if (isSupabaseReady()) {
+    // Verificar si ya tiene suscripción activa
+    const { data: existing } = await supabaseAdmin
+      .from('user_subscriptions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .maybeSingle();
+
+    if (existing) {
+      res.json({ status: 'active' });
+      return;
+    }
+
+    // Crear suscripción trial
     const { error } = await supabaseAdmin
-      .from('profiles')
-      .update({ subscription_status: 'active' })
-      .eq('id', userId);
+      .from('user_subscriptions')
+      .insert({
+        user_id: userId,
+        plan_id: null,
+        status: 'active',
+        current_period_start: new Date().toISOString(),
+        current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      });
     if (error) { res.status(500).json({ error: error.message }); return; }
     res.json({ status: 'active' });
     return;
   }
 
-  // Memory mode: simular suscripción activa
+  // Memory mode
   const onboardingData = MemoryDatabase.onboardingData?.get(userId);
   if (onboardingData) {
     onboardingData.subscriptionStatus = 'active';
