@@ -7,7 +7,7 @@ export const workflowRouter = Router();
 // GET /api/sim/workflows/:taskType — Genera workflow para tipo de tarea
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType } = req.params;
-  const validTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice'];
+  const validTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception'];
   if (!validTypes.includes(taskType)) {
     res.status(400).json({ error: `Tipo no válido: ${taskType}. Usa: ${validTypes.join(', ')}` });
     return;

@@ -488,6 +488,169 @@ function generateSupplierInvoiceWorkflow(): Workflow {
   };
 }
 
+function generatePaymentSchedulingWorkflow(): Workflow {
+  const suppliers = pickMultiple(SUPPLIERS, 3);
+  const payments = suppliers.map((s, i) => {
+    const amount = r(5000, 45000);
+    const days = i === 0 ? 7 : i === 1 ? 15 : 30;
+    return { supplier: s, amount, days, dueDate: new Date(Date.now() + days * 86400000).toISOString().split('T')[0] };
+  });
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+
+  return {
+    taskId: `wf-paysched-${r(1000, 9999)}`,
+    taskTitle: 'Programación de Pagos',
+    taskType: 'payment_scheduling',
+    difficulty: 2,
+    estimatedMinutes: 15,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Pagos por programar',
+        description: 'Revisa las facturas de proveedores pendientes de pago',
+        data: {
+          from: 'Tesorería', to: 'auxiliar@logistica.com',
+          subject: 'Programación de pagos — Semana',
+          body: `Buenos días,\nA continuación las facturas de proveedores que vencen esta semana:\n\n${payments.map(p => `- **${p.supplier}:** $${fmt(p.amount)} (vence: ${p.dueDate})`).join('\n')}\n\n**Total a programar:** $${fmt(total)}\n\nPor favor programa los pagos y confirma las fechas de dispersión.\n\nSaludos,\nTesorería`,
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Programar Pagos',
+        description: 'Confirma la programación de pagos',
+        data: {
+          fields: [
+            { key: 'totalToPay', label: 'Total a pagar ($)', type: 'number', correct: total },
+            { key: 'paymentMethod', label: 'Método de pago', type: 'choice', options: ['SPEUI', 'Cheque', 'Efectivo'], correct: 'SPEUI' },
+            { key: 'scheduleDate', label: 'Fecha de dispersión', type: 'choice', options: [payments[0].dueDate, payments[1].dueDate, payments[2].dueDate], correct: payments[0].dueDate },
+            { key: 'prioritySupplier', label: 'Proveedor prioritario', type: 'choice', options: suppliers, correct: suppliers[0] },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Pagos programados',
+        description: 'La programación de pagos ha sido registrada',
+        data: { total, suppliers: suppliers.length, paymentMethod: 'SPEUI', scheduleDate: payments[0].dueDate },
+      },
+    ],
+    validation: [
+      { stepId: 'form', field: 'totalToPay', type: 'calculated', expected: total, tolerance: 10, label: 'Total a pagar', points: 6, feedback: { pass: 'Total correcto', fail: `Total = $${fmt(total)}` } },
+      { stepId: 'form', field: 'paymentMethod', type: 'choice', expected: 'SPEUI', label: 'Método de pago', points: 4, feedback: { pass: 'Método correcto', fail: 'Los pagos a proveedores se hacen vía SPEUI' } },
+      { stepId: 'form', field: 'scheduleDate', type: 'choice', expected: payments[0].dueDate, label: 'Fecha correcta', points: 3, feedback: { pass: 'Fecha correcta', fail: `El pago prioritario vence el ${payments[0].dueDate}` } },
+      { stepId: 'form', field: 'prioritySupplier', type: 'choice', expected: suppliers[0], label: 'Proveedor prioritario', points: 3, feedback: { pass: 'Proveedor correcto', fail: `El proveedor prioritario es ${suppliers[0]}` } },
+    ],
+  };
+}
+
+function generateAPReconciliationWorkflow(): Workflow {
+  const suppliers = pickMultiple(SUPPLIERS, 2);
+  const totalInvoices = r(100000, 300000);
+  const totalPaid = r(60000, totalInvoices - 10000);
+  const pendingBalance = totalInvoices - totalPaid;
+
+  return {
+    taskId: `wf-aprec-${r(1000, 9999)}`,
+    taskTitle: 'Conciliación de Cuentas por Pagar',
+    taskType: 'ap_reconciliation',
+    difficulty: 2,
+    estimatedMinutes: 20,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Conciliación CxP',
+        description: 'Revisa el saldo de proveedores',
+        data: {
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Conciliación de CxP — Julio 2026',
+          body: `Buenos días,\nNecesito conciliar las cuentas por pagar del mes.\n\nDatos:\n- **Total facturas recibidas:** $${fmt(totalInvoices)}\n- **Total pagado a proveedores:** $${fmt(totalPaid)}\n\nCalcula el saldo pendiente por pagar.\n\nProveedores activos:\n${suppliers.map(s => `- ${s}`).join('\n')}\n\nSaludos,\nLic. Gómez`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de Cálculo — CxP',
+        description: 'Calcula el saldo pendiente de cuentas por pagar',
+        data: {
+          rows: [
+            { label: 'Total facturas recibidas', value: totalInvoices, editable: false },
+            { label: 'Total pagado', value: totalPaid, editable: false },
+            { label: 'Saldo pendiente', value: null, editable: true, correct: pendingBalance, formula: '= Facturas − Pagos' },
+            { label: 'Proveedores activos', value: suppliers.length, editable: false },
+            { label: 'Promedio por proveedor', value: null, editable: true, correct: Math.round(totalInvoices / suppliers.length), formula: '= Facturas ÷ Proveedores' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'CxP Conciliado',
+        description: 'Las cuentas por pagar han sido conciliadas',
+        data: { totalInvoices, totalPaid, pendingBalance, suppliers: suppliers.length, period: 'Julio 2026' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Saldo pendiente', type: 'calculated', expected: pendingBalance, tolerance: 1, label: 'Saldo pendiente', points: 10, feedback: { pass: 'Saldo correcto', fail: `Saldo = $${fmt(totalInvoices)} - $${fmt(totalPaid)} = $${fmt(pendingBalance)}` } },
+      { stepId: 'spreadsheet', field: 'row_Promedio por proveedor', type: 'calculated', expected: Math.round(totalInvoices / suppliers.length), tolerance: 1, label: 'Promedio por proveedor', points: 6, feedback: { pass: 'Promedio correcto', fail: `Promedio = $${fmt(totalInvoices)} ÷ ${suppliers.length}` } },
+    ],
+  };
+}
+
+function generateCFDIWorkflow(): Workflow {
+  const provider = pick(SUPPLIERS);
+  const rfc = `AAA${r(100101, 999999)}${pick(['ABC', 'XYZ', 'LMN', 'QRS'])}`;
+  const subtotal = r(8000, 55000);
+  const iva = Math.round(subtotal * 0.16);
+  const isr = Math.round(subtotal * 0.01);
+  const total = subtotal + iva - isr;
+  const uuid = `${r(10000000, 99999999)}-${r(1000, 9999)}-${r(1000, 9999)}-${r(1000, 9999)}-${r(100000000000, 999999999999)}`.toUpperCase();
+
+  return {
+    taskId: `wf-cfdi-${r(1000, 9999)}`,
+    taskTitle: 'Recepción y Validación de CFDI',
+    taskType: 'cfdi_reception',
+    difficulty: 2,
+    estimatedMinutes: 15,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'CFDI de proveedor recibido',
+        description: 'Has recibido una factura electrónica CFDI 4.0',
+        data: {
+          from: `Sistema SAT - ${provider}`, to: 'proveedores@logistica.com',
+          subject: `CFDI 4.0 — ${uuid}`,
+          body: `Se ha recibido un Comprobante Fiscal Digital (CFDI) versión 4.0.\n\n**Datos del CFDI:**\n- **UUID:** ${uuid}\n- **Emisor:** ${provider}\n- **RFC Emisor:** ${rfc}\n- **Subtotal:** $${fmt(subtotal)}\n- **IVA (16%):** $${fmt(iva)}\n- **ISR retenido (1%):** $${fmt(isr)}\n- **Total:** $${fmt(total)}\n\n**Uso CFDI:** D03 - Gastos en general\n**Forma de pago:** Transferencia Electrónica`,
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Validación de CFDI',
+        description: 'Registra y valida la factura electrónica',
+        data: {
+          fields: [
+            { key: 'providerName', label: 'Emisor', type: 'choice', options: SUPPLIERS, correct: provider },
+            { key: 'rfc', label: 'RFC Emisor', type: 'text', correct: rfc },
+            { key: 'subtotal', label: 'Subtotal ($)', type: 'number', correct: subtotal },
+            { key: 'iva', label: 'IVA (16%) ($)', type: 'number', correct: iva, hint: `Subtotal × 0.16` },
+            { key: 'isr', label: 'ISR retenido (1%) ($)', type: 'number', correct: isr, hint: `Subtotal × 0.01` },
+            { key: 'total', label: 'Total ($)', type: 'number', correct: total, hint: `Subtotal + IVA − ISR` },
+            { key: 'usoCFDI', label: 'Uso del CFDI', type: 'choice', options: ['D03 - Gastos en general', 'G01 - Adquisición de mercancías', 'I01 - Inversiones'], correct: 'D03 - Gastos en general' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'CFDI registrado y validado',
+        description: 'La factura electrónica ha sido procesada',
+        data: { provider, rfc, uuid, subtotal, iva, isr, total, usoCFDI: 'D03 - Gastos en general' },
+      },
+    ],
+    validation: [
+      { stepId: 'form', field: 'providerName', type: 'choice', expected: provider, label: 'Emisor', points: 2, feedback: { pass: 'Emisor correcto', fail: 'Revisa el emisor del CFDI' } },
+      { stepId: 'form', field: 'rfc', type: 'exact', expected: rfc, label: 'RFC Emisor', points: 3, feedback: { pass: 'RFC correcto', fail: `El RFC del emisor es ${rfc}` } },
+      { stepId: 'form', field: 'subtotal', type: 'exact', expected: subtotal, label: 'Subtotal', points: 3, feedback: { pass: 'Subtotal correcto', fail: `El subtotal es $${fmt(subtotal)}` } },
+      { stepId: 'form', field: 'iva', type: 'calculated', expected: iva, tolerance: 1, label: 'IVA', points: 4, feedback: { pass: 'IVA correcto', fail: `IVA = $${fmt(subtotal)} × 16% = $${fmt(iva)}` } },
+      { stepId: 'form', field: 'isr', type: 'calculated', expected: isr, tolerance: 1, label: 'ISR retenido', points: 4, feedback: { pass: 'ISR correcto', fail: `ISR = $${fmt(subtotal)} × 1% = $${fmt(isr)}` } },
+      { stepId: 'form', field: 'total', type: 'calculated', expected: total, tolerance: 1, label: 'Total', points: 4, feedback: { pass: 'Total correcto', fail: `Total = $${fmt(subtotal)} + $${fmt(iva)} - $${fmt(isr)} = $${fmt(total)}` } },
+      { stepId: 'form', field: 'usoCFDI', type: 'choice', expected: 'D03 - Gastos en general', label: 'Uso CFDI', points: 2, feedback: { pass: 'Uso CFDI correcto', fail: 'El uso del CFDI debe ser D03' } },
+    ],
+  };
+}
+
+function pickMultiple<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(n, arr.length));
+}
+
 function generateIVAWorkflow(): Workflow {
   const grossIncome = r(350000, 750000);
   const deductibleExpenses = r(80000, 250000);
@@ -579,6 +742,9 @@ export function generateWorkflow(taskType: string): Workflow {
     case 'journal_entry': return generateJournalEntryWorkflow();
     case 'payroll': return generatePayrollWorkflow();
     case 'supplier_invoice': return generateSupplierInvoiceWorkflow();
+    case 'payment_scheduling': return generatePaymentSchedulingWorkflow();
+    case 'ap_reconciliation': return generateAPReconciliationWorkflow();
+    case 'cfdi_reception': return generateCFDIWorkflow();
     default: return generateGenericWorkflow(taskType);
   }
 }

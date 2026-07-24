@@ -373,6 +373,7 @@ export class MemoryDatabase {
     { id: 'c0000000-0000-0000-0000-000000000006', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Registro de Factura de Proveedor', description: 'Registra factura recibida de proveedor de transporte.', taskType: 'supplier_invoice', difficulty: 2, estimatedMinutes: 15, sequenceOrder: 1 },
     { id: 'c0000000-0000-0000-0000-000000000007', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Programación de Pagos', description: 'Programa pagos a proveedores según vencimientos.', taskType: 'payment_scheduling', difficulty: 2, estimatedMinutes: 20, sequenceOrder: 2 },
     { id: 'c0000000-0000-0000-0000-000000000008', jobId: 'b0000000-0000-0000-0000-000000000002', title: 'Conciliación de CxP', description: 'Concilia saldo de proveedores contra auxiliar de CxP.', taskType: 'ap_reconciliation', difficulty: 3, estimatedMinutes: 30, sequenceOrder: 3 },
+    { id: 'c0000000-0000-0000-0000-000000000011', jobId: 'b0000000-0000-0000-0000-000000000001', title: 'Recepción y Validación de CFDI', description: 'Valida una factura electrónica CFDI 4.0 de proveedor.', taskType: 'cfdi_reception', difficulty: 2, estimatedMinutes: 15, sequenceOrder: 8 },
   ];
 
   // Onboarding data store (simulado)
