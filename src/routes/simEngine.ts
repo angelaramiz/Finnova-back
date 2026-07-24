@@ -165,30 +165,47 @@ simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: Authenticate
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
 
-  // Buscar perfil con datos de onboarding
+  // Intentar leer desde Supabase sin joins (más seguro)
   if (isSupabaseReady()) {
-    const { data, error } = await supabaseAdmin
-      .from('profiles')
-      .select('*, sim_jobs(*), sim_companies(*)')
-      .eq('id', userId)
-      .maybeSingle();
-    if (error) { res.status(500).json({ error: error.message }); return; }
-    res.json(formatSimProfile(data));
+    try {
+      const { data, error } = await supabaseAdmin
+        .from('user_subscriptions')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle();
+      
+      const { data: profile } = await supabaseAdmin
+        .from('profiles')
+        .select('fullName')
+        .eq('id', userId)
+        .maybeSingle();
+
+      res.json({
+        userId,
+        fullName: profile?.fullName || req.user?.email || 'Usuario',
+        subscriptionStatus: data ? 'active' : 'none',
+        onboardingCompleted: !!data,
+      });
+      return;
+    } catch (e) {
+      // Fallback a memory mode si hay error
+    }
+  }
+
+  // Memory mode
+  const onboardingData = MemoryDatabase.onboardingData?.get(userId);
+  if (onboardingData) {
+    res.json(onboardingData);
     return;
   }
 
-  // En memoria, buscar datos guardados localmente
-  const onboardingData = MemoryDatabase.onboardingData?.get(userId);
-  if (!onboardingData) {
-    res.json({
-      userId, fullName: req.user?.email || 'Usuario',
-      subscriptionStatus: 'none', onboardingCompleted: false,
-      experienceLevel: null, simulationProfile: null,
-      assignedJob: null, assignedCompany: null,
-    });
-    return;
-  }
-  res.json(onboardingData);
+  res.json({
+    userId,
+    fullName: req.user?.email || 'Usuario',
+    subscriptionStatus: 'none',
+    onboardingCompleted: false,
+  });
 });
 
 simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
