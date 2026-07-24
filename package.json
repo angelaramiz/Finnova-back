@@ -4,9 +4,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch src/server.ts",
-    "start": "tsx src/server.ts",
-    "build": "tsc",
+    "dev": "node scripts/gen-version.mjs && tsx watch src/server.ts",
+    "start": "node scripts/gen-version.mjs && tsx src/server.ts",
+    "build": "node scripts/gen-version.mjs && tsc",
     "test": "vitest run",
     "test:watch": "vitest"
   },

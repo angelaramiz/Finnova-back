@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth';
 import { simEngineRouter } from './routes/simEngine';
 import { paymentsRouter } from './routes/payments';
 import { workflowRouter } from './routes/workflows';
+import { VERSION, BUILD_HASH } from './version';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
 import { supabaseAdmin } from './lib/supabaseClient';
 
@@ -198,6 +199,8 @@ app.get('/api/health', async (req: Request, res: Response) => {
   res.status(200).json({ 
     status: 'ok', 
     db: dbStatus,
+    version: VERSION,
+    build: BUILD_HASH,
     timestamp: new Date().toISOString() 
   });
 });
