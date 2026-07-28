@@ -205,6 +205,11 @@ app.get('/api/health', async (req: Request, res: Response) => {
   });
 });
 
+// GET /api/app-version — Devuelve la versión actual del frontend (útil para PWA)
+app.get('/api/app-version', (_req: Request, res: Response) => {
+  res.json({ version: VERSION, build: BUILD_HASH });
+});
+
 // Email queue diagnostics endpoint
 app.get('/api/health/email-queue', async (req: Request, res: Response) => {
   try {
