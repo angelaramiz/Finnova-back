@@ -125,9 +125,9 @@ export function getAccountSummary(userId: string) {
 
 export function generateBalanceGeneral(userId: string) {
   const catalog = getCatalog(userId);
-  const activos = catalog.filter(a => a.type === 'Activo' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: Math.abs(a.balance) }));
-  const pasivos = catalog.filter(a => a.type === 'Pasivo' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: Math.abs(a.balance) }));
-  const capital = catalog.filter(a => a.type === 'Capital' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: Math.abs(a.balance) }));
+  const activos = catalog.filter(a => a.type === 'Activo' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: a.balance }));
+  const pasivos = catalog.filter(a => a.type === 'Pasivo' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: a.balance }));
+  const capital = catalog.filter(a => a.type === 'Capital' && a.level === 2).map(a => ({ code: a.code, name: a.name, balance: a.balance }));
 
   const totalActivos = activos.reduce((s, a) => s + a.balance, 0);
   const totalPasivos = pasivos.reduce((s, a) => s + a.balance, 0);
@@ -138,8 +138,8 @@ export function generateBalanceGeneral(userId: string) {
 
 export function generateEstadoResultados(userId: string) {
   const catalog = getCatalog(userId);
-  const ingresos = catalog.filter(a => a.type === 'Ingreso' && a.level === 2).map(a => ({ code: a.code, name: a.name, amount: Math.abs(a.balance) }));
-  const gastos = catalog.filter(a => a.type === 'Gasto' && a.level === 2).map(a => ({ code: a.code, name: a.name, amount: Math.abs(a.balance) }));
+  const ingresos = catalog.filter(a => a.type === 'Ingreso' && a.level === 2).map(a => ({ code: a.code, name: a.name, amount: a.balance }));
+  const gastos = catalog.filter(a => a.type === 'Gasto' && a.level === 2).map(a => ({ code: a.code, name: a.name, amount: a.balance }));
 
   const totalIngresos = ingresos.reduce((s, a) => s + a.amount, 0);
   const totalGastos = gastos.reduce((s, a) => s + a.amount, 0);
