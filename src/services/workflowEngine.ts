@@ -733,6 +733,145 @@ function generateIVAWorkflow(): Workflow {
   };
 }
 
+// ─── Nota de Crédito ──────────────────────────────────────────
+function generateCreditNoteWorkflow(): Workflow {
+  const client = pick(CLIENTS);
+  const invNum = getConsecutive();
+  const originalAmount = r(10000, 50000);
+  const reason = pick(['Devolución parcial', 'Descuento por volumen', 'Error en facturación', 'Bonificación']);
+  const creditAmount = r(1000, Math.floor(originalAmount * 0.3));
+  const iva = Math.round(creditAmount * 0.16);
+  const total = creditAmount + iva;
+
+  return {
+    taskId: `wf-cn-${r(1000, 9999)}`,
+    taskTitle: 'Nota de Crédito',
+    taskType: 'credit_note',
+    difficulty: 2,
+    estimatedMinutes: 15,
+    steps: [
+      {
+        id: 'email',
+        type: 'email',
+        title: 'Solicitud del cliente',
+        description: 'El cliente solicita una nota de crédito',
+        data: {
+          from: client.name,
+          to: 'facturacion@logistica.com',
+          subject: `Solicitud nota de crédito — ${invNum}`,
+          body: `Buenos días,\nSolicitamos la emisión de una nota de crédito por **$${fmt(creditAmount)}** (+IVA) respecto a la factura **${invNum}**.\n\n**Motivo:** ${reason}\n\nFavor de confirmar la emisión.\n\nSaludos,\n${client.name}`,
+        },
+      },
+      {
+        id: 'form',
+        type: 'form',
+        title: 'Sistema Contable — Nota de Crédito',
+        description: 'Genera la nota de crédito',
+        data: {
+          fields: [
+            { key: 'clientName', label: 'Cliente', type: 'choice', options: CLIENTS.map(c => c.name), correct: client.name, validation: { required: true } },
+            { key: 'originalInvoice', label: 'Factura original', type: 'text', correct: invNum, validation: { required: true, pattern: '^FAC-\\d{4}-\\d{3}$', patternMsg: 'Formato: FAC-2026-001' } },
+            { key: 'reason', label: 'Motivo', type: 'choice', options: ['Devolución parcial', 'Descuento por volumen', 'Error en facturación', 'Bonificación'], correct: reason, validation: { required: true } },
+            { key: 'creditAmount', label: 'Monto del crédito ($)', type: 'currency', correct: creditAmount, validation: { required: true, min: 1 } },
+            { key: 'iva', label: 'IVA (16%) ($)', type: 'calculated', correct: iva, formula: 'creditAmount * 0.16', dependsOn: 'creditAmount', hint: 'Monto × 0.16' },
+            { key: 'total', label: 'Total nota de crédito ($)', type: 'calculated', correct: total, formula: 'creditAmount + iva', dependsOn: 'iva', hint: 'Monto + IVA' },
+          ],
+        },
+      },
+      {
+        id: 'result',
+        type: 'result',
+        title: 'Nota de crédito emitida',
+        description: 'La nota de crédito ha sido generada',
+        data: { client: client.name, invoice: invNum, reason, creditAmount, iva, total, date: new Date().toISOString().split('T')[0] },
+      },
+    ],
+    validation: [
+      { stepId: 'form', field: 'clientName', type: 'choice', expected: client.name, label: 'Cliente', points: 3, feedback: { pass: 'Cliente correcto', fail: 'Verifica el cliente' } },
+      { stepId: 'form', field: 'originalInvoice', type: 'exact', expected: invNum, label: 'Factura original', points: 3, feedback: { pass: 'Factura correcta', fail: `La factura era ${invNum}` } },
+      { stepId: 'form', field: 'reason', type: 'choice', expected: reason, label: 'Motivo', points: 3, feedback: { pass: 'Motivo correcto', fail: 'El motivo no coincide con la solicitud' } },
+      { stepId: 'form', field: 'creditAmount', type: 'calculated', expected: creditAmount, tolerance: 0, label: 'Monto del crédito', points: 4, feedback: { pass: 'Monto correcto', fail: `El monto era $${fmt(creditAmount)}` } },
+      { stepId: 'form', field: 'iva', type: 'calculated', expected: iva, tolerance: 1, label: 'IVA', points: 4, feedback: { pass: 'IVA correcto', fail: `IVA = $${fmt(creditAmount)} × 0.16 = $${fmt(iva)}` } },
+      { stepId: 'form', field: 'total', type: 'calculated', expected: total, tolerance: 1, label: 'Total', points: 3, feedback: { pass: 'Total correcto', fail: `Total = $${fmt(creditAmount)} + $${fmt(iva)} = $${fmt(total)}` } },
+    ],
+  };
+}
+
+// ─── Corte de Caja ────────────────────────────────────────────
+function generateCashCutWorkflow(): Workflow {
+  const cashInBox = r(5000, 15000);
+  const salesCash = r(8000, 25000);
+  const salesCard = r(3000, 12000);
+  const expenses = r(500, 3000);
+  const deposits = r(2000, 8000);
+  const totalSales = salesCash + salesCard;
+  const expectedCash = cashInBox + salesCash - expenses - deposits;
+  const actualCash = expectedCash + r(-200, 200);
+  const difference = actualCash - expectedCash;
+
+  return {
+    taskId: `wf-cc-${r(1000, 9999)}`,
+    taskTitle: 'Corte de Caja',
+    taskType: 'cash_cut',
+    difficulty: 2,
+    estimatedMinutes: 20,
+    steps: [
+      {
+        id: 'email',
+        type: 'email',
+        title: 'Instrucciones de corte',
+        description: 'El supervisor solicita el corte de caja del día',
+        data: {
+          from: 'Lic. Gómez',
+          to: 'cajero@logistica.com',
+          subject: 'Corte de caja — fin de turno',
+          body: `Buenos días,\nRealiza el corte de caja del turno de la mañana.\n\n**Fondo inicial:** $${fmt(cashInBox)}\n\nIngresa los datos de ventas, gastos y depósitos para generar el corte.\n\nSaludos,\nLic. Gómez`,
+        },
+      },
+      {
+        id: 'spreadsheet',
+        type: 'spreadsheet',
+        title: 'Hoja de cálculo — Corte de Caja',
+        description: 'Completa la hoja de corte',
+        data: {
+          rows: [
+            { label: 'Fondo inicial', cell_B: cashInBox },
+            { label: 'Ventas en efectivo', cell_B: salesCash },
+            { label: 'Ventas con tarjeta', cell_B: salesCard },
+            { label: 'Total ventas', cell_B: totalSales, formula: '=SUMA(B2:B3)' },
+            { label: 'Gastos del turno', cell_B: expenses },
+            { label: 'Depósitos realizados', cell_B: deposits },
+            { label: 'Efectivo esperado', cell_B: expectedCash, formula: '=B1+B2-B5-B6' },
+            { label: 'Efectivo contado', cell_B: '' },
+            { label: 'Diferencia', cell_B: '', formula: '=B8-B7' },
+          ],
+        },
+      },
+      {
+        id: 'result',
+        type: 'result',
+        title: 'Corte de caja completado',
+        description: 'El corte ha sido registrado',
+        data: {
+          cashInBox, salesCash, salesCard, totalSales, expenses, deposits,
+          expectedCash, actualCash, difference,
+          date: new Date().toISOString().split('T')[0],
+          status: Math.abs(difference) <= 100 ? 'Cuadrado' : 'Descuadrado',
+        },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Fondo inicial', label: 'Fondo inicial', type: 'calculated', expected: cashInBox, tolerance: 0, points: 3, feedback: { pass: 'Fondo correcto', fail: `El fondo era $${fmt(cashInBox)}` } },
+      { stepId: 'spreadsheet', field: 'row_Ventas en efectivo', label: 'Ventas efectivo', type: 'calculated', expected: salesCash, tolerance: 0, points: 3, feedback: { pass: 'Ventas efectivo correctas', fail: `Las ventas en efectivo eran $${fmt(salesCash)}` } },
+      { stepId: 'spreadsheet', field: 'row_Ventas con tarjeta', label: 'Ventas tarjeta', type: 'calculated', expected: salesCard, tolerance: 0, points: 3, feedback: { pass: 'Ventas tarjeta correctas', fail: `Las ventas con tarjeta eran $${fmt(salesCard)}` } },
+      { stepId: 'spreadsheet', field: 'row_Gastos del turno', label: 'Gastos', type: 'calculated', expected: expenses, tolerance: 0, points: 3, feedback: { pass: 'Gastos correctos', fail: `Los gastos eran $${fmt(expenses)}` } },
+      { stepId: 'spreadsheet', field: 'row_Depósitos realizados', label: 'Depósitos', type: 'calculated', expected: deposits, tolerance: 0, points: 3, feedback: { pass: 'Depósitos correctos', fail: `Los depósitos eran $${fmt(deposits)}` } },
+      { stepId: 'spreadsheet', field: 'row_Efectivo esperado', label: 'Efectivo esperado', type: 'calculated', expected: expectedCash, tolerance: 10, points: 5, feedback: { pass: 'Efectivo esperado correcto', fail: `Efectivo esperado = $${fmt(expectedCash)}` } },
+      { stepId: 'spreadsheet', field: 'row_Efectivo contado', label: 'Efectivo contado', type: 'calculated', expected: actualCash, tolerance: 10, points: 5, feedback: { pass: 'Efectivo contado correcto', fail: `Efectivo contado = $${fmt(actualCash)}` } },
+    ],
+  };
+}
+
 export function generateWorkflow(taskType: string): Workflow {
   switch (taskType) {
     case 'invoice_emission': return generateInvoiceWorkflow();
@@ -745,6 +884,8 @@ export function generateWorkflow(taskType: string): Workflow {
     case 'payment_scheduling': return generatePaymentSchedulingWorkflow();
     case 'ap_reconciliation': return generateAPReconciliationWorkflow();
     case 'cfdi_reception': return generateCFDIWorkflow();
+    case 'credit_note': return generateCreditNoteWorkflow();
+    case 'cash_cut': return generateCashCutWorkflow();
     default: return generateGenericWorkflow(taskType);
   }
 }
