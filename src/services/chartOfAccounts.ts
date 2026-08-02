@@ -19,7 +19,7 @@ function n(s: string) { return Number(s); }
 
 // ─── Seed data ────────────────────────────────────────────────
 const SEED: Account[] = [
-  // ACTIVO
+  // ACTIVO (Total: 2,510,000)
   { code: '1', name: 'ACTIVO', type: 'Activo', level: 1, nature: 'D', balance: 2510000, isDetail: false },
   { code: '1-01', name: 'Caja', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 28500, isDetail: true },
   { code: '1-02', name: 'Bancos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 248000, isDetail: true },
@@ -27,15 +27,15 @@ const SEED: Account[] = [
   { code: '1-04', name: 'Deudores diversos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 18000, isDetail: true },
   { code: '1-05', name: 'Inventarios', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 210000, isDetail: true },
   { code: '1-06', name: 'IVA acreditable', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 45000, isDetail: true },
-  { code: '1-07', name: 'Terrenos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 850000, isDetail: true },
-  { code: '1-08', name: 'Edificios', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 620000, isDetail: true },
-  { code: '1-09', name: 'Maquinaria y equipo', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 280000, isDetail: true },
+  { code: '1-07', name: 'Terrenos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 580000, isDetail: true },
+  { code: '1-08', name: 'Edificios', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 420000, isDetail: true },
+  { code: '1-09', name: 'Maquinaria y equipo', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 180000, isDetail: true },
   { code: '1-10', name: 'Equipo de cómputo', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 55000, isDetail: true },
   { code: '1-11', name: 'Mobiliario y equipo', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 42000, isDetail: true },
   { code: '1-12', name: 'Vehículos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 220000, isDetail: true },
   { code: '1-13', name: 'Depreciación acumulada', type: 'Activo', parentCode: '1', level: 2, nature: 'H', balance: -185000, isDetail: true },
 
-  // PASIVO
+  // PASIVO (Total: 660,000)
   { code: '2', name: 'PASIVO', type: 'Pasivo', level: 1, nature: 'H', balance: 660000, isDetail: false },
   { code: '2-01', name: 'Proveedores', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 175000, isDetail: true },
   { code: '2-02', name: 'Acreedores diversos', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 32000, isDetail: true },
@@ -45,19 +45,19 @@ const SEED: Account[] = [
   { code: '2-06', name: 'Sueldos por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 85000, isDetail: true },
   { code: '2-07', name: 'Préstamos bancarios', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 250000, isDetail: true },
 
-  // CAPITAL
+  // CAPITAL (Total: 1,850,000 = Assets - Liabilities)
   { code: '3', name: 'CAPITAL', type: 'Capital', level: 1, nature: 'H', balance: 1850000, isDetail: false },
   { code: '3-01', name: 'Capital social', type: 'Capital', parentCode: '3', level: 2, nature: 'H', balance: 1000000, isDetail: true },
   { code: '3-02', name: 'Resultados no distribuidos', type: 'Capital', parentCode: '3', level: 2, nature: 'H', balance: 650000, isDetail: true },
   { code: '3-03', name: 'Utilidad del ejercicio', type: 'Capital', parentCode: '3', level: 2, nature: 'H', balance: 200000, isDetail: true },
 
-  // INGRESO
+  // INGRESOS (Total: 1,435,500)
   { code: '4', name: 'INGRESOS', type: 'Ingreso', level: 1, nature: 'H', balance: 1435500, isDetail: false },
   { code: '4-01', name: 'Ventas', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 1120000, isDetail: true },
   { code: '4-02', name: 'Servicios', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 205500, isDetail: true },
   { code: '4-03', name: 'Otros ingresos', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 110000, isDetail: true },
 
-  // GASTO
+  // GASTOS (Total: 1,435,500 = Ingresos)
   { code: '5', name: 'GASTOS', type: 'Gasto', level: 1, nature: 'D', balance: 1435500, isDetail: false },
   { code: '5-01', name: 'Costo de ventas', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 480000, isDetail: true },
   { code: '5-02', name: 'Gastos de venta', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 185000, isDetail: true },
