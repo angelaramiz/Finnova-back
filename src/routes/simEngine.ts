@@ -4,6 +4,11 @@ import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { MemoryDatabase } from '../lib/memoryDb';
 import { generateDocument } from '../services/documentGenerator';
 import { calculateScore, checkProgression, checkDeadline, validateTransition, generateRandomEvent } from '../services/engines';
+import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
+import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
+
+// In-memory store for generated journal entries per user
+const journalStore = new Map<string, JournalEntry[]>();
 
 export const simEngineRouter = Router();
 
@@ -158,6 +163,57 @@ simEngineRouter.get('/my-stats', requireSupabaseAuth, async (req: AuthenticatedR
 simEngineRouter.get('/events/random', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
   const event = generateRandomEvent();
   res.json(event ? { event } : { event: null });
+});
+
+// ─── Auto-generación de asientos ───────────────────────────────
+simEngineRouter.post('/generate-entries', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { type, data } = req.body;
+  let entries: any[] = [];
+  switch (type) {
+    case 'invoice': entries = generateInvoiceEntries(data); break;
+    case 'payment': entries = generatePaymentEntries(data); break;
+    case 'supplier': entries = generateSupplierEntries(data); break;
+    case 'payroll': entries = generatePayrollEntries(data); break;
+    case 'journal': entries = generateJournalEntryForType(data); break;
+    default: res.status(400).json({ error: 'Tipo no válido' }); return;
+  }
+  if (!journalStore.has(userId)) journalStore.set(userId, []);
+  journalStore.get(userId)!.push(...entries);
+  res.json({ entries, totalGenerated: entries.length });
+});
+
+simEngineRouter.get('/journal', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const entries = journalStore.get(userId) || [];
+  res.json(entries);
+});
+
+// ─── Matching de pagos ─────────────────────────────────────────
+simEngineRouter.post('/suggest-matches', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { clientName, amount } = req.body;
+  if (!clientName || !amount) { res.status(400).json({ error: 'Faltan clientName o amount' }); return; }
+  const suggestions = suggestMatches(userId, { clientName, amount: Number(amount) });
+  res.json(suggestions);
+});
+
+simEngineRouter.post('/confirm-match', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { invoiceNumber, paymentId } = req.body;
+  const ok = confirmMatch(userId, invoiceNumber, paymentId);
+  if (ok) { res.json({ success: true }); } else { res.status(404).json({ error: 'Factura no encontrada' }); }
+});
+
+simEngineRouter.get('/pending-invoices', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const invoices = getPendingInvoices(userId);
+  res.json(invoices);
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
