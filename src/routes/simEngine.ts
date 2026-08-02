@@ -9,6 +9,7 @@ import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/pa
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats, getTaskKnowledge, CLIENT_PROFILES, SUPPLIER_PROFILES, TRAP_SCENARIOS } from '../services/taskPlanner';
+import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -335,6 +336,27 @@ simEngineRouter.get('/task-knowledge/:taskType', requireSupabaseAuth, async (req
 
 simEngineRouter.get('/trap-scenarios', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
   res.json(TRAP_SCENARIOS);
+});
+
+// ─── Ejercicios Excel ────────────────────────────────────────
+simEngineRouter.get('/exercises', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(ALL_EXERCISES.map(e => ({ id: e.id, title: e.title, type: e.type, difficulty: e.difficulty, timeMinutes: e.timeMinutes })));
+});
+
+simEngineRouter.get('/exercises/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const exercise = getExerciseById(req.params.id);
+  if (exercise) { res.json(exercise); } else { res.status(404).json({ error: 'Ejercicio no encontrado' }); }
+});
+
+simEngineRouter.get('/exercises/type/:type', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const exercises = getExercisesByType(req.params.type as any);
+  res.json(exercises);
+});
+
+simEngineRouter.get('/exercises/difficulty/:level', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const level = parseInt(req.params.level) || 1;
+  const exercises = getExercisesByDifficulty(level);
+  res.json(exercises);
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
