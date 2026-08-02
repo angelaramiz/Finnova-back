@@ -6,6 +6,7 @@ import { generateDocument } from '../services/documentGenerator';
 import { calculateScore, checkProgression, checkDeadline, validateTransition, generateRandomEvent } from '../services/engines';
 import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
+import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -214,6 +215,51 @@ simEngineRouter.get('/pending-invoices', requireSupabaseAuth, async (req: Authen
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const invoices = getPendingInvoices(userId);
   res.json(invoices);
+});
+
+// ─── Catálogo de cuentas ──────────────────────────────────────
+simEngineRouter.get('/chart-of-accounts', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const accounts = getChartOfAccounts(userId);
+  res.json(accounts);
+});
+
+simEngineRouter.post('/update-balance', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { accountCode, amount, operation } = req.body;
+  const ok = updateBalance(userId, accountCode, amount, operation);
+  if (ok) { res.json({ success: true }); } else { res.status(404).json({ error: 'Cuenta no encontrada' }); }
+});
+
+simEngineRouter.get('/account-summary', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const summary = getAccountSummary(userId);
+  res.json(summary);
+});
+
+// ─── Reportes financieros ─────────────────────────────────────
+simEngineRouter.get('/reports/balance-general', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const report = generateBalanceGeneral(userId);
+  res.json(report);
+});
+
+simEngineRouter.get('/reports/estado-resultados', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const report = generateEstadoResultados(userId);
+  res.json(report);
+});
+
+simEngineRouter.get('/reports/balanza-comprobacion', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const report = generateBalanzaComprobacion(userId);
+  res.json(report);
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
