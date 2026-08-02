@@ -8,7 +8,7 @@ import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
-import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats, CLIENT_PROFILES, SUPPLIER_PROFILES } from '../services/taskPlanner';
+import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats, getTaskKnowledge, CLIENT_PROFILES, SUPPLIER_PROFILES, TRAP_SCENARIOS } from '../services/taskPlanner';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -325,6 +325,16 @@ simEngineRouter.get('/month-stats/:month/:year', requireSupabaseAuth, async (req
   const year = parseInt(req.params.year) || 2026;
   const stats = getMonthStats(month, year);
   res.json(stats);
+});
+
+simEngineRouter.get('/task-knowledge/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { taskType } = req.params;
+  const knowledge = getTaskKnowledge(taskType);
+  if (knowledge) { res.json(knowledge); } else { res.status(404).json({ error: 'Tipo de tarea no encontrado' }); }
+});
+
+simEngineRouter.get('/trap-scenarios', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(TRAP_SCENARIOS);
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────

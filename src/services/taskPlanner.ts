@@ -1,423 +1,622 @@
-// ─── Task Planner — Coherencia de trabajo a mediano plazo ─────
-// Genera secuencias de tareas coherentes que siguen el ciclo contable real.
-// Cada semana tiene un patrón, cada mes se repite con variaciones.
+// ─── Task Planner v2 — Simulador comprehensivo de Contador Jr. ─
+// Ciclo contable real mexicano con escenarios de error y retos.
 
 export interface PlannedTask {
   id: string;
   title: string;
   type: string;
-  difficulty: number;
+  difficulty: number;  // 1=básico, 2=intermedio, 3=avanzado, 4=trampa
   time: number;
-  week: number;         // Semana del mes (1-4)
-  day: number;          // Día de la semana (1=Lun, 5=Vie)
-  priority: 'alta' | 'media' | 'baja';
-  dependsOn?: string;   // ID de tarea de la que depende
-  category: 'facturacion' | 'cobranza' | 'compras' | 'banco' | 'nomina' | 'fiscal' | 'cierre';
+  week: number;
+  day: number;
+  priority: 'critica' | 'alta' | 'media' | 'baja';
+  dependsOn?: string;
+  category: TaskCategory;
   description: string;
   emailSubject: string;
   emailFrom: string;
-  clientRef?: string;   // Referencia al cliente involucrado
-  supplierRef?: string; // Referencia al proveedor
-  invoiceRef?: string;  // Referencia a factura generada
+  clientRef?: string;
+  supplierRef?: string;
+  invoiceRef?: string;
+  isTrap?: boolean;        // ← Escenario con error intencional
+  trapDescription?: string; // ← Qué error contiene
+  expectedMistake?: string; // ← Error que debería detectar el alumno
 }
+
+export type TaskCategory =
+  | 'facturacion'      // Emitir CFDI
+  | 'cobranza'         // Registrar pagos
+  | 'compras'          // CFDI de proveedores
+  | 'banco'            // Conciliación bancaria
+  | 'nomina'           // Nómina
+  | 'fiscal'           // IVA, ISR, PTU
+  | 'cierre'           // Pólizas, cierre
+  | 'activos'          // Depreciación, activos fijos
+  | 'conciliacion'     // Conciliación de cuentas
+  | 'reportes'         // Estados financieros
+  | 'control'          // Auditoría, verificación
+  | 'errores'          // Detección y corrección de errores
 
 export interface MonthPlan {
-  month: number;        // 0-11
+  month: number;
   year: number;
   tasks: PlannedTask[];
-  phase: 'inicio' | 'desarrollo' | 'cierre';
-  week: number;
+  weekPlans: WeekPlan[];
+  summary: MonthSummary;
 }
 
-// ─── Ciclo contable mensual ──────────────────────────────────
-// Patrón real de un contador jr en empresa de logística
+export interface WeekPlan {
+  week: number;
+  theme: string;
+  tasks: PlannedTask[];
+  totalHours: number;
+}
 
-const WEEKLY_PATTERNS: Record<number, { category: string; taskTypes: string[]; difficulty: number }[]> = {
-  // Semana 1: Inicio de mes — facturación del mes anterior
-  1: [
-    { category: 'facturacion', taskTypes: ['invoice_emission', 'invoice_emission', 'invoice_emission'], difficulty: 1 },
-    { category: 'cobranza', taskTypes: ['payment_registration', 'payment_registration'], difficulty: 1 },
-    { category: 'compras', taskTypes: ['supplier_invoice'], difficulty: 1 },
-  ],
-  // Semana 2: Operación normal — pagos y facturas
-  2: [
-    { category: 'cobranza', taskTypes: ['payment_registration', 'payment_registration', 'payment_registration'], difficulty: 1 },
-    { category: 'compras', taskTypes: ['supplier_invoice', 'supplier_invoice'], difficulty: 1 },
-    { category: 'banco', taskTypes: ['bank_reconciliation'], difficulty: 2 },
-    { category: 'facturacion', taskTypes: ['invoice_emission'], difficulty: 1 },
-  ],
-  // Semana 3: Cálculos fiscales y nómina
-  3: [
-    { category: 'fiscal', taskTypes: ['tax_calculation'], difficulty: 2 },
-    { category: 'nomina', taskTypes: ['payroll'], difficulty: 2 },
-    { category: 'cobranza', taskTypes: ['payment_registration'], difficulty: 1 },
-    { category: 'compras', taskTypes: ['supplier_invoice'], difficulty: 1 },
-    { category: 'banco', taskTypes: ['payment_scheduling'], difficulty: 1 },
-  ],
-  // Semana 4: Cierre de mes — pólizas y reportes
-  4: [
-    { category: 'cierre', taskTypes: ['journal_entry', 'journal_entry'], difficulty: 2 },
-    { category: 'fiscal', taskTypes: ['cfdi_reconciliation'], difficulty: 2 },
-    { category: 'facturacion', taskTypes: ['credit_note'], difficulty: 2 },
-    { category: 'banco', taskTypes: ['bank_reconciliation'], difficulty: 2 },
-    { category: 'cierre', taskTypes: ['cash_cut'], difficulty: 2 },
-  ],
+export interface MonthSummary {
+  totalTasks: number;
+  byCategory: Record<string, number>;
+  byDifficulty: Record<number, number>;
+  trapCount: number;
+  estimatedHours: number;
+  skillsCovered: string[];
+}
+
+// ─── Base de conocimiento contable ───────────────────────────
+// Cada tarea tiene un "por qué" educativo
+
+const TASK_KNOWLEDGE: Record<string, { why: string; commonErrors: string[]; tips: string[] }> = {
+  invoice_emission: {
+    why: 'Facturar correctamente es obligatorio. Un CFDI con errores puede generar multas del SAT.',
+    commonErrors: ['RFC incorrecto', 'Concepto no corresponde al servicio', 'Cálculo de IVA incorrecto', 'Fecha incorrecta'],
+    tips: ['Siempre verifica el RFC contra el catálogo', 'El IVA es 16% sobre el subtotal', 'La fecha debe ser la del día'],
+  },
+  payment_registration: {
+    why: 'Un pago mal registrado puede causar que un cliente pague de más o de menos.',
+    commonErrors: ['Aplicar pago a factura incorrecta', 'Error en el monto', 'No registrar referencia bancaria', 'Olvidar actualizar saldo'],
+    tips: ['Verifica la referencia bancaria contra el comprobante', 'El saldo pendiente = Total - Monto pagado'],
+  },
+  supplier_invoice: {
+    why: 'Registrar CFDI de proveedores incorrectamente puede causar problemas fiscales.',
+    commonErrors: ['No verificar el CFDI contra el XML', 'Error en el IVA acreditable', 'Registrar en categoría incorrecta'],
+    tips: ['El IVA de proveedores se acredita, no se paga', 'Verifica que el folio fiscal coincida'],
+  },
+  bank_reconciliation: {
+    why: 'La conciliación bancaria es crítica. Errores causan diferencias que pueden ser miles de pesos.',
+    commonErrors: ['Olvidar cheques sin cobrar', 'No registrar depósitos en tránsito', 'Error en saldos', 'No cuadrar la conciliación'],
+    tips: ['Saldo conciliado = Saldo banco + Depósitos en tránsito - Cheques sin cobrar', 'DEBE = HABER siempre'],
+  },
+  payroll: {
+    why: 'La nómina tiene implicaciones fiscales y legales. Errores pueden causar demandas laborales.',
+    commonErrors: ['Calcular ISR con tabla incorrecta', 'No aplicar deducciones correctas', 'Error en neto a depositar', 'No registrar PTU'],
+    tips: ['ISR se calcula con tabla SAT vigente', 'IMSS cuota trabajador es ~5%', 'El neto = Bruto - ISR - IMSS'],
+  },
+  journal_entry: {
+    why: 'Las pólizas de diario son la base de la contabilidad. Un error afecta todos los reportes.',
+    commonErrors: ['DEBE y HABER no cuadran', 'Cuenta incorrecta', 'Monto incorrecto', 'Concepto no descriptivo'],
+    tips: ['DEBE siempre = HABER', 'La depreciación se registra como gasto en DEBE'],
+  },
+  tax_calculation: {
+    why: 'El IVA mal calculado puede generar multas o pagar de más.',
+    commonErrors: ['Error en IVA trasladado', 'Error en IVA acreditable', 'No considerar IVA de gastos', 'Saldo incorrecto'],
+    tips: ['IVA Trasladado = Ventas × 16%', 'IVA Acreditable = Compras × 16%'],
+  },
+  credit_note: {
+    why: 'Una nota de crédito mal emitida puede causar problemas fiscales.',
+    commonErrors: ['No referenciar factura original', 'Monto incorrecto', 'No registrar motivo'],
+    tips: ['La nota de crédito debe referenciar la factura original', 'El monto no puede exceder la factura'],
+  },
+  cash_cut: {
+    why: 'El corte de caja diario es obligatorio. Diferencias no explicadas pueden indicar robo.',
+    commonErrors: ['No contar efectivo físico', 'Error en cálculo de efectivo esperado', 'No registrar gastos del turno'],
+    tips: ['Efectivo esperado = Fondo + Ventas efectivo - Gastos - Depósitos', 'Diferencia > $100 requiere investigación'],
+  },
+  ap_reconciliation: {
+    why: 'Verificar que todas las facturas de proveedores estén registradas evita pagos dobles.',
+    commonErrors: ['No reconciliar facturas pendientes', 'Error en montos', 'Olvidar notas de crédito'],
+    tips: ['Verifica cada factura contra el XML del CFDI', 'Las notas de crédito reducen el saldo'],
+  },
+  cfdi_reconciliation: {
+    why: 'Todos los CFDI deben estar registrados. Faltas pueden causar problemas en auditorías.',
+    commonErrors: ['No verificar UUID', 'Error en categorización', 'No registrar IVA acreditable'],
+    tips: ['El UUID es único e irrepetible', 'Verifica que el CFDI coincida con la factura física'],
+  },
+  depreciation: {
+    why: 'La depreciación afecta el Estado de Resultados y el Balance General.',
+    commonErrors: ['Error en vida útil', 'Cálculo incorrecto', 'No registrar acumulado'],
+    tips: ['Línea recta: Costo ÷ Vida útil en meses', 'El acumulado es cuenta de activo (HABER)'],
+  },
+  financial_statements: {
+    why: 'Los estados financieros son la base para decisiones de negocio.',
+    commonErrors: ['Balance no cuadra', 'Utilidad incorrecta', 'Cuenta faltante'],
+    tips: ['Activos = Pasivos + Capital', 'Utilidad = Ingresos - Gastos'],
+  },
 };
 
-// ─── Clientes y proveedores por categoría ────────────────────
+// ─── Escenarios de error (trampas) ───────────────────────────
+// Estos escenarios tienen errores intencionales que el alumno debe detectar
+
+const TRAP_SCENARIOS: Omit<PlannedTask, 'id'>[] = [
+  // TRAMPA 1: IVA incorrecto
+  {
+    title: 'Verificar factura con IVA incorrecto',
+    type: 'invoice_emission',
+    difficulty: 4,
+    time: 15,
+    week: 1,
+    day: 3,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El Lic. Gómez te pide que revises una factura que preparó un becario. El IVA está calculado al 10% en lugar de 16%.',
+    emailSubject: 'Revisar factura — posibles errores',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'La factura tiene IVA al 10% (debería ser 16%)',
+    expectedMistake: 'Si el alumno no detecta el error, aceptará la factura con IVA incorrecto',
+  },
+  // TRAMPA 2: Cliente incorrecto
+  {
+    title: 'Pago aplicado a factura incorrecta',
+    type: 'payment_registration',
+    difficulty: 4,
+    time: 12,
+    week: 2,
+    day: 2,
+    priority: 'alta',
+    category: 'errores',
+    description: 'Recibes un pago de $45,000 de Comercial del Norte, pero el becario lo aplicó a la factura de Transportes Rápidos.',
+    emailSubject: 'Pago mal aplicado — corregir',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'El pago está aplicado al cliente incorrecto',
+    expectedMistake: 'Si el alumno no verifica, el saldo de Transportes Rápidos quedará incorrecto',
+  },
+  // TRAMPA 3: Conciliación no cuadra
+  {
+    title: 'Conciliación bancaria con diferencia',
+    type: 'bank_reconciliation',
+    difficulty: 4,
+    time: 25,
+    week: 2,
+    day: 4,
+    priority: 'critica',
+    category: 'errores',
+    description: 'La conciliación bancaria tiene una diferencia de $3,500. El becario no registró un cheque sin cobrar.',
+    emailSubject: 'Conciliación con diferencia — investigar',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'Hay un cheque de $3,500 sin registrar en la conciliación',
+    expectedMistake: 'Si el alumno no busca cheques sin cobrar, no podrá cuadrar la conciliación',
+  },
+  // TRAMPA 4: Nómina con ISR mal calculado
+  {
+    title: 'Nómina con error en ISR',
+    type: 'payroll',
+    difficulty: 4,
+    time: 30,
+    week: 3,
+    day: 1,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El becario calculó ISR al 15% fijo, pero debería usar la tabla progresiva del SAT.',
+    emailSubject: 'Nómina con error fiscal — corregir',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'ISR calculado al 15% fijo en lugar de tabla progresiva',
+    expectedMistake: 'Si el alumno no usa la tabla correcta, el neto será incorrecto y puede haber multas',
+  },
+  // TRAMPA 5: Póliza invertida
+  {
+    title: 'Póliza de depreciación invertida',
+    type: 'journal_entry',
+    difficulty: 4,
+    time: 15,
+    week: 4,
+    day: 2,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El becario puso la depreciación acumulada en DEBE y el gasto en HABER (invertido).',
+    emailSubject: 'Póliza incorrecta — corregir',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'DEBE y HABER están invertidos en la póliza',
+    expectedMistake: 'Si el alumno no detecta, el Estado de Resultados mostrará utilidad falsa',
+  },
+  // TRAMPA 6: Factura de proveedor duplicada
+  {
+    title: 'CFDI de proveedor duplicado',
+    type: 'supplier_invoice',
+    difficulty: 4,
+    time: 12,
+    week: 2,
+    day: 3,
+    priority: 'media',
+    category: 'errores',
+    description: 'Se registró dos veces la misma factura de Transportes Express. El alumno debe detectar la duplicación.',
+    emailSubject: 'Factura duplicada — verificar',
+    emailFrom: 'Sistema',
+    isTrap: true,
+    trapDescription: 'La misma factura aparece dos veces en el sistema',
+    expectedMistake: 'Si el alumno no verifica, pagará doble al proveedor',
+  },
+  // TRAMPA 7: Nota de crédito excede factura
+  {
+    title: 'Nota de crédito mayor a factura',
+    type: 'credit_note',
+    difficulty: 4,
+    time: 12,
+    week: 4,
+    day: 3,
+    priority: 'media',
+    category: 'errores',
+    description: 'El cliente solicita nota de crédito por $15,000, pero la factura original es de $12,000.',
+    emailSubject: 'Nota de crédito inválida',
+    emailFrom: 'Cliente',
+    isTrap: true,
+    trapDescription: 'El monto de la nota de crédito excede la factura original',
+    expectedMistake: 'Si el alumno no verifica el monto, generará un crédito fiscal inválido',
+  },
+  // TRAMPA 8: Corte de caja descuadrado
+  {
+    title: 'Corte de caja con diferencia no explicada',
+    type: 'cash_cut',
+    difficulty: 4,
+    time: 15,
+    week: 4,
+    day: 5,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El corte de caja tiene una diferencia de $850. El efectivo contado es menor al esperado.',
+    emailSubject: 'Corte de caja — diferencia',
+    emailFrom: 'Lic. Gómez',
+    isTrap: true,
+    trapDescription: 'Hay $850 de diferencia entre efectivo esperado y contado',
+    expectedMistake: 'Si el alumno no investiga, puede haber robo o error no detectado',
+  },
+];
+
+// ─── Generador de tareas por semana ──────────────────────────
+
+function generateTaskId(): string {
+  return `task-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
 
 const CLIENT_PROFILES = [
-  { id: 'c1', name: 'Comercial del Norte S.A.', frequency: 'semanal', avgAmount: 45000, paymentStyle: 'puntual' },
-  { id: 'c2', name: 'Transportes Rápidos S.A.', frequency: 'quincenal', avgAmount: 32000, paymentStyle: 'puntual' },
-  { id: 'c3', name: 'Almacenes del Bajío S.P.R.', frequency: 'semanal', avgAmount: 28000, paymentStyle: 'pago_contado' },
-  { id: 'c4', name: 'Inversiones del Valle S.A.', frequency: 'mensual', avgAmount: 85000, paymentStyle: 'tardado' },
-  { id: 'c5', name: 'Corporativo Trust S.A.', frequency: 'mensual', avgAmount: 120000, paymentStyle: 'puntual' },
+  { id: 'c1', name: 'Comercial del Norte S.A.', rfc: 'CNS-990101-HIJ', frequency: 'semanal', avgAmount: 45000, paymentStyle: 'puntual' },
+  { id: 'c2', name: 'Transportes Rápidos S.A.', rfc: 'TRA-880202-KLM', frequency: 'quincenal', avgAmount: 32000, paymentStyle: 'puntual' },
+  { id: 'c3', name: 'Almacenes del Bajío S.P.R.', rfc: 'ALB-770303-NOP', frequency: 'semanal', avgAmount: 28000, paymentStyle: 'pago_contado' },
+  { id: 'c4', name: 'Inversiones del Valle S.A.', rfc: 'INV-660404-QRS', frequency: 'mensual', avgAmount: 85000, paymentStyle: 'tardado' },
+  { id: 'c5', name: 'Corporativo Trust S.A.', rfc: 'CTR-550505-TUV', frequency: 'mensual', avgAmount: 120000, paymentStyle: 'puntual' },
 ];
 
 const SUPPLIER_PROFILES = [
-  { id: 's1', name: 'Transportes Express S.A.', category: 'transporte', frequency: 'semanal', avgAmount: 35000 },
-  { id: 's2', name: 'Papelería del Norte', category: 'oficina', frequency: 'mensual', avgAmount: 4500 },
-  { id: 's3', name: 'Servicios Tech MX', category: 'tecnología', frequency: 'mensual', avgAmount: 18000 },
-  { id: 's4', name: 'Combustibles del Bajío', category: 'operación', frequency: 'semanal', avgAmount: 25000 },
+  { id: 's1', name: 'Transportes Express S.A.', rfc: 'TEX-920101-ABC', category: 'transporte', frequency: 'semanal', avgAmount: 35000 },
+  { id: 's2', name: 'Papelería del Norte', rfc: 'PAN-850202-DEF', category: 'oficina', frequency: 'mensual', avgAmount: 4500 },
+  { id: 's3', name: 'Servicios Tech MX', rfc: 'STM-900303-GHI', category: 'tecnología', frequency: 'mensual', avgAmount: 18000 },
+  { id: 's4', name: 'Combustibles del Bajío', rfc: 'CDB-780404-JKL', category: 'operación', frequency: 'semanal', avgAmount: 25000 },
 ];
 
-// ─── Generador de tareas ─────────────────────────────────────
+// ─── Ciclo contable real por semana ─────────────────────────
 
-let taskIdCounter = 0;
+const WEEK_THEMES: Record<number, { theme: string; focus: string; tasks: { type: string; category: TaskCategory; difficulty: number; count: number }[] }> = {
+  1: {
+    theme: 'Inicio de mes — Facturación del mes anterior',
+    focus: 'Emitir facturas pendientes, registrar pagos recibidos, primeros CFDI de proveedores',
+    tasks: [
+      { type: 'invoice_emission', category: 'facturacion', difficulty: 1, count: 3 },
+      { type: 'payment_registration', category: 'cobranza', difficulty: 1, count: 2 },
+      { type: 'supplier_invoice', category: 'compras', difficulty: 1, count: 2 },
+      { type: 'invoice_emission', category: 'facturacion', difficulty: 2, count: 1 },
+    ],
+  },
+  2: {
+    theme: 'Operación normal — Cobranza y conciliación',
+    focus: 'Registrar pagos, conciliar bancos, verificar CFDI',
+    tasks: [
+      { type: 'payment_registration', category: 'cobranza', difficulty: 1, count: 3 },
+      { type: 'supplier_invoice', category: 'compras', difficulty: 1, count: 2 },
+      { type: 'bank_reconciliation', category: 'banco', difficulty: 2, count: 1 },
+      { type: 'invoice_emission', category: 'facturacion', difficulty: 1, count: 1 },
+      { type: 'ap_reconciliation', category: 'conciliacion', difficulty: 2, count: 1 },
+    ],
+  },
+  3: {
+    theme: 'Cálculos fiscales y nómina',
+    focus: 'IVA mensual, nómina quincenal, cálculos de impuestos',
+    tasks: [
+      { type: 'tax_calculation', category: 'fiscal', difficulty: 2, count: 1 },
+      { type: 'payroll', category: 'nomina', difficulty: 2, count: 1 },
+      { type: 'payment_registration', category: 'cobranza', difficulty: 1, count: 1 },
+      { type: 'supplier_invoice', category: 'compras', difficulty: 1, count: 1 },
+      { type: 'payment_scheduling', category: 'banco', difficulty: 1, count: 1 },
+      { type: 'cfdi_reconciliation', category: 'fiscal', difficulty: 2, count: 1 },
+    ],
+  },
+  4: {
+    theme: 'Cierre de mes — Pólizas y reportes',
+    focus: 'Depreciación, pólizas de ajuste, corte de caja, estados financieros',
+    tasks: [
+      { type: 'journal_entry', category: 'cierre', difficulty: 2, count: 2 },
+      { type: 'depreciation', category: 'activos', difficulty: 2, count: 1 },
+      { type: 'credit_note', category: 'facturacion', difficulty: 2, count: 1 },
+      { type: 'bank_reconciliation', category: 'banco', difficulty: 2, count: 1 },
+      { type: 'cash_cut', category: 'cierre', difficulty: 2, count: 1 },
+      { type: 'financial_statements', category: 'reportes', difficulty: 3, count: 1 },
+    ],
+  },
+};
 
-function generateTaskId(): string {
-  taskIdCounter++;
-  return `task-${Date.now()}-${taskIdCounter}`;
-}
+// ─── Generador principal ────────────────────────────────────
 
-function pickClientForWeek(week: number, day: number): typeof CLIENT_PROFILES[0] {
-  // Los clientes más frecuentes aparecen más seguido
-  const weights = CLIENT_PROFILES.map(c => {
-    if (c.frequency === 'semanal') return 4;
-    if (c.frequency === 'quincenal') return 2;
-    return 1;
-  });
-  const totalWeight = weights.reduce((s, w) => s + w, 0);
-  let random = ((week * 7 + day) * 137) % totalWeight; // Determinístico por día
-  for (let i = 0; i < CLIENT_PROFILES.length; i++) {
-    if (random < weights[i]) return CLIENT_PROFILES[i];
-    random -= weights[i];
-  }
-  return CLIENT_PROFILES[0];
-}
-
-function pickSupplierForWeek(week: number, category: string): typeof SUPPLIER_PROFILES[0] {
-  const filtered = SUPPLIER_PROFILES.filter(s => s.category === category || category === 'general');
-  return filtered[(week * 7) % filtered.length] || SUPPLIER_PROFILES[0];
-}
-
-function generateInvoiceNumber(week: number, day: number, seq: number): string {
-  const n = 100 + week * 10 + day * 2 + seq;
-  return `FAC-2026-${String(n).padStart(3, '0')}`;
-}
-
-// ─── Generador de semana ─────────────────────────────────────
-
-export function generateWeekTasks(month: number, year: number, week: number): PlannedTask[] {
-  const tasks: PlannedTask[] = [];
-  const pattern = WEEKLY_PATTERNS[week] || WEEKLY_PATTERNS[1];
-
-  for (let day = 1; day <= 5; day++) { // Lunes a viernes
-    const dayTasks = pattern.filter((_, i) => (i + day) % 3 === 0 || day === 3); // Distribuir evenly
-
-    for (const taskGroup of dayTasks) {
-      for (const taskType of taskGroup.taskTypes) {
-        const client = pickClientForWeek(week, day);
-        const supplier = pickSupplierForWeek(week, 'general');
-        const amount = Math.round(client.avgAmount * (0.8 + Math.random() * 0.4));
-
-        const task = createTask({
-          type: taskType,
-          week,
-          day,
-          client,
-          supplier,
-          amount,
-          difficulty: taskGroup.difficulty,
-          month,
-          year,
-        });
-
-        tasks.push(task);
-      }
-    }
-  }
-
-  return tasks;
-}
-
-interface TaskConfig {
+function createTaskFromConfig(config: {
   type: string;
+  category: TaskCategory;
+  difficulty: number;
   week: number;
   day: number;
-  client: typeof CLIENT_PROFILES[0];
-  supplier: typeof SUPPLIER_PROFILES[0];
-  amount: number;
-  difficulty: number;
   month: number;
   year: number;
-  dependsOn?: string;
-  invoiceRef?: string;
-}
+  client?: typeof CLIENT_PROFILES[0];
+  supplier?: typeof SUPPLIER_PROFILES[0];
+  amount?: number;
+  trap?: typeof TRAP_SCENARIOS[0];
+}): PlannedTask {
+  const { type, category, difficulty, week, day, month, year, client, supplier, amount, trap } = config;
 
-function createTask(config: TaskConfig): PlannedTask {
-  const { type, week, day, client, supplier, amount, difficulty, month, year, dependsOn, invoiceRef } = config;
-  const id = generateTaskId();
-  const iva = Math.round(amount * 0.16);
+  if (trap) {
+    return {
+      ...trap,
+      id: generateTaskId(),
+    };
+  }
 
-  const taskTemplates: Record<string, () => PlannedTask> = {
+  const amt = amount || (client ? Math.round(client.avgAmount * (0.8 + Math.random() * 0.4)) : r(10000, 50000));
+  const iva = Math.round(amt * 0.16);
+  const invNum = `FAC-2026-${String(100 + week * 10 + day * 2).padStart(3, '0')}`;
+
+  const templates: Record<string, () => PlannedTask> = {
     invoice_emission: () => ({
-      id,
-      title: `Factura a ${client.name}`,
-      type: 'invoice_emission',
-      difficulty,
-      time: difficulty === 1 ? 10 : 15,
-      week,
-      day,
+      id: generateTaskId(),
+      title: `Factura a ${client?.name || 'Cliente'}`,
+      type, difficulty, time: difficulty === 1 ? 10 : 15, week, day,
       priority: week === 1 ? 'alta' : 'media',
-      category: 'facturacion',
-      description: `Emitir CFDI 4.0 a ${client.name} por servicios de transporte/logística`,
-      emailSubject: `Solicitud de factura — ${client.name}`,
+      category, description: `Emitir CFDI 4.0 a ${client?.name} por servicios de transporte`,
+      emailSubject: `Solicitud de factura — ${client?.name}`,
       emailFrom: 'Lic. Gómez',
-      clientRef: client.id,
-      invoiceRef: generateInvoiceNumber(week, day, 0),
+      clientRef: client?.id, invoiceRef: invNum,
     }),
-
     payment_registration: () => ({
-      id,
-      title: `Pago de ${client.name}`,
-      type: 'payment_registration',
-      difficulty,
-      time: 8,
-      week,
-      day,
-      priority: 'media',
-      category: 'cobranza',
-      description: `Registrar pago recibido de ${client.name} por $${amount.toLocaleString('es-MX')}`,
-      emailSubject: `Pago de factura — ${client.name}`,
-      emailFrom: client.name,
-      clientRef: client.id,
-      dependsOn,
-      invoiceRef,
+      id: generateTaskId(),
+      title: `Pago de ${client?.name || 'Cliente'}`,
+      type, difficulty, time: 8, week, day,
+      priority: 'media', category,
+      description: `Registrar pago recibido de ${client?.name} por $${amt.toLocaleString('es-MX')}`,
+      emailSubject: `Pago de factura — ${client?.name}`,
+      emailFrom: client?.name || 'Cliente',
+      clientRef: client?.id, invoiceRef: invNum,
     }),
-
     supplier_invoice: () => ({
-      id,
-      title: `CFDI de ${supplier.name}`,
-      type: 'supplier_invoice',
-      difficulty,
-      time: 8,
-      week,
-      day,
-      priority: 'media',
-      category: 'compras',
-      description: `Registrar factura de ${supplier.name} por servicios de ${supplier.category}`,
-      emailSubject: `Factura — ${supplier.name}`,
-      emailFrom: supplier.name,
-      supplierRef: supplier.id,
+      id: generateTaskId(),
+      title: `CFDI de ${supplier?.name || 'Proveedor'}`,
+      type, difficulty, time: 8, week, day,
+      priority: 'media', category,
+      description: `Registrar factura de ${supplier?.name} por servicios de ${supplier?.category}`,
+      emailSubject: `Factura — ${supplier?.name}`,
+      emailFrom: supplier?.name || 'Proveedor',
+      supplierRef: supplier?.id,
     }),
-
     bank_reconciliation: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Conciliación bancaria',
-      type: 'bank_reconciliation',
-      difficulty,
-      time: 20,
-      week,
-      day,
-      priority: week === 2 ? 'alta' : 'media',
-      category: 'banco',
-      description: 'Conciliar movimientos bancarios contra registros internos',
+      type, difficulty, time: 20, week, day,
+      priority: week === 2 ? 'alta' : 'media', category,
+      description: 'Conciliar movimientos bancarios contra registros internos del mes',
       emailSubject: 'Estado de cuenta — Julio 2026',
       emailFrom: 'Banco Norte',
     }),
-
     tax_calculation: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Cálculo de IVA mensual',
-      type: 'tax_calculation',
-      difficulty,
-      time: 25,
-      week,
-      day,
-      priority: 'alta',
-      category: 'fiscal',
+      type, difficulty, time: 25, week, day,
+      priority: 'alta', category,
       description: 'Calcular IVA trasladado, acreditable y saldo por pagar del periodo',
       emailSubject: 'Cálculo IVA mensual — Julio 2026',
       emailFrom: 'Lic. Gómez',
     }),
-
     payroll: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Nómina quincenal',
-      type: 'payroll',
-      difficulty,
-      time: 30,
-      week,
-      day,
-      priority: 'alta',
-      category: 'nomina',
+      type, difficulty, time: 30, week, day,
+      priority: 'alta', category,
       description: 'Calcular nómina de 4 empleados con retenciones ISR e IMSS',
       emailSubject: 'Cálculo nómina quincenal — Julio 2026',
       emailFrom: 'Lic. Gómez',
     }),
-
     journal_entry: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Póliza de diario',
-      type: 'journal_entry',
-      difficulty,
-      time: 15,
-      week,
-      day,
-      priority: 'media',
-      category: 'cierre',
-      description: 'Registrar póliza de depreciación mensual de equipo de cómputo',
-      emailSubject: 'Póliza de depreciación — Julio 2026',
+      type, difficulty, time: 15, week, day,
+      priority: 'media', category,
+      description: 'Registrar póliza contable de ajuste del periodo',
+      emailSubject: 'Póliza de ajuste — Julio 2026',
       emailFrom: 'Lic. Gómez',
     }),
-
     payment_scheduling: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Programación de pagos',
-      type: 'payment_scheduling',
-      difficulty,
-      time: 10,
-      week,
-      day,
-      priority: 'media',
-      category: 'banco',
+      type, difficulty, time: 10, week, day,
+      priority: 'media', category,
       description: 'Programar dispersión de pagos a proveedores de la semana',
       emailSubject: 'Programación de pagos — Semana',
       emailFrom: 'Tesorería',
     }),
-
     credit_note: () => ({
-      id,
-      title: `Nota de crédito — ${client.name}`,
-      type: 'credit_note',
-      difficulty,
-      time: 12,
-      week,
-      day,
-      priority: 'baja',
-      category: 'facturacion',
-      description: `Emitir nota de crédito a ${client.name} por devolución parcial`,
-      emailSubject: `Solicitud nota de crédito — ${client.name}`,
-      emailFrom: client.name,
-      clientRef: client.id,
+      id: generateTaskId(),
+      title: `Nota de crédito — ${client?.name || 'Cliente'}`,
+      type, difficulty, time: 12, week, day,
+      priority: 'baja', category,
+      description: `Emitir nota de crédito a ${client?.name} por devolución parcial`,
+      emailSubject: `Solicitud nota de crédito — ${client?.name}`,
+      emailFrom: client?.name || 'Cliente',
+      clientRef: client?.id,
     }),
-
     cash_cut: () => ({
-      id,
+      id: generateTaskId(),
       title: 'Corte de caja',
-      type: 'cash_cut',
-      difficulty,
-      time: 15,
-      week,
-      day,
-      priority: day === 5 ? 'alta' : 'media', // Viernes es más importante
-      category: 'cierre',
+      type, difficulty, time: 15, week, day,
+      priority: day === 5 ? 'alta' : 'media', category,
       description: 'Realizar corte de caja del turno matutino',
       emailSubject: 'Corte de caja diario — Turno matutino',
       emailFrom: 'Lic. Gómez',
     }),
-
+    ap_reconciliation: () => ({
+      id: generateTaskId(),
+      title: 'Conciliación de cuentas por pagar',
+      type, difficulty, time: 20, week, day,
+      priority: 'media', category,
+      description: 'Verificar que todas las facturas de proveedores estén registradas correctamente',
+      emailSubject: 'Conciliación AP — Julio 2026',
+      emailFrom: 'Lic. Gómez',
+    }),
     cfdi_reconciliation: () => ({
-      id,
-      title: 'Conciliación de CFDI',
-      type: 'cfdi_reconciliation',
-      difficulty,
-      time: 20,
-      week,
-      day,
-      priority: 'alta',
-      category: 'fiscal',
-      description: 'Verificar que todos los CFDI recibidos estén registrados correctamente',
+      id: generateTaskId(),
+      title: 'Verificación de CFDI',
+      type, difficulty, time: 20, week, day,
+      priority: 'alta', category,
+      description: 'Verificar que todos los CFDI recibidos estén registrados y sean válidos',
       emailSubject: 'Verificación CFDI — Julio 2026',
+      emailFrom: 'Lic. Gómez',
+    }),
+    depreciation: () => ({
+      id: generateTaskId(),
+      title: 'Depreciación de activos fijos',
+      type, difficulty, time: 20, week, day,
+      priority: 'media', category,
+      description: 'Calcular y registrar depreciación mensual de equipo de cómputo y mobiliario',
+      emailSubject: 'Depreciación mensual — Julio 2026',
+      emailFrom: 'Lic. Gómez',
+    }),
+    financial_statements: () => ({
+      id: generateTaskId(),
+      title: 'Estados financieros',
+      type, difficulty, time: 45, week, day,
+      priority: 'alta', category,
+      description: 'Generar Balance General, Estado de Resultados y Balanza de Comprobación',
+      emailSubject: 'Reportes financieros — Julio 2026',
       emailFrom: 'Lic. Gómez',
     }),
   };
 
-  return (taskTemplates[type] || taskTemplates.invoice_emission)();
+  return (templates[type] || templates.invoice_emission)();
 }
 
-// ─── Generador de mes completo ───────────────────────────────
+function r(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// ─── Generador de mes completo ─────────────────────────────
 
 export function generateMonthPlan(month: number, year: number): MonthPlan {
   const allTasks: PlannedTask[] = [];
+  const weekPlans: WeekPlan[] = [];
 
   for (let week = 1; week <= 4; week++) {
-    const weekTasks = generateWeekTasks(month, year, week);
+    const weekTheme = WEEK_THEMES[week];
+    const weekTasks: PlannedTask[] = [];
+
+    // Generar tareas regulares
+    for (const taskConfig of weekTheme.tasks) {
+      for (let i = 0; i < taskConfig.count; i++) {
+        const client = CLIENT_PROFILES[i % CLIENT_PROFILES.length];
+        const supplier = SUPPLIER_PROFILES[i % SUPPLIER_PROFILES.length];
+        const day = ((i + week) % 5) + 1; // Distribuir entre L-V
+
+        const task = createTaskFromConfig({
+          type: taskConfig.type,
+          category: taskConfig.category,
+          difficulty: taskConfig.difficulty,
+          week,
+          day,
+          month,
+          year,
+          client,
+          supplier,
+        });
+        weekTasks.push(task);
+      }
+    }
+
+    // Agregar 1 trampa por semana (dificultad 4)
+    const trapIndex = week - 1;
+    if (trapIndex < TRAP_SCENARIOS.length) {
+      const trap = TRAP_SCENARIOS[trapIndex];
+      const trapTask = createTaskFromConfig({
+        type: trap.type,
+        category: trap.category,
+        difficulty: trap.difficulty,
+        week,
+        day: 3, // Miércoles (día pico)
+        month,
+        year,
+        trap,
+      });
+      weekTasks.push(trapTask);
+    }
+
+    // Ordenar por día
+    weekTasks.sort((a, b) => a.day - b.day);
+
+    weekPlans.push({
+      week,
+      theme: weekTheme.theme,
+      tasks: weekTasks,
+      totalHours: Math.round(weekTasks.reduce((s, t) => s + t.time, 0) / 60),
+    });
+
     allTasks.push(...weekTasks);
   }
 
-  // Establecer dependencias entre tareas del mismo cliente
-  const clientTasks = new Map<string, PlannedTask[]>();
+  // Estadísticas
+  const byCategory: Record<string, number> = {};
+  const byDifficulty: Record<number, number> = {};
+  let trapCount = 0;
+
   for (const task of allTasks) {
-    if (task.clientRef) {
-      if (!clientTasks.has(task.clientRef)) clientTasks.set(task.clientRef, []);
-      clientTasks.get(task.clientRef)!.push(task);
-    }
+    byCategory[task.category] = (byCategory[task.category] || 0) + 1;
+    byDifficulty[task.difficulty] = (byDifficulty[task.difficulty] || 0) + 1;
+    if (task.isTrap) trapCount++;
   }
 
-  // Vincular factura → pago del mismo cliente
-  for (const tasks of clientTasks.values()) {
-    const invoices = tasks.filter(t => t.type === 'invoice_emission');
-    const payments = tasks.filter(t => t.type === 'payment_registration');
-
-    for (let i = 0; i < Math.min(invoices.length, payments.length); i++) {
-      payments[i].dependsOn = invoices[i].id;
-      payments[i].invoiceRef = invoices[i].invoiceRef;
-    }
-  }
-
-  return {
-    month,
-    year,
-    tasks: allTasks,
-    phase: 'desarrollo',
-    week: 1,
+  const summary: MonthSummary = {
+    totalTasks: allTasks.length,
+    byCategory,
+    byDifficulty,
+    trapCount,
+    estimatedHours: Math.round(allTasks.reduce((s, t) => s + t.time, 0) / 60),
+    skillsCovered: Object.keys(byCategory),
   };
+
+  return { month, year, tasks: allTasks, weekPlans, summary };
 }
 
-// ─── API para obtener tareas del día ─────────────────────────
+// ─── APIs de consulta ───────────────────────────────────────
 
 export function getTodayTasks(month: number, year: number, week: number, day: number): PlannedTask[] {
   const plan = generateMonthPlan(month, year);
   return plan.tasks.filter(t => t.week === week && t.day === day);
 }
 
-export function getWeekTasks(month: number, year: number, week: number): PlannedTask[] {
+export function getWeekTasks(month: number, year: number, week: number): WeekPlan {
   const plan = generateMonthPlan(month, year);
-  return plan.tasks.filter(t => t.week === week);
+  return plan.weekPlans.find(w => w.week === week) || plan.weekPlans[0];
 }
 
-export function getMonthStats(month: number, year: number) {
+export function getMonthStats(month: number, year: number): MonthSummary {
   const plan = generateMonthPlan(month, year);
-  const byCategory: Record<string, number> = {};
-  const byDifficulty: Record<number, number> = {};
-
-  for (const task of plan.tasks) {
-    byCategory[task.category] = (byCategory[task.category] || 0) + 1;
-    byDifficulty[task.difficulty] = (byDifficulty[task.difficulty] || 0) + 1;
-  }
-
-  return {
-    totalTasks: plan.tasks.length,
-    byCategory,
-    byDifficulty,
-    estimatedHours: Math.round(plan.tasks.reduce((s, t) => s + t.time, 0) / 60),
-    weeks: 4,
-    tasksPerWeek: Math.round(plan.tasks.length / 4),
-  };
+  return plan.summary;
 }
 
-// ─── Exportar para uso en el frontend ────────────────────────
+export function getTaskKnowledge(taskType: string) {
+  return TASK_KNOWLEDGE[taskType] || null;
+}
 
-export { CLIENT_PROFILES, SUPPLIER_PROFILES };
+export { CLIENT_PROFILES, SUPPLIER_PROFILES, TRAP_SCENARIOS };
