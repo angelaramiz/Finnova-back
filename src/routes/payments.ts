@@ -1,23 +1,33 @@
 import { Router, Request, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
-import Stripe from 'stripe';
 
 const stripeKey = process.env.STRIPE_SECRET_KEY || '';
 const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
 const alumnosUrl = process.env.ALUMNOS_URL || 'http://localhost:5173';
 
-let stripe: Stripe | null = null;
-if (stripeKey) {
-  stripe = new Stripe(stripeKey, { apiVersion: '2025-03-31.autopreview' as any });
+// Stripe se carga bajo demanda, no al importar el módulo
+let stripe: any = null;
+function getStripe(): any {
+  if (stripe) return stripe;
+  if (!stripeKey) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const Stripe = require('stripe').default;
+    stripe = new Stripe(stripeKey, { apiVersion: '2025-03-31.autopreview' as any });
+    return stripe;
+  } catch {
+    return null;
+  }
 }
 
 export const paymentsRouter = Router();
 
 paymentsRouter.get('/health', (_req, res: Response) => {
+  const s = getStripe();
   res.json({
-    status: stripe ? 'ok' : 'not_configured',
-    mode: stripe && stripeKey.startsWith('sk_live') ? 'live' : 'test',
+    status: s ? 'ok' : 'not_configured',
+    mode: s && stripeKey.startsWith('sk_live') ? 'live' : 'test',
     timestamp: new Date().toISOString(),
   });
 });
@@ -90,7 +100,9 @@ paymentsRouter.post('/create-checkout', requireSupabaseAuth, async (req: Authent
           unit_amount: planId === 'plan-quarterly' ? 59900 : 29900,
         }, quantity: 1 }];
 
-    const session = await stripe.checkout.sessions.create({
+    const s = getStripe();
+    if (!s) { res.status(503).json({ error: 'Stripe no configurado' }); return; }
+    const session = await s.checkout.sessions.create({
       mode: 'subscription',
       payment_method_types: ['card'],
       line_items: lineItems,
@@ -121,9 +133,11 @@ paymentsRouter.post('/webhook', async (req: Request, res: Response) => {
   const rawBody = (req as any).rawBody;
   if (!rawBody) { res.status(400).json({ error: 'rawBody no disponible' }); return; }
 
-  let event: Stripe.Event;
+  let event: any;
   try {
-    event = stripe.webhooks.constructEvent(rawBody, sig, stripeWebhookSecret);
+    const s = getStripe();
+    if (!s) { res.status(503).json({ error: 'Stripe no configurado' }); return; }
+    event = s.webhooks.constructEvent(rawBody, sig, stripeWebhookSecret);
   } catch (err: any) {
     console.error('[Stripe] Webhook signature error:', err);
     res.status(400).json({ error: err.message });
@@ -131,14 +145,15 @@ paymentsRouter.post('/webhook', async (req: Request, res: Response) => {
   }
 
   try {
+    const s = getStripe();
     switch (event.type) {
       case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
+        const session = event.data.object as any;
         const userId = session.metadata?.userId;
         const planId = session.metadata?.plan_id || 'plan-monthly';
 
         if (userId && session.subscription) {
-          const sub = await stripe.subscriptions.retrieve(session.subscription as string) as any;
+          const sub = await s?.subscriptions.retrieve(session.subscription as string) as any;
           const periodStart = typeof sub.current_period_start === 'number'
             ? sub.current_period_start : sub.current_period_start.seconds;
           const periodEnd = typeof sub.current_period_end === 'number'
