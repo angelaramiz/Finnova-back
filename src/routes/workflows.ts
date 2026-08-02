@@ -7,24 +7,26 @@ export const workflowRouter = Router();
 // GET /api/sim/workflows/:taskType — Genera workflow para tipo de tarea
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType } = req.params;
-  const validTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception'];
+  const userId = req.user?.id;
+  const validTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut'];
   if (!validTypes.includes(taskType)) {
     res.status(400).json({ error: `Tipo no válido: ${taskType}. Usa: ${validTypes.join(', ')}` });
     return;
   }
-  const workflow = generateWorkflow(taskType);
+  const workflow = generateWorkflow(taskType, userId);
   res.json(workflow);
 });
 
 // POST /api/sim/workflows/validate — Valida respuestas del usuario contra las reglas
 workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType, answers } = req.body;
+  const userId = req.user?.id;
   if (!taskType || !answers) {
     res.status(400).json({ error: 'taskType y answers son requeridos' });
     return;
   }
 
-  const workflow = generateWorkflow(taskType);
+  const workflow = generateWorkflow(taskType, userId);
   const results: any[] = [];
   let totalScore = 0;
   let maxPossible = 0;

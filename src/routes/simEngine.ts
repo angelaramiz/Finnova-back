@@ -7,6 +7,7 @@ import { calculateScore, checkProgression, checkDeadline, validateTransition, ge
 import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
+import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -260,6 +261,37 @@ simEngineRouter.get('/reports/balanza-comprobacion', requireSupabaseAuth, async 
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const report = generateBalanzaComprobacion(userId);
   res.json(report);
+});
+
+// ─── Datos persistentes ───────────────────────────────────────
+simEngineRouter.get('/company', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(getCompany(userId));
+});
+
+simEngineRouter.get('/clients', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(getClients(userId));
+});
+
+simEngineRouter.get('/suppliers', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(getSuppliers(userId));
+});
+
+simEngineRouter.get('/products', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(getProducts(userId));
+});
+
+simEngineRouter.get('/transactions', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(getTransactions(userId));
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
