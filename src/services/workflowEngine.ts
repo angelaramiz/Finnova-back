@@ -109,8 +109,30 @@ export function generateInvoiceWorkflow(userId?: string): Workflow {
         data: {
           from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
           subject: `Solicitud de factura — ${client.name}`,
-          body: `Buenos días,\nPor favor emite una factura a nombre de **${client.name}** (RFC: ${client.rfc})\npor el servicio de **${product.name.toLowerCase()}** que realizamos este mes.\n\nCantidad: ${qty} ${product.unit}(s)\nPrecio unitario: $${fmt(unitPrice)}\n\nIncluye el IVA correspondiente. La factura debe enviarse antes del cierre del día.\n\nSaludos,\nLic. Gómez\nDepartamento de Administración`,
-          urgency: 'media',
+          body: `Buenos días,
+
+Necesito que emitas una factura electrónica (CFDI 4.0) a nombre de **${client.name}** por el servicio de transporte que completamos la semana pasada.
+
+**Datos del servicio:**
+- Cliente: ${client.name} (RFC: ${client.rfc})
+- Concepto: ${product.name}
+- Cantidad: ${qty} ${product.unit}(s)
+- Precio unitario: $${fmt(unitPrice)}
+
+**Instrucciones:**
+1. Selecciona al cliente correcto en el catálogo
+2. Captura el RFC exacto del cliente
+3. Ingresa cantidad y precio unitario
+4. El sistema calculará automáticamente subtotal, IVA y total
+5. Verifica que los cálculos sean correctos antes de entregar
+
+La factura debe enviarse al cliente antes de las 14:00 hrs. Si tienes dudas, acércate a mi escritorio.
+
+Saludos,
+Lic. Gómez
+Contador General
+Logística del Norte S.A. de C.V.`,
+          urgency: 'alta',
         },
       },
       {
@@ -159,8 +181,25 @@ export function generatePaymentWorkflow(userId?: string): Workflow {
       {
         id: 'email', type: 'email', title: 'Correo del cliente', description: 'El cliente ha enviado un comprobante de pago',
         data: {
-          from: client.name, to: 'cobranza@logistica.com', subject: `Pago de factura ${invNum}`,
-          body: `Estimados,\nAdjuntamos el comprobante de pago de la factura **${invNum}** por un monto de **$${fmt(amountPaid)}** correspondiente a servicios prestados.\n\nQuedan pendientes **$${fmt(remaining)}** por liquidar.\n\nSaludos cordiales,\n${client.name}`,
+          from: client.name, to: 'cobranza@logistica.com',
+          subject: `Pago de factura ${invNum} — Transferencia bancaria`,
+          body: `Estimados,
+
+Por medio del presente, les confirmo que realizamos el pago de la factura **${invNum}** por un monto de **$${fmt(amountPaid)}** mediante transferencia SPEI.
+
+**Datos de la transferencia:**
+- Banco: Banorte
+- Cuenta destino: ****4567
+- Fecha: ${new Date().toLocaleDateString('es-MX')}
+- Referencia: ${r(100000, 999999)}
+
+El monto restante de **$${fmt(remaining)}** será liquidado en los próximos 15 días.
+
+Quedamos atentos a su confirmación de recepción.
+
+Saludos cordiales,
+${client.name}
+Departamento de Finanzas`,
         },
       },
       {
@@ -202,8 +241,28 @@ function generateIVAWorkflow(): Workflow {
       {
         id: 'email', type: 'email', title: 'Solicitud del contador', description: 'Calcula el IVA del periodo',
         data: {
-          from: 'Lic. Gómez', to: 'auxiliar@logistica.com', subject: 'Cálculo IVA mensual — Julio 2026',
-          body: `Buenos días,\nNecesito el cálculo del IVA mensual.\n\nVentas del periodo: $${fmt(sales)}\nCompras del periodo: $${fmt(purchases)}\n\nCalcula el IVA trasladado, acreditable y el saldo por pagar.\n\nSaludos,\nLic. Gómez`,
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Cálculo IVA mensual — Julio 2026',
+          body: `Buenos días,
+
+Necesito que realices el cálculo del IVA mensual para la declaración de julio 2026.
+
+**Datos del periodo:**
+- Ventas totales: $${fmt(sales)}
+- Compras deducibles: $${fmt(purchases)}
+
+**Pasos a seguir:**
+1. Abre la hoja de cálculo del módulo fiscal
+2. Ingresa las ventas y compras del periodo
+3. Calcula el IVA trasladado (16% sobre ventas)
+4. Calcula el IVA acreditable (16% sobre compras)
+5. Determina el saldo a pagar o a favor
+
+Recuerda que el IVA por pagar se deposita antes del día 17 del mes siguiente. Si tienes dudas sobre los montos, revisa los CFDI en el módulo de facturación.
+
+Saludos,
+Lic. Gómez
+Contador General`,
         },
       },
       {
@@ -244,8 +303,28 @@ function generateBankReconciliationWorkflow(): Workflow {
       {
         id: 'email', type: 'email', title: 'Estado de cuenta', description: 'Recibiste el estado de cuenta del banco',
         data: {
-          from: 'Banco Norte', to: 'contabilidad@logistica.com', subject: 'Estado de cuenta — Julio 2026',
-          body: `Estimado cliente,\nAdjuntamos su estado de cuenta correspondiente a julio 2026.\n\nSaldo en cuenta: $${fmt(bankBalance)}\n\nFavor de realizar su conciliación bancaria.\n\nSaludos,\nBanco Norte`,
+          from: 'Banco Norte - Notificaciones', to: 'contabilidad@logistica.com',
+          subject: 'Estado de cuenta electrónico — Julio 2026',
+          body: `Estimado cliente,
+
+Le notificamos que su estado de cuenta correspondiente a julio 2026 está disponible.
+
+**Resumen de la cuenta:**
+- Cuenta: ****7890 (Corriente)
+- Saldo al corte: $${fmt(bankBalance)}
+- Movimientos: ${r(15, 45)} transacciones
+
+**Documentos adjuntos:**
+- Estado de cuenta en PDF
+- CSV de movimientos
+
+Le recordamos realizar su conciliación bancaria mensual antes del día 5 del mes siguiente.
+
+Si tiene alguna pregunta, comuníquese al (656) 123-4567.
+
+Atentamente,
+Banco Norte
+Servicio al Cliente`,
         },
       },
       {
@@ -280,8 +359,31 @@ function generateJournalEntryWorkflow(): Workflow {
       {
         id: 'email', type: 'email', title: 'Solicitud del contador', description: 'Registra la depreciación mensual',
         data: {
-          from: 'Lic. Gómez', to: 'auxiliar@logistica.com', subject: 'Registro de depreciación — Julio 2026',
-          body: `Buenos días,\nNecesito que registres la depreciación del equipo de cómputo.\n\nCosto original: $${fmt(originalCost)}\nVida útil: 4 años (48 meses)\nMétodo: Línea recta\n\nSaludos,\nLic. Gómez`,
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Póliza de depreciación — Julio 2026',
+          body: `Buenos días,
+
+Necesito que registres la póliza de depreciación mensual del equipo de cómputo.
+
+**Datos del activo:**
+- Descripción: Equipo de cómputo (laptops y desktops)
+- Costo original: $${fmt(originalCost)}
+- Fecha de adquisición: Enero 2023
+- Vida útil: 4 años (48 meses)
+- Método: Línea recta
+
+**Cálculo:**
+Depreciación mensual = Costo original ÷ Vida útil en meses
+
+**Cuentas contables:**
+- Cargo (DEBE): Gastos de depreciación (5-07)
+- Abono (HABER): Depreciación acumulada (1-13)
+
+Registra la póliza con el monto correcto y un concepto descriptivo.
+
+Saludos,
+Lic. Gómez
+Contador General`,
         },
       },
       {
@@ -326,8 +428,31 @@ function generatePayrollWorkflow(): Workflow {
       {
         id: 'email', type: 'email', title: 'Instrucciones de nómina', description: 'Calcula la nómina del mes',
         data: {
-          from: 'Lic. Gómez', to: 'nomina@logistica.com', subject: 'Cálculo nómina — Julio 2026',
-          body: `Buenos días,\nCalcula la nómina mensual de los 4 empleados.\n\nEmpleados:\n${employees.map(e => `- ${e.name}: $${fmt(e.salary)}`).join('\n')}\n\nAplica ISR (15%) e IMSS (5%).\n\nSaludos,\nLic. Gómez`,
+          from: 'Lic. Gómez', to: 'nomina@logistica.com',
+          subject: 'Cálculo nómina quincenal — Julio 2026',
+          body: `Buenos días,
+
+Es hora de calcular la nómina de la quincena del 1 al 15 de julio.
+
+**Empleados y sueldos brutos:**
+${employees.map(e => `- ${e.name}: $${fmt(e.salary)}/quincena`).join('\n')}
+
+**Retenciones a aplicar:**
+- ISR: 15% sobre sueldo bruto (conforme a tablas SAT)
+- IMSS: 5% cuota del trabajador
+
+**Instrucciones:**
+1. Ingresa a la hoja de cálculo de nómina
+2. Verifica que los sueldos brutos sean correctos
+3. Calcula ISR e IMSS para cada empleado
+4. Determina el neto a depositar
+5. Guarda el archivo para revisión
+
+La nómina debe estar lista antes del viernes para programar los depósitos del lunes.
+
+Saludos,
+Lic. Gómez
+Contador General`,
         },
       },
       {
@@ -369,8 +494,31 @@ function generateSupplierInvoiceWorkflow(userId?: string): Workflow {
       {
         id: 'email', type: 'email', title: 'Correo — Factura de proveedor', description: 'Has recibido una factura CFDI de un proveedor',
         data: {
-          from: supplier.name, to: 'proveedores@logistica.com', subject: `Factura ${folio} — Servicios julio 2026`,
-          body: `Estimados,\nAdjuntamos nuestra factura electrónica (CFDI) por los servicios prestados en julio.\n\nFolio fiscal: ${folio}\nProveedor: ${supplier.name}\nSubtotal: $${fmt(amount)}\nIVA (16%): $${fmt(iva)}\nTotal: $${fmt(total)}\n\nQuedamos atentos a su programación de pago.\n\nSaludos,\n${supplier.name}`,
+          from: supplier.name, to: 'proveedores@logistica.com',
+          subject: `Factura ${folio} — Servicios de ${supplier.name}`,
+          body: `Estimados,
+
+Adjuntamos nuestra factura electrónica (CFDI 4.0) por los servicios prestados durante el mes de julio.
+
+**Datos de la factura:**
+- Folio fiscal: ${folio}
+- Fecha de emisión: ${new Date().toLocaleDateString('es-MX')}
+- Concepto: Servicios de transporte y logística
+- Subtotal: $${fmt(amount)}
+- IVA (16%): $${fmt(iva)}
+- Total: $${fmt(total)}
+
+**Datos fiscales:**
+- RFC emisor: ${supplier.rfc}
+- Régimen fiscal: 601 - General de Ley Personas Morales
+
+Favor de programar el pago conforme a los términos acordados (30 días).
+
+Quedamos a sus órdenes para cualquier aclaración.
+
+Atentamente,
+${supplier.name}
+Departamento de Facturación`,
         },
       },
       {
@@ -540,8 +688,25 @@ function generateCreditNoteWorkflow(userId?: string): Workflow {
       {
         id: 'email', type: 'email', title: 'Solicitud del cliente', description: 'El cliente solicita una nota de crédito',
         data: {
-          from: client.name, to: 'facturacion@logistica.com', subject: `Solicitud nota de crédito — ${invNum}`,
-          body: `Buenos días,\nSolicitamos la emisión de una nota de crédito por **$${fmt(creditAmount)}** (+IVA) respecto a la factura **${invNum}**.\n\nMotivo: ${reason}\n\nFavor de confirmar la emisión.\n\nSaludos,\n${client.name}`,
+          from: client.name, to: 'facturacion@logistica.com',
+          subject: `Solicitud nota de crédito — Factura ${invNum}`,
+          body: `Estimados,
+
+Por medio del presente, solicito la emisión de una nota de crédito referente a la factura **${invNum}**.
+
+**Detalles de la solicitud:**
+- Motivo: ${reason}
+- Monto solicitado: $${fmt(creditAmount)} (+IVA)
+- Fecha de la factura original: ${new Date(Date.now() - r(5, 30) * 86400000).toLocaleDateString('es-MX')}
+
+**Justificación:**
+${reason === 'Devolución parcial' ? 'Se devolvió parcialmente el servicio contratado por incumplimiento de las especificaciones acordadas.' : reason === 'Descuento por volumen' ? 'Por acuerdo comercial, se otorga un descuento por el volumen de operaciones del trimestre.' : reason === 'Error en facturación' ? 'Se detectó un error en el monto facturado, por favor corregir.' : 'Se otorga bonificación por fidelidad y antigüedad como cliente.'}
+
+Favor de emitir la nota de crédito y enviarnos el XML correspondiente.
+
+Saludos cordiales,
+${client.name}
+Departamento de Compras`,
         },
       },
       {
@@ -589,8 +754,34 @@ function generateCashCutWorkflow(): Workflow {
       {
         id: 'email', type: 'email', title: 'Instrucciones de corte', description: 'El supervisor solicita el corte de caja',
         data: {
-          from: 'Lic. Gómez', to: 'cajero@logistica.com', subject: 'Corte de caja — fin de turno',
-          body: `Buenos días,\nRealiza el corte de caja del turno de la mañana.\n\nFondo inicial: $${fmt(cashInBox)}\n\nIngresa los datos de ventas, gastos y depósitos.\n\nSaludos,\nLic. Gómez`,
+          from: 'Lic. Gómez', to: 'cajero@logistica.com',
+          subject: 'Corte de caja diario — Turno matutino',
+          body: `Buenos días,
+
+Es momento de realizar el corte de caja del turno matutino.
+
+**Datos iniciales:**
+- Fondo de caja: $${fmt(cashInBox)}
+- Turno: 09:00 - 14:00 hrs
+
+**Actividad del turno:**
+- Pagos en efectivo recibidos
+- Pagos con tarjeta bancaria
+- Gastos menores del turno
+- Depósitos bancarios realizados
+
+**Instrucciones:**
+1. Ingresa a la hoja de cálculo de corte de caja
+2. Registra todas las entradas y salidas de efectivo
+3. El sistema calculará el efectivo esperado
+4. Cuenta el efectivo físico y regístralo
+5. Verifica si hay diferencias
+
+Si hay una diferencia mayor a $100, avísame inmediatamente.
+
+Saludos,
+Lic. Gómez
+Contador General`,
         },
       },
       {
