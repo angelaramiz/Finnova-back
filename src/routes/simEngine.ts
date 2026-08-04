@@ -196,6 +196,25 @@ simEngineRouter.get('/journal', requireSupabaseAuth, async (req: AuthenticatedRe
   res.json(entries);
 });
 
+simEngineRouter.post('/journal', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { date, ref, desc, account, debit, credit } = req.body;
+  if (!desc || !account) { res.status(400).json({ error: 'Faltan desc y account' }); return; }
+  const entry: JournalEntry = {
+    date: date || new Date().toLocaleDateString('es-MX'),
+    ref: ref || `POL-${Date.now()}`,
+    desc,
+    account,
+    debit: Number(debit) || 0,
+    credit: Number(credit) || 0,
+    type: 'manual',
+  };
+  if (!journalStore.has(userId)) journalStore.set(userId, []);
+  journalStore.get(userId)!.push(entry);
+  res.json(entry);
+});
+
 // ─── Matching de pagos ─────────────────────────────────────────
 simEngineRouter.post('/suggest-matches', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
