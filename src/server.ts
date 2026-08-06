@@ -263,24 +263,22 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Arrancar el servidor — siempre en Render, opcional en modo local
-const PORT = process.env.PORT || 3000;
-if (process.env.RUN_STANDALONE === 'true' || isProduction || process.env.RENDER) {
-  app.listen(PORT, () => {
-    console.log(
-      JSON.stringify({
-        level: 'info',
-        time: new Date().toISOString(),
-        msg: `AuraFi Academy backend escuchando en puerto ${PORT}`,
-        env: {
-          NODE_ENV: process.env.NODE_ENV,
-          RENDER: !!process.env.RENDER,
-          ENABLE_DOCKER_MOCKS: process.env.ENABLE_DOCKER_MOCKS,
-          supabaseConfigured: !!(process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('placeholder')),
-        }
-      })
-    );
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(
+    JSON.stringify({
+      level: 'info',
+      time: new Date().toISOString(),
+      msg: `AuraFi Academy backend escuchando en puerto ${PORT}`,
+      env: {
+        NODE_ENV: process.env.NODE_ENV,
+        RENDER: !!process.env.RENDER,
+        ENABLE_DOCKER_MOCKS: process.env.ENABLE_DOCKER_MOCKS,
+        supabaseConfigured: !!(process.env.SUPABASE_URL && !process.env.SUPABASE_URL.includes('placeholder')),
+      }
+    })
+  );
 
-    // Iniciar worker de cola de correos (reintenta envíos fallidos cada 2 min)
-    startEmailQueueWorker();
-  });
-}
+  // Iniciar worker de cola de correos (reintenta envíos fallidos cada 2 min)
+  startEmailQueueWorker();
+});
