@@ -656,12 +656,18 @@ function r(min: number, max: number): number {
 
 // ─── Generador de mes completo ─────────────────────────────
 
-export function generateMonthPlan(month: number, year: number): MonthPlan {
+export function generateMonthPlan(month: number, year: number, specialty?: string): MonthPlan {
   const allTasks: PlannedTask[] = [];
   const weekPlans: WeekPlan[] = [];
+  
+  // Use weeks 5-8 for Data Engineering, 1-4 for Accounting
+  const weekOffset = specialty === 'data_engineering' ? 4 : 0;
+  const startWeek = weekOffset + 1;
+  const endWeek = weekOffset + 4;
 
-  for (let week = 1; week <= 4; week++) {
+  for (let week = startWeek; week <= endWeek; week++) {
     const weekTheme = WEEK_THEMES[week];
+    if (!weekTheme) continue;
     const weekTasks: PlannedTask[] = [];
 
     // Generar tareas regulares
@@ -741,18 +747,18 @@ export function generateMonthPlan(month: number, year: number): MonthPlan {
 
 // ─── APIs de consulta ───────────────────────────────────────
 
-export function getTodayTasks(month: number, year: number, week: number, day: number): PlannedTask[] {
-  const plan = generateMonthPlan(month, year);
+export function getTodayTasks(month: number, year: number, week: number, day: number, specialty?: string): PlannedTask[] {
+  const plan = generateMonthPlan(month, year, specialty);
   return plan.tasks.filter(t => t.week === week && t.day === day);
 }
 
-export function getWeekTasks(month: number, year: number, week: number): WeekPlan {
-  const plan = generateMonthPlan(month, year);
+export function getWeekTasks(month: number, year: number, week: number, specialty?: string): WeekPlan {
+  const plan = generateMonthPlan(month, year, specialty);
   return plan.weekPlans.find(w => w.week === week) || plan.weekPlans[0];
 }
 
-export function getMonthStats(month: number, year: number): MonthSummary {
-  const plan = generateMonthPlan(month, year);
+export function getMonthStats(month: number, year: number, specialty?: string): MonthSummary {
+  const plan = generateMonthPlan(month, year, specialty);
   return plan.summary;
 }
 

@@ -322,7 +322,8 @@ simEngineRouter.get('/transactions', requireSupabaseAuth, async (req: Authentica
 simEngineRouter.get('/task-plan/:month/:year', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const month = parseInt(req.params.month) || 6; // Julio por defecto
   const year = parseInt(req.params.year) || 2026;
-  const plan = generateMonthPlan(month, year);
+  const specialty = req.query.specialty as string || undefined;
+  const plan = generateMonthPlan(month, year, specialty);
   res.json(plan);
 });
 
@@ -331,7 +332,8 @@ simEngineRouter.get('/today-tasks/:month/:year/:week/:day', requireSupabaseAuth,
   const year = parseInt(req.params.year) || 2026;
   const week = parseInt(req.params.week) || 1;
   const day = parseInt(req.params.day) || 1;
-  const tasks = getTodayTasks(month, year, week, day);
+  const specialty = req.query.specialty as string || undefined;
+  const tasks = getTodayTasks(month, year, week, day, specialty);
   res.json(tasks);
 });
 
@@ -339,7 +341,8 @@ simEngineRouter.get('/week-tasks/:month/:year/:week', requireSupabaseAuth, async
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
   const week = parseInt(req.params.week) || 1;
-  const tasks = getWeekTasks(month, year, week);
+  const specialty = req.query.specialty as string || undefined;
+  const tasks = getWeekTasks(month, year, week, specialty);
   res.json(tasks);
 });
 
