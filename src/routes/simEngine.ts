@@ -436,6 +436,29 @@ simEngineRouter.get('/de/python-exercises/:id', requireSupabaseAuth, async (req:
   if (exercise) { res.json(exercise); } else { res.status(404).json({ error: 'Ejercicio no encontrado' }); }
 });
 
+// ─── Data Warehouse Schema ────────────────────────────────────
+simEngineRouter.get('/de/warehouse-schema', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json({
+    dimensiones: ['dim_cliente', 'dim_producto', 'dim_fecha'],
+    hechos: ['fact_ventas', 'fact_inventario'],
+    relaciones: [
+      { from: 'dim_cliente', to: 'fact_ventas', key: 'cliente_key' },
+      { from: 'dim_producto', to: 'fact_ventas', key: 'producto_key' },
+      { from: 'dim_fecha', to: 'fact_ventas', key: 'fecha_key' },
+    ],
+  });
+});
+
+// ─── Pipeline Monitor ─────────────────────────────────────────
+simEngineRouter.get('/de/pipeline-runs', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json([
+    { id: 'run-001', name: 'ventas_diarias', status: 'success', startTime: '06:00', duration: '12m 34s', tasks: 5, progress: 100 },
+    { id: 'run-002', name: 'inventario_sync', status: 'running', startTime: '06:15', duration: '8m 12s', tasks: 4, progress: 65 },
+    { id: 'run-003', name: 'nómina_quincenal', status: 'failed', startTime: '06:30', duration: '5m 02s', tasks: 6, progress: 40 },
+    { id: 'run-004', name: 'reportes_mensuales', status: 'queued', startTime: '—', duration: '—', tasks: 8, progress: 0 },
+  ]);
+});
+
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
 simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
