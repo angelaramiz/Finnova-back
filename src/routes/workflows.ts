@@ -1,6 +1,7 @@
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { generateWorkflow, ValidationRule } from '../services/workflowEngine';
+import { getDEWorkflow } from '../services/dataEngineeringWorkflows';
 
 export const workflowRouter = Router();
 
@@ -8,13 +9,22 @@ export const workflowRouter = Router();
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType } = req.params;
   const userId = req.user?.id;
-  const validTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut'];
-  if (!validTypes.includes(taskType)) {
-    res.status(400).json({ error: `Tipo no válido: ${taskType}. Usa: ${validTypes.join(', ')}` });
-    return;
+  
+  // Accounting workflows
+  const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut'];
+  
+  // Data Engineering workflows
+  const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos'];
+  
+  if (accountingTypes.includes(taskType)) {
+    const workflow = generateWorkflow(taskType, userId);
+    res.json(workflow);
+  } else if (deTypes.includes(taskType)) {
+    const workflow = getDEWorkflow(taskType);
+    res.json(workflow);
+  } else {
+    res.status(400).json({ error: `Tipo no válido: ${taskType}` });
   }
-  const workflow = generateWorkflow(taskType, userId);
-  res.json(workflow);
 });
 
 // POST /api/sim/workflows/validate — Valida respuestas del usuario contra las reglas

@@ -36,6 +36,16 @@ export type TaskCategory =
   | 'reportes'         // Estados financieros
   | 'control'          // Auditoría, verificación
   | 'errores'          // Detección y corrección de errores
+  // Data Engineering categories
+  | 'pipeline'         // ETL/ELT pipelines
+  | 'sql'              // Consultas SQL
+  | 'data_quality'     // Calidad de datos
+  | 'etl'              // Transformaciones
+  | 'ontologia'        // Modelado semántico
+  | 'cloud'            // AWS/GCP/Azure
+  | 'monitoring'       // Monitoreo de pipelines
+  | 'code_review'      // Revisión de código
+  | 'soporte_datos'    // Soporte a analistas
 
 export interface MonthPlan {
   month: number;
@@ -129,6 +139,47 @@ const TASK_KNOWLEDGE: Record<string, { why: string; commonErrors: string[]; tips
     why: 'Los estados financieros son la base para decisiones de negocio.',
     commonErrors: ['Balance no cuadra', 'Utilidad incorrecta', 'Cuenta faltante'],
     tips: ['Activos = Pasivos + Capital', 'Utilidad = Ingresos - Gastos'],
+  },
+  // Data Engineering knowledge
+  pipeline: {
+    why: 'Los pipelines ETL mueven datos desde fuentes hasta el data warehouse para análisis.',
+    commonErrors: ['No manejar nulos', 'No validar schema', 'No registrar métricas de calidad'],
+    tips: ['Siempre valida datos antes de insertar', 'Registra conteo de filas en cada paso'],
+  },
+  sql: {
+    why: 'SQL es la herramienta fundamental para consultar y transformar datos.',
+    commonErrors: ['Olvidar GROUP BY con agregaciones', 'JOIN incorrecto', 'No filtrar con WHERE'],
+    tips: ['GROUP BY es obligatorio cuando usas SUM/COUNT', 'Verifica que las claves de JOIN coincidan'],
+  },
+  data_quality: {
+    why: 'Datos sucios causan reportes incorrectos y malas decisiones de negocio.',
+    commonErrors: ['Ignorar alertas de calidad', 'No documentar decisiones de limpieza', 'No validar duplicados'],
+    tips: ['Siempre registra qué hiciste con los datos faltantes', 'La completitud ideal es >95%'],
+  },
+  etl: {
+    why: 'ETL es el proceso que convierte datos crudos en información útil.',
+    commonErrors: ['No limpiar datos antes de procesar', 'Olvidar manejar excepciones', 'No registrar métricas'],
+    tips: ['Limpia primero, procesa después', 'Maneja errores con try/except'],
+  },
+  ontologia: {
+    why: 'La Ontología modela el negocio para que todos hablen el mismo idioma de datos.',
+    commonErrors: ['Entidades sin propiedades', 'Relaciones unidireccionales', 'No documentar tipos'],
+    tips: ['Cada entidad debe tener al menos 3 propiedades', 'Documenta el tipo de cada propiedad'],
+  },
+  monitoring: {
+    why: 'Monitorear pipelines detecta fallas antes de que causen problemas en producción.',
+    commonErrors: ['Ignorar alertas', 'No escalar problemas', 'No documentar incidencias'],
+    tips: ['Revisa pipelines cada 2 horas', 'Escala fallas que duren >15 min'],
+  },
+  code_review: {
+    why: 'El code review mejora la calidad del código y comparte conocimiento del equipo.',
+    commonErrors: ['No revisar edge cases', 'No verificar naming conventions', 'No proponer alternativas'],
+    tips: ['Revisa primero la lógica, después el estilo', 'Pregunta por qué antes de sugerir cambios'],
+  },
+  soporte_datos: {
+    why: 'Soporte a analistas asegura que los datos sean correctos y estén disponibles.',
+    commonErrors: ['No documentar solicitudes', 'Entregar datos sin validar', 'No comunicar tiempos'],
+    tips: ['Documenta cada solicitud en el tracker', 'Valida datos antes de entregar'],
   },
 };
 
@@ -272,6 +323,57 @@ const TRAP_SCENARIOS: Omit<PlannedTask, 'id'>[] = [
     trapDescription: 'Hay $850 de diferencia entre efectivo esperado y contado',
     expectedMistake: 'Si el alumno no investiga, puede haber robo o error no detectado',
   },
+  // TRAMPA 9: Pipeline con pérdida silenciosa de datos
+  {
+    title: 'Pipeline con datos perdidos',
+    type: 'etl_pipeline',
+    difficulty: 4,
+    time: 20,
+    week: 2,
+    day: 4,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El pipeline elimina registros con valores nulos en lugar de imputarlos. 200 ventas se pierden silenciosamente.',
+    emailSubject: 'Pipeline ejecutado — revisar resultados',
+    emailFrom: 'Sistema de Monitoreo',
+    isTrap: true,
+    trapDescription: 'El pipeline usa dropna() sin antes imputar, perdiendo datos válidos',
+    expectedMistake: 'Si el alumno no revisa el conteo de filas, no detectará la pérdida de 200 registros',
+  },
+  // TRAMPA 10: SQL con GROUP BY incorrecto
+  {
+    title: 'SQL con GROUP BY faltante',
+    type: 'sql_query',
+    difficulty: 4,
+    time: 15,
+    week: 3,
+    day: 2,
+    priority: 'alta',
+    category: 'errores',
+    description: 'La consulta SQL usa SUM() sin GROUP BY, causando un resultado incorrecto que parece válido.',
+    emailSubject: 'Consulta SQL — resultados inesperados',
+    emailFrom: 'Ing. Sandra Mora',
+    isTrap: true,
+    trapDescription: 'Falta GROUP BY en una consulta con función de agregación',
+    expectedMistake: 'Si el alumno no verifica, aceptará un solo número como resultado total en lugar de desglose por cliente',
+  },
+  // TRAMPA 11: Alerta de calidad ignorada
+  {
+    title: 'Alerta de calidad ignorada',
+    type: 'data_quality',
+    difficulty: 4,
+    time: 15,
+    week: 3,
+    day: 4,
+    priority: 'alta',
+    category: 'errores',
+    description: 'El sistema detectó 500 registros con RFC inválido. El becario los ignoró pensando que "no son importantes".',
+    emailSubject: '⚠ Datos con RFC inválido — acción requerida',
+    emailFrom: 'Sistema de Calidad',
+    isTrap: true,
+    trapDescription: 'Se ignoraron registros con datos fiscales inválidos',
+    expectedMistake: 'Si el alumno no investiga, la empresa podría tener problemas con el SAT',
+  },
 ];
 
 // ─── Generador de tareas por semana ──────────────────────────
@@ -341,6 +443,45 @@ const WEEK_THEMES: Record<number, { theme: string; focus: string; tasks: { type:
       { type: 'bank_reconciliation', category: 'banco', difficulty: 2, count: 1 },
       { type: 'cash_cut', category: 'cierre', difficulty: 2, count: 1 },
       { type: 'financial_statements', category: 'reportes', difficulty: 3, count: 1 },
+    ],
+  },
+  // ─── Data Engineering Weekly Themes ──────────────────────────
+  5: {
+    theme: 'Semana 1 — Fundamentos SQL y Python',
+    focus: 'Consultas SQL básicas, pandas, primeros scripts',
+    tasks: [
+      { type: 'sql_query', category: 'sql', difficulty: 1, count: 3 },
+      { type: 'etl_pipeline', category: 'etl', difficulty: 1, count: 2 },
+      { type: 'data_quality', category: 'data_quality', difficulty: 1, count: 1 },
+    ],
+  },
+  6: {
+    theme: 'Semana 2 — Pipeline ETL y limpieza',
+    focus: 'Construcción de pipelines, limpieza de datos, profiling',
+    tasks: [
+      { type: 'etl_pipeline', category: 'pipeline', difficulty: 2, count: 2 },
+      { type: 'data_quality', category: 'data_quality', difficulty: 2, count: 2 },
+      { type: 'sql_query', category: 'sql', difficulty: 2, count: 1 },
+    ],
+  },
+  7: {
+    theme: 'Semana 3 — Ontología y modelado',
+    focus: 'Modelado semántico, entidades, relaciones, documentación',
+    tasks: [
+      { type: 'ontology_modeling', category: 'ontologia', difficulty: 2, count: 2 },
+      { type: 'data_quality', category: 'data_quality', difficulty: 2, count: 1 },
+      { type: 'code_review', category: 'code_review', difficulty: 2, count: 1 },
+      { type: 'soporte_datos', category: 'soporte_datos', difficulty: 1, count: 1 },
+    ],
+  },
+  8: {
+    theme: 'Semana 4 — Monitoreo y orquestación',
+    focus: 'DAGs de Airflow, monitoreo, alertas, troubleshooting',
+    tasks: [
+      { type: 'airflow_dag', category: 'monitoring', difficulty: 2, count: 2 },
+      { type: 'etl_pipeline', category: 'pipeline', difficulty: 3, count: 1 },
+      { type: 'data_quality', category: 'data_quality', difficulty: 3, count: 1 },
+      { type: 'code_review', category: 'code_review', difficulty: 2, count: 1 },
     ],
   },
 };
