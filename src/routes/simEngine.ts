@@ -11,6 +11,8 @@ import { getCompany, getClients, getSuppliers, getProducts, getTransactions } fr
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats, getTaskKnowledge, CLIENT_PROFILES, SUPPLIER_PROFILES, TRAP_SCENARIOS } from '../services/taskPlanner';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
 import { recordCompletion, getMonthProgress, getQuickStats } from '../services/progressTracker';
+import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
+import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -402,6 +404,36 @@ simEngineRouter.get('/progress/quick', requireSupabaseAuth, async (req: Authenti
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const stats = getQuickStats(userId);
   res.json(stats);
+});
+
+// ─── Data Engineering Workflows ────────────────────────────────
+simEngineRouter.get('/de/workflows', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(Object.keys(DE_WORKFLOWS));
+});
+
+simEngineRouter.get('/de/workflow/:type', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { type } = req.params;
+  const workflow = getDEWorkflow(type);
+  if (workflow) { res.json(workflow); } else { res.status(404).json({ error: 'Workflow no encontrado' }); }
+});
+
+// ─── SQL & Python Exercises ───────────────────────────────────
+simEngineRouter.get('/de/sql-exercises', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(SQL_EXERCISES.map(e => ({ id: e.id, title: e.title, difficulty: e.difficulty, timeMinutes: e.timeMinutes })));
+});
+
+simEngineRouter.get('/de/sql-exercises/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const exercise = getSQLExercise(req.params.id);
+  if (exercise) { res.json(exercise); } else { res.status(404).json({ error: 'Ejercicio no encontrado' }); }
+});
+
+simEngineRouter.get('/de/python-exercises', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(PYTHON_EXERCISES.map(e => ({ id: e.id, title: e.title, difficulty: e.difficulty, timeMinutes: e.timeMinutes })));
+});
+
+simEngineRouter.get('/de/python-exercises/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const exercise = getPythonExercise(req.params.id);
+  if (exercise) { res.json(exercise); } else { res.status(404).json({ error: 'Ejercicio no encontrado' }); }
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
