@@ -747,6 +747,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
           email: request.email,
           role: request.role,
           fullName: request.fullName,
+          specialty: request.specialty || null,
           createdAt: new Date().toISOString()
         }, { onConflict: 'email' });
 
@@ -782,6 +783,7 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
         fullName: request.fullName,
         avatarUrl: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(request.fullName)}`,
         role: request.role,
+        specialty: request.specialty || null,
         pointsEarned: request.role === 'student' ? 100 : 0,
         passwordHash: hashedPassword,
         mustChangePassword: true,

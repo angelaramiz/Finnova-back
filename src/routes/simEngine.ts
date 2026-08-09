@@ -8,7 +8,7 @@ import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
-import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats, getTaskKnowledge, CLIENT_PROFILES, SUPPLIER_PROFILES, TRAP_SCENARIOS } from '../services/taskPlanner';
+import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
 import { recordCompletion, getMonthProgress, getQuickStats } from '../services/progressTracker';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
@@ -320,9 +320,9 @@ simEngineRouter.get('/transactions', requireSupabaseAuth, async (req: Authentica
 
 // ─── Planificador de tareas ──────────────────────────────────
 simEngineRouter.get('/task-plan/:month/:year', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const month = parseInt(req.params.month) || 6; // Julio por defecto
+  const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
-  const specialty = req.query.specialty as string || undefined;
+  const specialty = (req.query.specialty as string) || 'accounting';
   const plan = generateMonthPlan(month, year, specialty);
   res.json(plan);
 });
@@ -332,7 +332,7 @@ simEngineRouter.get('/today-tasks/:month/:year/:week/:day', requireSupabaseAuth,
   const year = parseInt(req.params.year) || 2026;
   const week = parseInt(req.params.week) || 1;
   const day = parseInt(req.params.day) || 1;
-  const specialty = req.query.specialty as string || undefined;
+  const specialty = (req.query.specialty as string) || 'accounting';
   const tasks = getTodayTasks(month, year, week, day, specialty);
   res.json(tasks);
 });
@@ -341,7 +341,7 @@ simEngineRouter.get('/week-tasks/:month/:year/:week', requireSupabaseAuth, async
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
   const week = parseInt(req.params.week) || 1;
-  const specialty = req.query.specialty as string || undefined;
+  const specialty = (req.query.specialty as string) || 'accounting';
   const tasks = getWeekTasks(month, year, week, specialty);
   res.json(tasks);
 });
@@ -349,18 +349,26 @@ simEngineRouter.get('/week-tasks/:month/:year/:week', requireSupabaseAuth, async
 simEngineRouter.get('/month-stats/:month/:year', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
-  const stats = getMonthStats(month, year);
+  const specialty = (req.query.specialty as string) || 'accounting';
+  const stats = getMonthStats(month, year, specialty);
   res.json(stats);
 });
 
 simEngineRouter.get('/task-knowledge/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType } = req.params;
-  const knowledge = getTaskKnowledge(taskType);
-  if (knowledge) { res.json(knowledge); } else { res.status(404).json({ error: 'Tipo de tarea no encontrado' }); }
+  // Knowledge base for common task types
+  const knowledge: Record<string, any> = {
+    invoice_emission: { why: 'Facturar correctamente es obligatorio', tips: ['Verifica RFC', 'IVA es 16%'] },
+    payment_registration: { why: 'Un pago mal registrado causa problemas', tips: ['Verifica referencia bancaria'] },
+    sql_query: { why: 'SQL es fundamental para datos', tips: ['GROUP BY con agregaciones', 'Verifica claves de JOIN'] },
+    etl_pipeline: { why: 'ETL convierte datos en información útil', tips: ['Limpia primero', 'Registra métricas'] },
+  };
+  const k = knowledge[taskType];
+  if (k) { res.json(k); } else { res.status(404).json({ error: 'Tipo no encontrado' }); }
 });
 
 simEngineRouter.get('/trap-scenarios', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
-  res.json(TRAP_SCENARIOS);
+  res.json([]);
 });
 
 // ─── Ejercicios Excel ────────────────────────────────────────
