@@ -10,7 +10,7 @@ import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGe
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
-import { recordCompletion, getMonthProgress, getQuickStats } from '../services/progressTracker';
+import { recordCompletion, getRoleProgress, getQuickStats } from '../services/progressTracker';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
@@ -396,8 +396,8 @@ simEngineRouter.get('/exercises/difficulty/:level', requireSupabaseAuth, async (
 simEngineRouter.post('/progress/record', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
-  const { taskId, taskType, title, category, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback } = req.body;
-  const completion = recordCompletion(userId, { taskId, taskType, title, category, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback });
+  const { taskId, taskType, title, category, specialty, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback } = req.body;
+  const completion = recordCompletion(userId, { taskId, taskType, title, category, specialty: specialty || 'accounting', difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback });
   res.json(completion);
 });
 
@@ -406,15 +406,25 @@ simEngineRouter.get('/progress/month/:month/:year', requireSupabaseAuth, async (
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
-  const progress = getMonthProgress(userId, month, year);
+  const specialty = (req.query.specialty as string) || 'accounting';
+  const progress = getRoleProgress(userId, specialty);
   res.json(progress);
 });
 
 simEngineRouter.get('/progress/quick', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
-  const stats = getQuickStats(userId);
+  const specialty = (req.query.specialty as string) || 'accounting';
+  const stats = getQuickStats(userId, specialty);
   res.json(stats);
+});
+
+simEngineRouter.get('/progress/all', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const accounting = getRoleProgress(userId, 'accounting');
+  const dataEngineering = getRoleProgress(userId, 'data_engineering');
+  res.json({ accounting, dataEngineering });
 });
 
 // ─── Data Engineering Workflows ────────────────────────────────
