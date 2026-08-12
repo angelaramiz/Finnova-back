@@ -19,6 +19,7 @@ export interface PlannedTask {
   emailSubject: string;
   emailFrom: string;
   isTrap?: boolean;
+  trapId?: string;
   trapDescription?: string;
   expectedMistake?: string;
 }
@@ -187,21 +188,27 @@ const DE_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     priority: 'baja', category: 'soporte_datos', description: 'Responder solicitud de datos de analista',
     emailSubject: 'Solicitud de datos — Analista', emailFrom: 'Ana García (Analista)',
   }),
+  incident_recovery: (ctx) => ({
+    id: generateTaskId(), title: 'Recuperación de incidente — Pipeline', type: 'incident_recovery',
+    difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'critica', category: 'incident', description: 'Diagnosticar y recuperar el pipeline que falló el 05-jul',
+    emailSubject: '🔴 INCIDENTE: lno_sales_pipeline falló', emailFrom: 'Sistema de Monitoreo',
+  }),
 };
 
 // ─── Trampas por especialidad ─────────────────────────────────
 
 const ACCOUNTING_TRAPS: Omit<PlannedTask, 'id'>[] = [
-  { title: 'Factura con IVA incorrecto', type: 'invoice_emission', difficulty: 4, time: 15, week: 1, day: 3, priority: 'alta', category: 'errores', description: 'La factura tiene IVA al 10% en lugar de 16%', emailSubject: 'Revisar factura — posibles errores', emailFrom: 'Lic. Gómez', isTrap: true, trapDescription: 'IVA al 10% en vez de 16%', expectedMistake: 'Multa SAT' },
-  { title: 'Pago mal aplicado', type: 'payment_registration', difficulty: 4, time: 12, week: 2, day: 3, priority: 'alta', category: 'errores', description: 'Pago de cliente A aplicado a factura de cliente B', emailSubject: 'Pago mal aplicado — corregir', emailFrom: 'Lic. Gómez', isTrap: true, trapDescription: 'Pago aplicado al cliente incorrecto', expectedMistake: 'Saldos incorrectos' },
-  { title: 'Conciliación no cuadra', type: 'bank_reconciliation', difficulty: 4, time: 25, week: 3, day: 4, priority: 'critica', category: 'errores', description: 'Cheque sin cobrar no registrado', emailSubject: 'Conciliación con diferencia', emailFrom: 'Lic. Gómez', isTrap: true, trapDescription: 'Cheque de $3,500 sin registrar', expectedMistake: 'Diferencias bancarias' },
-  { title: 'Nómina con ISR mal calculado', type: 'payroll', difficulty: 4, time: 30, week: 4, day: 1, priority: 'alta', category: 'errores', description: 'ISR al 15% fijo en vez de tabla progresiva', emailSubject: 'Nómina con error fiscal', emailFrom: 'Lic. Gómez', isTrap: true, trapDescription: 'ISR fijo en vez de tabla SAT', expectedMistake: 'Demandas laborales' },
+  { title: 'Factura con IVA incorrecto', type: 'invoice_emission', difficulty: 4, time: 15, week: 1, day: 3, priority: 'alta', category: 'errores', description: 'La factura tiene IVA al 10% en lugar de 16%', emailSubject: 'Revisar factura — posibles errores', emailFrom: 'Lic. Gómez', isTrap: true, trapId: 'iva_incorrecto', trapDescription: 'IVA al 10% en vez de 16%', expectedMistake: 'Multa SAT' },
+  { title: 'Pago mal aplicado', type: 'payment_registration', difficulty: 4, time: 12, week: 2, day: 3, priority: 'alta', category: 'errores', description: 'Pago de cliente A aplicado a factura de cliente B', emailSubject: 'Pago mal aplicado — corregir', emailFrom: 'Lic. Gómez', isTrap: true, trapId: 'pago_mal_aplicado', trapDescription: 'Pago aplicado al cliente incorrecto', expectedMistake: 'Saldos incorrectos' },
+  { title: 'Conciliación no cuadra', type: 'bank_reconciliation', difficulty: 4, time: 25, week: 3, day: 4, priority: 'critica', category: 'errores', description: 'Cheque sin cobrar no registrado', emailSubject: 'Conciliación con diferencia', emailFrom: 'Lic. Gómez', isTrap: true, trapId: 'conciliacion_no_cuadra', trapDescription: 'Cheque de $3,500 sin registrar', expectedMistake: 'Diferencias bancarias' },
+  { title: 'Nómina con ISR mal calculado', type: 'payroll', difficulty: 4, time: 30, week: 4, day: 1, priority: 'alta', category: 'errores', description: 'ISR al 15% fijo en vez de tabla progresiva', emailSubject: 'Nómina con error fiscal', emailFrom: 'Lic. Gómez', isTrap: true, trapId: 'nomina_isr_mal', trapDescription: 'ISR fijo en vez de tabla SAT', expectedMistake: 'Demandas laborales' },
 ];
 
 const DE_TRAPS: Omit<PlannedTask, 'id'>[] = [
-  { title: 'Pipeline con datos perdidos', type: 'etl_pipeline', difficulty: 4, time: 20, week: 6, day: 4, priority: 'alta', category: 'errores', description: 'Pipeline elimina nulos sin imputar, perdiendo 200 registros', emailSubject: 'Pipeline ejecutado — revisar', emailFrom: 'Sistema de Monitoreo', isTrap: true, trapDescription: 'dropna() sin imputar', expectedMistake: 'Pérdida de datos' },
-  { title: 'SQL sin GROUP BY', type: 'sql_query', difficulty: 4, time: 15, week: 7, day: 2, priority: 'alta', category: 'errores', description: 'SUM() sin GROUP BY da resultado incorrecto', emailSubject: 'Consulta SQL — resultados inesperados', emailFrom: 'Ing. Sandra Mora', isTrap: true, trapDescription: 'Falta GROUP BY con agregación', expectedMistake: 'Resultado incorrecto' },
-  { title: 'Alerta de calidad ignorada', type: 'data_quality', difficulty: 4, time: 15, week: 8, day: 4, priority: 'alta', category: 'errores', description: '500 registros con RFC inválido ignorados', emailSubject: '⚠ Datos con RFC inválido', emailFrom: 'Sistema de Calidad', isTrap: true, trapDescription: 'Datos fiscales inválidos ignorados', expectedMistake: 'Problemas con SAT' },
+  { title: 'Pipeline con datos perdidos', type: 'etl_pipeline', difficulty: 4, time: 20, week: 1, day: 4, priority: 'alta', category: 'errores', description: 'Pipeline elimina nulos sin imputar, perdiendo 200 registros', emailSubject: 'Pipeline ejecutado — revisar', emailFrom: 'Sistema de Monitoreo', isTrap: true, trapId: 'pipeline_datos_perdidos', trapDescription: 'dropna() sin imputar', expectedMistake: 'Pérdida de datos' },
+  { title: 'SQL sin GROUP BY', type: 'sql_query', difficulty: 4, time: 15, week: 2, day: 2, priority: 'alta', category: 'errores', description: 'SUM() sin GROUP BY da resultado incorrecto', emailSubject: 'Consulta SQL — resultados inesperados', emailFrom: 'Ing. Sandra Mora', isTrap: true, trapId: 'sql_sin_group_by', trapDescription: 'Falta GROUP BY con agregación', expectedMistake: 'Resultado incorrecto' },
+  { title: 'Alerta de calidad ignorada', type: 'data_quality', difficulty: 4, time: 15, week: 3, day: 4, priority: 'alta', category: 'errores', description: '500 registros con RFC inválido ignorados', emailSubject: '⚠ Datos con RFC inválido', emailFrom: 'Sistema de Calidad', isTrap: true, trapId: 'alerta_calidad_ignorada', trapDescription: 'Datos fiscales inválidos ignorados', expectedMistake: 'Problemas con SAT' },
 ];
 
 // ─── Plan semanal por especialidad ────────────────────────────
@@ -217,7 +224,7 @@ const DE_WEEKS: Record<number, { theme: string; tasks: { type: string; count: nu
   1: { theme: 'Fundamentos SQL y Python', tasks: [{ type: 'sql_query', count: 3, difficulty: 1 }, { type: 'etl_pipeline', count: 2, difficulty: 1 }, { type: 'data_quality', count: 1, difficulty: 1 }] },
   2: { theme: 'Pipeline ETL y limpieza', tasks: [{ type: 'etl_pipeline', count: 2, difficulty: 2 }, { type: 'data_quality', count: 2, difficulty: 2 }, { type: 'sql_query', count: 1, difficulty: 2 }] },
   3: { theme: 'Ontología y modelado', tasks: [{ type: 'ontology_modeling', count: 2, difficulty: 2 }, { type: 'code_review', count: 1, difficulty: 2 }, { type: 'soporte_datos', count: 1, difficulty: 1 }] },
-  4: { theme: 'Monitoreo y orquestación', tasks: [{ type: 'airflow_dag', count: 2, difficulty: 2 }, { type: 'etl_pipeline', count: 1, difficulty: 3 }, { type: 'code_review', count: 1, difficulty: 2 }] },
+  4: { theme: 'Monitoreo y orquestación', tasks: [{ type: 'airflow_dag', count: 2, difficulty: 2 }, { type: 'incident_recovery', count: 1, difficulty: 3 }, { type: 'etl_pipeline', count: 1, difficulty: 3 }, { type: 'code_review', count: 1, difficulty: 2 }] },
 };
 
 // ─── Generador principal ─────────────────────────────────────

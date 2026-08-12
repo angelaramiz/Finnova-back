@@ -13,9 +13,11 @@ export interface WorkflowStep {
 export interface ValidationRule {
   stepId: string;
   field: string;
-  type: 'exact' | 'calculated' | 'choice' | 'range';
-  expected: any;
+  type: 'exact' | 'calculated' | 'choice' | 'range' | 'de';
+  expected?: any;
   tolerance?: number;
+  validator?: string;
+  trap?: string;
   label: string;
   points: number;
   feedback: { pass: string; fail: string };
@@ -29,7 +31,28 @@ export interface Workflow {
   estimatedMinutes: number;
   steps: WorkflowStep[];
   validation: ValidationRule[];
+  isTrap?: boolean;
+  trapId?: string;
+  trapDescription?: string;
 }
+
+export interface TrapScenario {
+  id: string;
+  title: string;
+  taskType: string;
+  week: number;
+  day: number;
+  description: string;
+  expectedMistake: string;
+  specialty: 'accounting' | 'data_engineering';
+}
+
+export const TRAP_SCENARIOS: TrapScenario[] = [
+  { id: 'iva_incorrecto', title: 'Factura con IVA incorrecto', taskType: 'invoice_emission', week: 1, day: 3, description: 'La factura del cliente viene precapturada con IVA al 10% en lugar de 16%', expectedMistake: 'Multa SAT', specialty: 'accounting' },
+  { id: 'pago_mal_aplicado', title: 'Pago mal aplicado', taskType: 'payment_registration', week: 2, day: 3, description: 'El comprobante menciona una factura de otro cliente; el pago debe aplicarse al cliente que realmente transfirió', expectedMistake: 'Saldos incorrectos', specialty: 'accounting' },
+  { id: 'conciliacion_no_cuadra', title: 'Conciliación no cuadra', taskType: 'bank_reconciliation', week: 3, day: 4, description: 'Un cheque de $3,500 emitido la semana pasada no aparece en el estado de cuenta', expectedMistake: 'Diferencias bancarias', specialty: 'accounting' },
+  { id: 'nomina_isr_mal', title: 'Nómina con ISR mal calculado', taskType: 'payroll', week: 4, day: 1, description: 'La nómina fue precargada con ISR al 15% fijo en lugar de la tabla progresiva del SAT', expectedMistake: 'Demandas laborales', specialty: 'accounting' },
+];
 
 // ─── HELPERS ───────────────────────────────────────────────────
 
@@ -843,22 +866,253 @@ function generateGenericWorkflow(taskType: string): Workflow {
   };
 }
 
+function generateDepreciationWorkflow(): Workflow {
+  const assets = [
+    { name: 'Maquinaria de carga', cost: 280000, years: 10 },
+    { name: 'Equipo de cómputo', cost: 95000, years: 3 },
+    { name: 'Vehículo reparto', cost: 320000, years: 5 },
+  ];
+  const depr = assets.map(a => ({ ...a, annual: Math.round(a.cost / a.years) }));
+  const totalAnnual = depr.reduce((s, a) => s + a.annual, 0);
+
+  return {
+    taskId: `wf-dep-${r(1000, 9999)}`, taskTitle: 'Depreciación de Activos', taskType: 'depreciation', difficulty: 2, estimatedMinutes: 20,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Solicitud de depreciación', description: 'Calcula la depreciación anual de los activos',
+        data: {
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Depreciación de activos fijos — Ejercicio 2026',
+          body: `Buenos días,
+
+Para el cierre del ejercicio necesito el cálculo de depreciación anual de nuestros activos fijos por el método de **línea recta** (costo ÷ vida útil).
+
+**Activos a depreciar:**
+${assets.map(a => `- ${a.name}: costo $${fmt(a.cost)} · vida útil ${a.years} años`).join('\n')}
+
+**Instrucciones:**
+1. Abre la hoja de depreciación en el módulo de activos fijos
+2. Calcula la depreciación anual de cada activo (costo ÷ años)
+3. Calcula el total anual del periodo
+4. Registra el asiento de depreciación en la póliza de diario
+
+Recuerda que la depreciación acumulada se refleja en el balance general como cuenta acreedora de activo.
+
+Saludos,
+Lic. Gómez
+Contador General`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de depreciación', description: 'Completa la depreciación anual',
+        data: {
+          rows: [
+            ...depr.map(a => ({ label: a.name, cell_B: a.cost, cell_C: a.years })),
+            { label: 'Total depreciación anual', cell_B: totalAnnual, formula: '=SUMA(B1:B3)' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Depreciación calculada', description: 'La depreciación ha sido procesada',
+        data: { assets: depr.map(a => ({ name: a.name, cost: a.cost, years: a.years, annual: a.annual })), totalAnnual, method: 'Línea recta', period: 'Ejercicio 2026' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Maquinaria de carga', label: 'Dep. Maquinaria', type: 'calculated', expected: depr[0].annual, tolerance: 10, points: 4, feedback: { pass: 'Depreciación de maquinaria correcta', fail: `Maquinaria = $${fmt(depr[0].cost)} ÷ ${depr[0].years} años = $${fmt(depr[0].annual)}` } },
+      { stepId: 'spreadsheet', field: 'row_Equipo de cómputo', label: 'Dep. Equipo de cómputo', type: 'calculated', expected: depr[1].annual, tolerance: 10, points: 4, feedback: { pass: 'Depreciación de equipo correcta', fail: `Equipo = $${fmt(depr[1].cost)} ÷ ${depr[1].years} años = $${fmt(depr[1].annual)}` } },
+      { stepId: 'spreadsheet', field: 'row_Vehículo reparto', label: 'Dep. Vehículo', type: 'calculated', expected: depr[2].annual, tolerance: 10, points: 4, feedback: { pass: 'Depreciación de vehículo correcta', fail: `Vehículo = $${fmt(depr[2].cost)} ÷ ${depr[2].years} años = $${fmt(depr[2].annual)}` } },
+      { stepId: 'spreadsheet', field: 'row_Total depreciación anual', label: 'Total depreciación', type: 'calculated', expected: totalAnnual, tolerance: 30, points: 5, feedback: { pass: 'Total de depreciación correcto', fail: `Total = $${fmt(depr[0].annual)} + $${fmt(depr[1].annual)} + $${fmt(depr[2].annual)} = $${fmt(totalAnnual)}` } },
+    ],
+  };
+}
+
+function generateFinancialStatementsWorkflow(): Workflow {
+  const sales = r(900000, 1500000);
+  const costOfSales = Math.round(sales * 0.55);
+  const grossProfit = sales - costOfSales;
+  const opex = Math.round(sales * 0.25);
+  const operatingProfit = grossProfit - opex;
+  const taxes = Math.round(operatingProfit * 0.30);
+  const netProfit = operatingProfit - taxes;
+
+  return {
+    taskId: `wf-fs-${r(1000, 9999)}`, taskTitle: 'Estados Financieros', taskType: 'financial_statements', difficulty: 2, estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Solicitud de estados financieros', description: 'Prepara el estado de resultados del periodo',
+        data: {
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Estado de resultados — Ejercicio 2026',
+          body: `Buenos días,
+
+Para la junta de accionistas necesito el **estado de resultados** del ejercicio con los siguientes datos del sistema:
+
+**Datos del periodo:**
+- Ventas netas: $${fmt(sales)}
+- Costo de ventas: $${fmt(costOfSales)} (55% de ventas)
+- Gastos de operación: $${fmt(opex)} (25% de ventas)
+- Tasa de ISR: 30%
+
+**Instrucciones:**
+1. Abre la hoja de estado de resultados
+2. Calcula la utilidad bruta (ventas − costo de ventas)
+3. Calcula la utilidad de operación (bruta − gastos)
+4. Calcula el ISR (30% sobre utilidad de operación)
+5. Determina la utilidad neta del ejercicio
+
+Saludos,
+Lic. Gómez
+Contador General`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Estado de Resultados', description: 'Completa el estado de resultados',
+        data: {
+          rows: [
+            { label: 'Ventas netas', cell_B: sales },
+            { label: 'Costo de ventas', cell_B: costOfSales },
+            { label: 'Utilidad bruta', cell_B: grossProfit, formula: '=B1-B2' },
+            { label: 'Gastos de operación', cell_B: opex },
+            { label: 'Utilidad de operación', cell_B: operatingProfit, formula: '=B3-B4' },
+            { label: 'ISR (30%)', cell_B: taxes, formula: '=B5*0.30' },
+            { label: 'Utilidad neta', cell_B: netProfit, formula: '=B5-B6' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Estado de resultados preparado', description: 'Los estados financieros están listos',
+        data: { sales, costOfSales, grossProfit, opex, operatingProfit, taxes, netProfit, period: 'Ejercicio 2026' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Utilidad bruta', label: 'Utilidad bruta', type: 'calculated', expected: grossProfit, tolerance: 20, points: 5, feedback: { pass: 'Utilidad bruta correcta', fail: `Utilidad bruta = $${fmt(sales)} - $${fmt(costOfSales)} = $${fmt(grossProfit)}` } },
+      { stepId: 'spreadsheet', field: 'row_Utilidad de operación', label: 'Utilidad de operación', type: 'calculated', expected: operatingProfit, tolerance: 20, points: 5, feedback: { pass: 'Utilidad de operación correcta', fail: `Utilidad de operación = $${fmt(grossProfit)} - $${fmt(opex)} = $${fmt(operatingProfit)}` } },
+      { stepId: 'spreadsheet', field: 'row_ISR (30%)', label: 'ISR', type: 'calculated', expected: taxes, tolerance: 20, points: 5, feedback: { pass: 'ISR correcto', fail: `ISR = $${fmt(operatingProfit)} × 30% = $${fmt(taxes)}` } },
+      { stepId: 'spreadsheet', field: 'row_Utilidad neta', label: 'Utilidad neta', type: 'calculated', expected: netProfit, tolerance: 30, points: 5, feedback: { pass: 'Utilidad neta correcta', fail: `Utilidad neta = $${fmt(operatingProfit)} - $${fmt(taxes)} = $${fmt(netProfit)}` } },
+    ],
+  };
+}
+
+// ─── TRAPS ────────────────────────────────────────────────────
+// Las trampas inyectan el error en el documento (email) y exigen que el
+// estudiante lo detecte (campo de detección + regla de validación).
+
+function applyTrap(wf: Workflow, trap: string): Workflow {
+  const email = wf.steps.find(s => s.id === 'email');
+  const form = wf.steps.find(s => s.id === 'form');
+  const spread = wf.steps.find(s => s.id === 'spreadsheet');
+
+  switch (trap) {
+    case 'iva_incorrecto': {
+      if (email) {
+        email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nEl cliente nos envió la factura precapturada con **IVA al 10%** (error del sistema de ellos).\nVerifica que la tasa que registres sea la correcta antes de timbrar. Un CFDI con tasa equivocada se cancela con multa.\n`;
+      }
+      if (form) {
+        form.data.fields.push({ key: 'ivaRate', label: 'Tasa de IVA en la factura del cliente', type: 'choice', options: ['10%', '16%', '0%'], correct: '16%', validation: { required: true } });
+      }
+      wf.validation.push({ stepId: 'form', field: 'ivaRate', type: 'choice', expected: '16%', label: 'Detección de tasa de IVA', points: 5, feedback: { pass: 'Correcto: la factura del cliente decía 10% pero la tasa legal es 16%', fail: 'La factura del cliente mostraba IVA al 10%. La tasa correcta es 16% — timbrar con 10% genera multa del SAT.' } });
+      break;
+    }
+    case 'pago_mal_aplicado': {
+      const clientField = form?.data?.fields?.find((f: any) => f.key === 'clientName');
+      const payer = clientField?.correct as string | undefined;
+      const wrongRef = payer ? pick((clientField?.options || []).filter((o: string) => o !== payer)) : undefined;
+      if (email && payer && wrongRef) {
+        email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nEl comprobante de pago menciona la factura de **${wrongRef}**, pero la transferencia la realizó **${payer}**.\nVerifica a qué cliente corresponde realmente el pago antes de aplicarlo en el sistema.\n`;
+      }
+      if (form && payer) {
+        form.data.fields.push({ key: 'applyToClient', label: 'Cliente al que se debe aplicar el pago', type: 'choice', options: clientField?.options || resolveClientList(undefined), correct: payer, validation: { required: true } });
+      }
+      wf.validation.push({ stepId: 'form', field: 'applyToClient', type: 'choice', expected: payer, label: 'Detección de pago mal aplicado', points: 5, feedback: { pass: `Correcto: el pago es de ${payer} y se aplicó al cliente indicado`, fail: `El comprobante mencionaba a ${wrongRef}, pero el pago lo hizo ${payer}. Aplicar el pago a la factura equivocada deja saldos incorrectos.` } });
+      break;
+    }
+    case 'conciliacion_no_cuadra': {
+      const missingCheck = 3500;
+      const rows = spread?.data?.rows as any[] | undefined;
+      const bankBalance = Number(rows?.[0]?.cell_B) || 0;
+      const depositsInTransit = Number(rows?.[1]?.cell_B) || 0;
+      const outstandingChecks = Number(rows?.[2]?.cell_B) || 0;
+      const correctChecks = outstandingChecks + missingCheck;
+      if (email) {
+        email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nLa semana pasada se emitió un cheque de **$${fmt(missingCheck)}** a Transportes Express que aún no aparece cobrado en el estado de cuenta.\nVerifica que esté considerado en los cheques sin cobrar de la conciliación.\n`;
+      }
+      wf.validation.push({ stepId: 'spreadsheet', field: 'row_Cheques sin cobrar', label: 'Cheques sin cobrar (cheque faltante)', type: 'calculated', expected: correctChecks, tolerance: 10, points: 6, feedback: { pass: 'Correcto: incluiste el cheque de $3,500 que faltaba', fail: `El cheque de $3,500 emitido la semana pasada no estaba en el estado de cuenta. Cheques sin cobrar = $${fmt(outstandingChecks)} + $3,500 = $${fmt(correctChecks)}` } });
+      const saldoRule = wf.validation.find(v => v.field === 'row_Saldo conciliado');
+      if (saldoRule) {
+        saldoRule.expected = bankBalance + depositsInTransit - correctChecks;
+        saldoRule.feedback.fail = `Saldo conciliado = $${fmt(bankBalance)} + $${fmt(depositsInTransit)} - $${fmt(correctChecks)} (incluye el cheque faltante de $3,500) = $${fmt(bankBalance + depositsInTransit - correctChecks)}`;
+      }
+      break;
+    }
+    case 'nomina_isr_mal': {
+      if (email) {
+        email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nLa nómina fue precargada por el sistema anterior con **ISR al 15% fijo**.\nCorrige el método de cálculo en la hoja: la ley exige la **tabla progresiva del SAT** antes de aprobar la dispersión.\n`;
+      }
+      if (spread) {
+        spread.data.rows.push({ label: 'Método ISR aplicado', cell_B: '15% fijo' });
+      }
+      wf.validation.push({ stepId: 'spreadsheet', field: 'row_Método ISR aplicado', type: 'exact', expected: 'Tabla SAT progresiva', label: 'Detección de ISR mal calculado', points: 5, feedback: { pass: 'Correcto: el ISR debe calcularse con la tabla progresiva del SAT', fail: 'La nómina usaba ISR fijo de 15%. La ley exige la tabla progresiva del SAT — el método fijo puede generar demandas laborales.' } });
+      break;
+    }
+    default: break;
+  }
+
+  const scenario = TRAP_SCENARIOS.find(s => s.id === trap);
+  return {
+    ...wf,
+    isTrap: true,
+    trapId: trap,
+    trapDescription: scenario?.description || 'Error intencional en el documento',
+  };
+}
+
+// ─── WORKFLOW STORE ───────────────────────────────────────────
+// El GET genera un workflow y lo guarda; el POST validate usa EL MISMO
+// workflow (por workflowId) para que las pistas del formulario (correct)
+// coincidan con las reglas de validación.
+
+const workflowStore = new Map<string, { wf: any; at: number }>();
+const STORE_TTL_MS = 30 * 60 * 1000;
+
+export function workflowIdOf(wf: any): string {
+  return wf.taskId || wf.id;
+}
+
+export function registerWorkflow(userId: string | undefined, wf: any): any {
+  const now = Date.now();
+  for (const [k, v] of workflowStore) { if (now - v.at > STORE_TTL_MS) workflowStore.delete(k); }
+  workflowStore.set(`${userId || 'anon'}:${workflowIdOf(wf)}`, { wf, at: now });
+  return wf;
+}
+
+export function getStoredWorkflow(userId: string | undefined, workflowId: string): any | undefined {
+  const key = `${userId || 'anon'}:${workflowId}`;
+  const entry = workflowStore.get(key);
+  if (!entry) return undefined;
+  if (Date.now() - entry.at > STORE_TTL_MS) { workflowStore.delete(key); return undefined; }
+  return entry.wf;
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
-export function generateWorkflow(taskType: string, userId?: string): Workflow {
+export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
+  let wf: Workflow;
   switch (taskType) {
-    case 'invoice_emission': return generateInvoiceWorkflow(userId);
-    case 'payment_registration': return generatePaymentWorkflow(userId);
-    case 'tax_calculation': return generateIVAWorkflow();
-    case 'bank_reconciliation': return generateBankReconciliationWorkflow();
-    case 'journal_entry': return generateJournalEntryWorkflow();
-    case 'payroll': return generatePayrollWorkflow();
-    case 'supplier_invoice': return generateSupplierInvoiceWorkflow(userId);
-    case 'payment_scheduling': return generatePaymentSchedulingWorkflow();
-    case 'ap_reconciliation': return generateAPReconciliationWorkflow();
-    case 'cfdi_reception': return generateCFDIWorkflow();
-    case 'credit_note': return generateCreditNoteWorkflow(userId);
-    case 'cash_cut': return generateCashCutWorkflow();
-    default: return generateGenericWorkflow(taskType);
+    case 'invoice_emission': wf = generateInvoiceWorkflow(userId); break;
+    case 'payment_registration': wf = generatePaymentWorkflow(userId); break;
+    case 'tax_calculation': wf = generateIVAWorkflow(); break;
+    case 'bank_reconciliation': wf = generateBankReconciliationWorkflow(); break;
+    case 'journal_entry': wf = generateJournalEntryWorkflow(); break;
+    case 'payroll': wf = generatePayrollWorkflow(); break;
+    case 'supplier_invoice': wf = generateSupplierInvoiceWorkflow(userId); break;
+    case 'payment_scheduling': wf = generatePaymentSchedulingWorkflow(); break;
+    case 'ap_reconciliation': wf = generateAPReconciliationWorkflow(); break;
+    case 'cfdi_reception': wf = generateCFDIWorkflow(); break;
+    case 'credit_note': wf = generateCreditNoteWorkflow(userId); break;
+    case 'cash_cut': wf = generateCashCutWorkflow(); break;
+    case 'depreciation': wf = generateDepreciationWorkflow(); break;
+    case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
+    default: wf = generateGenericWorkflow(taskType);
   }
+  return trap ? applyTrap(wf, trap) : wf;
 }

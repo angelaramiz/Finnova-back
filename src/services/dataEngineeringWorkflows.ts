@@ -11,6 +11,9 @@ export interface DEWorkflow {
   estimatedMinutes: number;
   steps: any[];
   validation: any[];
+  isTrap?: boolean;
+  trapId?: string;
+  trapDescription?: string;
 }
 
 // ─── SQL Workflows ────────────────────────────────────────────
@@ -64,9 +67,7 @@ export function generateSQLQueryWorkflow(): DEWorkflow {
       },
     ],
     validation: [
-      { stepId: 'spreadsheet', field: 'row_SELECT', label: 'SELECT', type: 'exact', expected: 'cliente_id, SUM(total) as total_ventas', points: 5, feedback: { pass: 'SELECT correcto', fail: 'Debes seleccionar cliente_id y SUM(total)' } },
-      { stepId: 'spreadsheet', field: 'row_WHERE', label: 'WHERE', type: 'exact', expected: "fecha BETWEEN '2026-07-01' AND '2026-07-31'", points: 5, feedback: { pass: 'WHERE correcto', fail: 'Filtra por fecha de julio 2026' } },
-      { stepId: 'spreadsheet', field: 'row_GROUP BY', label: 'GROUP BY', type: 'exact', expected: 'cliente_id', points: 5, feedback: { pass: 'GROUP BY correcto', fail: 'Agrupa por cliente_id' } },
+      { stepId: 'spreadsheet', field: 'row_SELECT', validator: 'sql', type: 'de', label: 'Consulta SQL', points: 15, feedback: { pass: 'Consulta correcta', fail: 'Revisa la consulta SQL' } },
     ],
   };
 }
@@ -115,7 +116,7 @@ export function generateETLPipelineWorkflow(): DEWorkflow {
     ],
     validation: [
       { stepId: 'spreadsheet', field: 'row_# 1. LEER CSV', label: 'Lectura CSV', type: 'exact', expected: 'df = pd.read_csv("/data/raw/ventas/daily_sales.csv")', points: 4, feedback: { pass: 'Lectura correcta', fail: 'Usa pd.read_csv para leer el archivo' } },
-      { stepId: 'spreadsheet', field: 'row_# 2. LIMPIAR DATOS', label: 'Limpieza', type: 'exact', expected: 'df = df.dropna().drop_duplicates()', points: 4, feedback: { pass: 'Limpieza correcta', fail: 'Elimina nulos y duplicados con dropna().drop_duplicates()' } },
+      { stepId: 'spreadsheet', field: 'row_# 2. LIMPIAR DATOS', validator: 'etl_clean', type: 'de', label: 'Limpieza de datos', points: 8, feedback: { pass: 'Limpieza correcta', fail: 'Revisa el manejo de nulos y duplicados' } },
       { stepId: 'spreadsheet', field: 'row_# 3. CALCULAR TOTALES', label: 'Cálculo', type: 'exact', expected: 'df["total"] = df["cantidad"] * df["precio_unitario"]', points: 4, feedback: { pass: 'Cálculo correcto', fail: 'Total = cantidad × precio_unitario' } },
     ],
   };
@@ -153,6 +154,7 @@ export function generateDataQualityWorkflow(): DEWorkflow {
             { label: '% Completitud', cell_B: '=(B2-B3)/B2*100', formula: '=(B2-B3)/B2*100' },
             { label: 'Duplicados', cell_B: 45, cell_C: '⚠' },
             { label: '% Unicidad', cell_B: '=(B2-B5)/B2*100', formula: '=(B2-B5)/B2*100' },
+            { label: 'DECISIÓN sobre datos nulos', cell_B: '' },
           ],
         },
       },
@@ -164,7 +166,7 @@ export function generateDataQualityWorkflow(): DEWorkflow {
       },
     ],
     validation: [
-      { stepId: 'spreadsheet', field: 'row_% Completitud', label: 'Completitud', type: 'calculated', expected: 98.33, tolerance: 0.1, points: 5, feedback: { pass: 'Completitud correcta', fail: 'Completitud = (15000-250)/15000 × 100 = 98.33%' } },
+      { stepId: 'spreadsheet', field: 'row_DECISIÓN sobre datos nulos', validator: 'quality_decision', type: 'de', label: 'Decisión de calidad', points: 10, feedback: { pass: 'Decisión correcta', fail: 'Documenta una acción de remediación' } },
     ],
   };
 }
@@ -269,17 +271,246 @@ export function generateAirflowDAGWorkflow(): DEWorkflow {
   };
 }
 
+// ─── Code Review Workflow ─────────────────────────────────────
+
+export function generateCodeReviewWorkflow(): DEWorkflow {
+  return {
+    id: `de-cr-${Date.now()}`,
+    title: 'Code Review — Revisión de código',
+    type: 'code_review',
+    difficulty: 2,
+    estimatedMinutes: 20,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Solicitud de code review',
+        description: 'Karla Ruiz abrió un PR en el repo lno-dbt',
+        data: {
+          from: 'Ing. Sandra Mora', to: 'data-engineer@dataflow.com',
+          subject: 'Code review — PR #42 del repo lno-dbt',
+          body: `Buenos días,\nKarla abrió el PR **#42 — stg_ventas con limpieza de nulos** en el repo lno-dbt y necesito tu revisión antes de mergear.\n\n**Revisa en GitSim:**\n1. ¿Hay SELECT * en los modelos?\n2. ¿Los refs apuntan a modelos existentes?\n3. ¿Los tests usan columnas que existen?\n4. ¿Hay datos hardcodeados?\n5. ¿El estilo sigue las guías del equipo?\n\nRegistra cada hallazgo con la línea exacta. Si el PR está bien, aprueba; si no, rechaza con comentarios.\n\nSaludos,\nIng. Sandra Mora`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet',
+        title: 'Checklist de revisión',
+        description: 'Marca cada hallazgo encontrado en el PR',
+        data: {
+          rows: [
+            { label: '-- SELECT * detectado? (si/no)', cell_B: '' },
+            { label: 'Refs rotos detectados? (si/no)', cell_B: '' },
+            { label: 'Tests con columna inexistente? (si/no)', cell_B: '' },
+            { label: 'Datos hardcodeados? (si/no)', cell_B: '' },
+            { label: 'Veredicto del review (aprobar/rechazar)', cell_B: '' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result',
+        title: 'Review completado',
+        description: 'El code review ha sido enviado a Sandra',
+        data: { repo: 'lno-dbt', pr: '#42', reviewedBy: 'Ingeniero de Datos Jr', approved: false },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_-- SELECT * detectado? (si/no)', validator: 'review', type: 'de', label: 'Code review', points: 15, feedback: { pass: 'Review correcto', fail: 'Revisa los hallazgos del PR en GitSim' } },
+    ],
+  };
+}
+
+// ─── Soporte de Datos Workflow ────────────────────────────────
+
+export function generateSoporteDatosWorkflow(): DEWorkflow {
+  const client = ['Comercial del Norte', 'Transportes Rápidos', 'Almacenes del Bajío'][Math.floor(Math.random() * 3)];
+  return {
+    id: `de-sd-${Date.now()}`,
+    title: 'Soporte — Solicitud de datos',
+    type: 'soporte_datos',
+    difficulty: 1,
+    estimatedMinutes: 15,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Solicitud de datos',
+        description: 'Un analista de negocio necesita un dataset',
+        data: {
+          from: 'Carlos Ríos (Analista)', to: 'data-engineering@dataflow.com',
+          subject: 'Solicitud de datos — ventas de clientes',
+          body: `Hola,\nPara el reporte mensual necesito el dataset **mrt_ventas_por_cliente** con las ventas de julio.\n\n**Requisitos:**\n- Columnas: cliente, num_ventas, total_ventas\n- Periodo: julio 2026\n- Formato: CSV\n\n¿Me pueden confirmar que el dato está disponible en el warehouse y enviarme el archivo?\n\nGracias,\nCarlos Ríos`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet',
+        title: 'Respuesta de soporte',
+        description: 'Confirma la disponibilidad del dataset',
+        data: {
+          rows: [
+            { label: '-- Dataset solicitado', cell_B: 'mrt_ventas_por_cliente' },
+            { label: 'Disponible en warehouse? (si/no)', cell_B: '' },
+            { label: 'Cliente con mayor total en julio', cell_B: '' },
+            { label: 'Total de ventas julio ($)', cell_B: '' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result',
+        title: 'Soporte completado',
+        description: 'El dataset fue entregado al analista',
+        data: { dataset: 'mrt_ventas_por_cliente', requester: 'Carlos Ríos', status: 'Entregado' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Disponible en warehouse? (si/no)', label: 'Disponibilidad', type: 'exact', expected: 'si', points: 5, feedback: { pass: 'Correcto: el dataset está disponible en el warehouse', fail: 'El dataset mrt_ventas_por_cliente sí está disponible' } },
+      { stepId: 'spreadsheet', field: 'row_Cliente con mayor total en julio', label: 'Top cliente', type: 'choice', expected: 'TechCorp SA', points: 5, feedback: { pass: 'Correcto: TechCorp SA lidera en ventas de julio', fail: 'El cliente con mayor total de julio es TechCorp SA' } },
+    ],
+  };
+}
+
+// ─── Incident Recovery Workflow ───────────────────────────────
+// Tarea narrativa: el pipeline lno_sales_pipeline falló el 05-jul en
+// dbt_test. El estudiante diagnostica y ejecuta la recuperación; al
+// aprobar, el mundo simulado queda marcado como recuperado.
+
+export function generateIncidentRecoveryWorkflow(): DEWorkflow {
+  return {
+    id: `de-inc-${Date.now()}`,
+    title: 'Recuperación de incidente — lno_sales_pipeline',
+    type: 'incident_recovery',
+    difficulty: 3,
+    estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Incidente del pipeline',
+        description: 'El pipeline diario falló y el mart ejecutivo no se actualizó',
+        data: {
+          from: 'Sistema de Monitoreo', to: 'data-engineer@dataflow.com',
+          subject: '🔴 INCIDENTE: lno_sales_pipeline falló el 05-jul',
+          body: `Se detectó un incidente en el pipeline **lno_sales_pipeline**.
+
+**Run del 05-jul:**
+- Tarea con fallo: dbt_test
+- Test fallido: positive(total_ventas) en mrt_ventas_por_cliente
+- Consecuencia: el mart no cumplió su SLA y el panel ejecutivo quedó desactualizado.
+
+**Tu tarea (como DE de guardia):**
+1. Confirma en AirflowSim cuál tarea falló y qué test lo detonó
+2. Revisa el modelo mrt_ventas_por_cliente en dbt
+3. Corrige el modelo y reprocesa el run fallido
+4. Verifica que el SLA del mart vuelva a verde en DataOps
+
+Documenta tu diagnóstico y la acción tomada.
+
+Saludos,
+Sistema de Monitoreo`,
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet',
+        title: 'Diagnóstico y recuperación',
+        description: 'Registra el diagnóstico y la acción',
+        data: {
+          rows: [
+            { label: 'Tarea que falló en el DAG', cell_B: '' },
+            { label: 'Test que falló', cell_B: '' },
+            { label: 'Acción de recuperación', cell_B: '' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result',
+        title: 'Incidente resuelto',
+        description: 'El pipeline fue recuperado',
+        data: { dag: 'lno_sales_pipeline', incident: '05-jul', recovered: true },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Tarea que falló en el DAG', validator: 'incident', type: 'de', label: 'Diagnóstico del incidente', points: 15, feedback: { pass: 'Diagnóstico correcto', fail: 'Revisa el diagnóstico del incidente' } },
+    ],
+  };
+}
+
 // ─── All DE Workflows ─────────────────────────────────────────
 
-export const DE_WORKFLOWS: Record<string, () => DEWorkflow> = {
-  sql_query: generateSQLQueryWorkflow,
-  etl_pipeline: generateETLPipelineWorkflow,
-  data_quality: generateDataQualityWorkflow,
-  ontology_modeling: generateOntologyWorkflow,
-  airflow_dag: generateAirflowDAGWorkflow,
+// P0-3: cada tarea DE incluye un paso `tool` que embebe la herramienta
+// real (SQLSim, Notebook, GitSim, Airflow, Catalog…) como contexto de
+// trabajo. La app del paso se mapea en DesktopShell.
+
+const TOOL_APPS: Record<string, { app: string; title: string; description: string }> = {
+  sql_query: { app: 'sql', title: 'SQLSim — Exploración de datos', description: 'Usa el editor SQL real con el dataset de ventas para diseñar y probar tu consulta.' },
+  etl_pipeline: { app: 'notebook', title: 'Notebook — Pipeline ETL', description: 'Usa el notebook con pandas para probar la transformación sobre los datos reales.' },
+  data_quality: { app: 'catalog', title: 'Data Catalog — Calidad', description: 'Revisa el catálogo y sus métricas de calidad antes de decidir.' },
+  ontology_modeling: { app: 'catalog', title: 'Data Catalog — Modelado', description: 'Revisa las entidades y relaciones existentes del catálogo.' },
+  airflow_dag: { app: 'airflow', title: 'Airflow — DAG lno_sales_pipeline', description: 'Revisa el DAG, sus tareas y las ejecuciones en AirflowSim.' },
+  code_review: { app: 'git', title: 'GitSim — PR #42 (lno-dbt)', description: 'Revisa el diff del PR en GitSim y detecta los hallazgos.' },
+  soporte_datos: { app: 'warehouse', title: 'Warehouse — Marts disponibles', description: 'Consulta el warehouse y los marts disponibles en WarehouseSim.' },
+  incident_recovery: { app: 'airflow', title: 'Airflow — Incidente 05-jul', description: 'Revisa la ejecución fallida del 05-jul en AirflowSim para diagnosticar.' },
 };
 
-export function getDEWorkflow(type: string): DEWorkflow {
+function withTool(wf: DEWorkflow, app: string, title: string, description: string): DEWorkflow {
+  const steps = wf.steps.slice();
+  const emailIdx = steps.findIndex(s => s.id === 'email');
+  steps.splice(emailIdx + 1, 0, {
+    id: 'tool', type: 'tool', title, description,
+    data: { app },
+  });
+  return { ...wf, steps };
+}
+
+export const DE_WORKFLOWS: Record<string, () => DEWorkflow> = {
+  sql_query: () => withTool(generateSQLQueryWorkflow(), TOOL_APPS.sql_query.app, TOOL_APPS.sql_query.title, TOOL_APPS.sql_query.description),
+  etl_pipeline: () => withTool(generateETLPipelineWorkflow(), TOOL_APPS.etl_pipeline.app, TOOL_APPS.etl_pipeline.title, TOOL_APPS.etl_pipeline.description),
+  data_quality: () => withTool(generateDataQualityWorkflow(), TOOL_APPS.data_quality.app, TOOL_APPS.data_quality.title, TOOL_APPS.data_quality.description),
+  ontology_modeling: () => withTool(generateOntologyWorkflow(), TOOL_APPS.ontology_modeling.app, TOOL_APPS.ontology_modeling.title, TOOL_APPS.ontology_modeling.description),
+  airflow_dag: () => withTool(generateAirflowDAGWorkflow(), TOOL_APPS.airflow_dag.app, TOOL_APPS.airflow_dag.title, TOOL_APPS.airflow_dag.description),
+  code_review: () => withTool(generateCodeReviewWorkflow(), TOOL_APPS.code_review.app, TOOL_APPS.code_review.title, TOOL_APPS.code_review.description),
+  soporte_datos: () => withTool(generateSoporteDatosWorkflow(), TOOL_APPS.soporte_datos.app, TOOL_APPS.soporte_datos.title, TOOL_APPS.soporte_datos.description),
+  incident_recovery: () => withTool(generateIncidentRecoveryWorkflow(), TOOL_APPS.incident_recovery.app, TOOL_APPS.incident_recovery.title, TOOL_APPS.incident_recovery.description),
+};
+
+// ─── Trampas DE ────────────────────────────────────────────────
+// Inyectan el error en el email y marcan la regla `de` correspondiente
+// para que el validador evalúe la detección/corrección del estudiante.
+
+const DE_TRAP_SCENARIOS: Record<string, { description: string }> = {
+  pipeline_datos_perdidos: { description: 'El pipeline usa dropna() y pierde 200 registros con nulos' },
+  sql_sin_group_by: { description: 'SUM() sin GROUP BY devuelve un solo renglón con resultado incorrecto' },
+  alerta_calidad_ignorada: { description: '500 registros con RFC inválido fueron ignorados por el equipo' },
+};
+
+function applyDETrap(wf: DEWorkflow, trap: string): DEWorkflow {
+  const email = wf.steps.find(s => s.id === 'email');
+  const trapRule = wf.validation.find((v: any) => v.type === 'de');
+
+  switch (trap) {
+    case 'sql_sin_group_by': {
+      if (email) email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nEl query anterior se ejecutó **sin GROUP BY**: SUM(total) devolvió un solo renglón con un resultado incorrecto.\nCorrige la consulta para que devuelva el total por cliente.\n`;
+      if (trapRule) trapRule.trap = 'sql_sin_group_by';
+      break;
+    }
+    case 'pipeline_datos_perdidos': {
+      if (email) email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nEl pipeline usa **dropna()** y perdió 200 registros que tenían nulos.\nCorrige la limpieza para **imputar** los valores faltantes en lugar de eliminarlos.\n`;
+      if (trapRule) trapRule.trap = 'pipeline_datos_perdidos';
+      break;
+    }
+    case 'alerta_calidad_ignorada': {
+      if (email) email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nEl equipo **ignoró** 500 registros con RFC inválido.\nDocumenta tu decisión: investiga, corrige o escala — no los dejes pasar.\n`;
+      if (trapRule) trapRule.trap = 'alerta_calidad_ignorada';
+      break;
+    }
+    default: break;
+  }
+
+  return {
+    ...wf,
+    isTrap: true,
+    trapId: trap,
+    trapDescription: DE_TRAP_SCENARIOS[trap]?.description || 'Error intencional en el pipeline',
+  };
+}
+
+export function getDEWorkflow(type: string, trap?: string): DEWorkflow {
   const factory = DE_WORKFLOWS[type];
-  return factory ? factory() : generateSQLQueryWorkflow();
+  const wf = factory ? factory() : generateSQLQueryWorkflow();
+  return trap ? applyDETrap(wf, trap) : wf;
 }

@@ -1,26 +1,26 @@
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
-import { generateWorkflow, ValidationRule } from '../services/workflowEngine';
+import { generateWorkflow, ValidationRule, registerWorkflow, getStoredWorkflow } from '../services/workflowEngine';
 import { getDEWorkflow } from '../services/dataEngineeringWorkflows';
+import { runDEValidator } from '../services/deValidation';
+import { recoverIncident } from '../services/simWorld';
 
 export const workflowRouter = Router();
+
+const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut', 'depreciation', 'financial_statements'];
+const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos', 'incident_recovery'];
 
 // GET /api/sim/workflows/:taskType — Genera workflow para tipo de tarea
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { taskType } = req.params;
+  const trap = typeof req.query.trap === 'string' ? req.query.trap : undefined;
   const userId = req.user?.id;
   
-  // Accounting workflows
-  const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut'];
-  
-  // Data Engineering workflows
-  const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos'];
-  
   if (accountingTypes.includes(taskType)) {
-    const workflow = generateWorkflow(taskType, userId);
+    const workflow = registerWorkflow(userId, generateWorkflow(taskType, userId, trap));
     res.json(workflow);
   } else if (deTypes.includes(taskType)) {
-    const workflow = getDEWorkflow(taskType);
+    const workflow = registerWorkflow(userId, getDEWorkflow(taskType, trap));
     res.json(workflow);
   } else {
     res.status(400).json({ error: `Tipo no válido: ${taskType}` });
@@ -29,14 +29,15 @@ workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedR
 
 // POST /api/sim/workflows/validate — Valida respuestas del usuario contra las reglas
 workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const { taskType, answers } = req.body;
+  const { taskType, answers, trap, workflowId } = req.body;
   const userId = req.user?.id;
   if (!taskType || !answers) {
     res.status(400).json({ error: 'taskType y answers son requeridos' });
     return;
   }
 
-  const workflow = generateWorkflow(taskType, userId);
+  const stored = typeof workflowId === 'string' ? getStoredWorkflow(userId, workflowId) : undefined;
+  const workflow = stored ?? (deTypes.includes(taskType) ? getDEWorkflow(taskType) : generateWorkflow(taskType, userId, typeof trap === 'string' ? trap : undefined));
   const results: any[] = [];
   let totalScore = 0;
   let maxPossible = 0;
@@ -55,6 +56,24 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
       case 'choice':
         passed = String(userAnswer).trim().toLowerCase() === String(rule.expected).trim().toLowerCase();
         break;
+      case 'de': {
+        const vr = runDEValidator(rule, answers);
+        passed = vr.passed;
+        if (rule.feedback && !vr.passed) rule.feedback.fail = vr.feedback;
+        if (rule.feedback && vr.passed) rule.feedback.pass = vr.feedback;
+        results.push({
+          field: rule.field,
+          label: rule.label,
+          expected: rule.trap ? `detectar: ${rule.trap}` : rule.validator,
+          received: userAnswer !== undefined ? userAnswer : '(código evaluado)',
+          passed,
+          points: passed ? rule.points : 0,
+          maxPoints: rule.points,
+          feedback: vr.feedback,
+        });
+        if (passed) totalScore += rule.points;
+        continue;
+      }
       case 'calculated': {
         const userNum = Number(userAnswer);
         const expNum = Number(rule.expected);
@@ -85,6 +104,11 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
 
   const passed = totalScore >= (maxPossible * 0.6);
   const scorePct = maxPossible > 0 ? Math.round((totalScore / maxPossible) * 100) : 0;
+
+  // Side effect: aprobar la recuperación del incidente actualiza el mundo
+  if (taskType === 'incident_recovery' && passed && userId) {
+    await recoverIncident(userId);
+  }
 
   res.json({
     results,
