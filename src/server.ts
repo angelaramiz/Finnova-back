@@ -15,6 +15,7 @@ import { authRouter } from './routes/auth';
 import { simEngineRouter } from './routes/simEngine';
 import { paymentsRouter } from './routes/payments';
 import { workflowRouter } from './routes/workflows';
+import { staffRouter } from './routes/staff';
 import { VERSION, BUILD_HASH } from './version';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
 import { supabaseAdmin } from './lib/supabaseClient';
@@ -162,6 +163,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/sim', simEngineRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/workflows', workflowRouter);
+app.use('/api/staff', staffRouter);
 
 // Health check endpoint with background pre-warming for database and n8n
 app.get('/api/health', async (req: Request, res: Response) => {

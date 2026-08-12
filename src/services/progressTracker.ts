@@ -1,5 +1,9 @@
 // ─── Progress Tracking v2 — Seguimiento por especialidad ──────
 // Cada usuario tiene progreso separado para Accounting y Data Engineering.
+// Se persiste en Supabase (tabla sim_progress) cuando el backend está
+// configurado; en desarrollo (mocks) o ante fallo degrada a memoria.
+
+import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 
 export interface TaskCompletion {
   id: string;
@@ -41,16 +45,55 @@ export interface RoleProgress {
 
 const progressStore = new Map<string, Map<string, TaskCompletion[]>>();
 
-function getUserProgress(userId: string, specialty: string): TaskCompletion[] {
+function memoryGet(userId: string, specialty: string): TaskCompletion[] | undefined {
+  return progressStore.get(userId)?.get(specialty);
+}
+
+function memorySet(userId: string, specialty: string, list: TaskCompletion[]) {
   if (!progressStore.has(userId)) progressStore.set(userId, new Map());
-  const userMap = progressStore.get(userId)!;
-  if (!userMap.has(specialty)) userMap.set(specialty, []);
-  return userMap.get(specialty)!;
+  progressStore.get(userId)!.set(specialty, list);
+}
+
+async function saveRemote(userId: string, specialty: string, list: TaskCompletion[]): Promise<void> {
+  if (!isSupabaseReady()) return;
+  try {
+    await supabaseAdmin.from('sim_progress').upsert(
+      { user_id: userId, specialty, data: list as any, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id,specialty' }
+    );
+  } catch {
+    // La tabla puede no existir aún o la BD pausada: seguimos en memoria.
+  }
+}
+
+async function getUserProgress(userId: string, specialty: string): Promise<TaskCompletion[]> {
+  const cached = memoryGet(userId, specialty);
+  if (cached) return cached;
+  if (isSupabaseReady()) {
+    try {
+      const { data } = await supabaseAdmin
+        .from('sim_progress')
+        .select('data')
+        .eq('user_id', userId)
+        .eq('specialty', specialty)
+        .maybeSingle();
+      if (data?.data) {
+        const list = data.data as TaskCompletion[];
+        memorySet(userId, specialty, list);
+        return list;
+      }
+    } catch {
+      // fallback a memoria
+    }
+  }
+  const list: TaskCompletion[] = [];
+  memorySet(userId, specialty, list);
+  return list;
 }
 
 // ─── Registrar completación ──────────────────────────────────
 
-export function recordCompletion(userId: string, data: {
+export async function recordCompletion(userId: string, data: {
   taskId: string;
   taskType: string;
   title: string;
@@ -66,8 +109,8 @@ export function recordCompletion(userId: string, data: {
   isTrap?: boolean;
   trapDetected?: boolean;
   feedback?: string;
-}): TaskCompletion {
-  const progress = getUserProgress(userId, data.specialty);
+}): Promise<TaskCompletion> {
+  const progress = await getUserProgress(userId, data.specialty);
   const completion: TaskCompletion = {
     id: `comp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     ...data,
@@ -76,13 +119,15 @@ export function recordCompletion(userId: string, data: {
     trapDetected: data.trapDetected || false,
   };
   progress.push(completion);
+  memorySet(userId, data.specialty, progress);
+  await saveRemote(userId, data.specialty, progress);
   return completion;
 }
 
 // ─── Obtener progreso por especialidad ───────────────────────
 
-export function getRoleProgress(userId: string, specialty: string, totalTasks: number = 33): RoleProgress {
-  const progress = getUserProgress(userId, specialty);
+export async function getRoleProgress(userId: string, specialty: string, totalTasks: number = 33): Promise<RoleProgress> {
+  const progress = await getUserProgress(userId, specialty);
   const completedTasks = progress.length;
   const pendingTasks = Math.max(0, totalTasks - completedTasks);
   const avgScore = completedTasks > 0 ? Math.round(progress.reduce((s, t) => s + t.score, 0) / completedTasks) : 0;
@@ -158,8 +203,8 @@ export function getRoleProgress(userId: string, specialty: string, totalTasks: n
 
 // ─── Obtener progreso rápido ─────────────────────────────────
 
-export function getQuickStats(userId: string, specialty: string) {
-  const progress = getUserProgress(userId, specialty);
+export async function getQuickStats(userId: string, specialty: string) {
+  const progress = await getUserProgress(userId, specialty);
   const today = new Date().toISOString().split('T')[0];
   const todayCompletions = progress.filter(t => t.completedAt.startsWith(today));
 

@@ -76,7 +76,7 @@ export function generatePayrollEntries(data: {
   return [
     { date, ref, desc: `Nómina ${data.employees} empleados`, account: '5-03 Gastos de administración', debit: data.totalGross, credit: 0, type: 'Nómina' },
     { date, ref, desc: 'ISR retenido', account: '2-04 ISR por pagar', debit: 0, credit: data.totalIsr, type: 'Nómina' },
-    { date, ref, desc: 'IMSS retenido', account: '2-05 PTU por pagar', debit: 0, credit: data.totalImss, type: 'Nómina' },
+    { date, ref, desc: 'IMSS retenido', account: '2-08 IMSS por pagar', debit: 0, credit: data.totalImss, type: 'Nómina' },
     { date, ref, desc: 'Dispersión bancaria nómina', account: '1-02 Bancos', debit: 0, credit: data.totalNeto, type: 'Nómina' },
   ];
 }

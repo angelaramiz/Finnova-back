@@ -9,6 +9,8 @@ import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/pa
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
+import { TRAP_SCENARIOS } from '../services/workflowEngine';
+import { getWorld, addAction, resetWorld } from '../services/simWorld';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
 import { recordCompletion, getRoleProgress, getQuickStats } from '../services/progressTracker';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
@@ -368,7 +370,28 @@ simEngineRouter.get('/task-knowledge/:taskType', requireSupabaseAuth, async (req
 });
 
 simEngineRouter.get('/trap-scenarios', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
-  res.json([]);
+  res.json(TRAP_SCENARIOS);
+});
+
+// ─── Mundo simulado (estado global DE) ────────────────────────
+simEngineRouter.get('/world', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(await getWorld(userId));
+});
+
+simEngineRouter.post('/world/action', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { type, detail } = req.body || {};
+  if (!type) { res.status(400).json({ error: 'type es requerido' }); return; }
+  res.json(await addAction(userId, type, String(detail || type)));
+});
+
+simEngineRouter.post('/world/reset', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  res.json(await resetWorld(userId));
 });
 
 // ─── Ejercicios Excel ────────────────────────────────────────
@@ -397,7 +420,7 @@ simEngineRouter.post('/progress/record', requireSupabaseAuth, async (req: Authen
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const { taskId, taskType, title, category, specialty, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback } = req.body;
-  const completion = recordCompletion(userId, { taskId, taskType, title, category, specialty: specialty || 'accounting', difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback });
+  const completion = await recordCompletion(userId, { taskId, taskType, title, category, specialty: specialty || 'accounting', difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback });
   res.json(completion);
 });
 
@@ -407,7 +430,7 @@ simEngineRouter.get('/progress/month/:month/:year', requireSupabaseAuth, async (
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
   const specialty = (req.query.specialty as string) || 'accounting';
-  const progress = getRoleProgress(userId, specialty);
+  const progress = await getRoleProgress(userId, specialty);
   res.json(progress);
 });
 
@@ -415,15 +438,15 @@ simEngineRouter.get('/progress/quick', requireSupabaseAuth, async (req: Authenti
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const specialty = (req.query.specialty as string) || 'accounting';
-  const stats = getQuickStats(userId, specialty);
+  const stats = await getQuickStats(userId, specialty);
   res.json(stats);
 });
 
 simEngineRouter.get('/progress/all', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
-  const accounting = getRoleProgress(userId, 'accounting');
-  const dataEngineering = getRoleProgress(userId, 'data_engineering');
+  const accounting = await getRoleProgress(userId, 'accounting');
+  const dataEngineering = await getRoleProgress(userId, 'data_engineering');
   res.json({ accounting, dataEngineering });
 });
 
@@ -532,7 +555,7 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
 
-  const { simulationProfile, experienceLevel, assignedJobId, assignedCompanyId } = req.body;
+  const { simulationProfile, experienceLevel, assignedJobId, assignedCompanyId, specialty } = req.body;
 
   if (isSupabaseReady()) {
     // En Supabase: guardamos el estado del onboarding via user_subscriptions
@@ -561,6 +584,7 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
     onboardingCompleted: true,
     simulationProfile: simulationProfile || 'pyme',
     experienceLevel: experienceLevel || 'beginner',
+    specialty: specialty === 'data_engineering' ? 'data_engineering' : 'accounting',
     assignedJob: MemoryDatabase.simJobs.find(j => j.id === assignedJobId) || MemoryDatabase.simJobs[0],
     assignedCompany: MemoryDatabase.simCompanies.find(c => c.id === assignedCompanyId) || MemoryDatabase.simCompanies[0],
   });

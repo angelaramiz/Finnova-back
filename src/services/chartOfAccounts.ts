@@ -46,6 +46,7 @@ const SEED: Account[] = [
   { code: '2-05', name: 'PTU por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 18000, isDetail: true },
   { code: '2-06', name: 'Sueldos por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 85000, isDetail: true },
   { code: '2-07', name: 'Préstamos bancarios', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 250000, isDetail: true },
+  { code: '2-08', name: 'IMSS por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 0, isDetail: true },
 
   // CAPITAL (Total: 1,850,000 = 2510000 - 660000)
   { code: '3', name: 'CAPITAL', type: 'Capital', level: 1, nature: 'H', balance: 1850000, isDetail: false },
