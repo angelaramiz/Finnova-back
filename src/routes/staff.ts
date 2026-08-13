@@ -1,11 +1,15 @@
-// ─── Staff — seguimiento de alumnos del simulador ──────────────
-// Lista a los alumnos con su progreso agregado y el estado de su mundo
-// simulado. En producción consulta Supabase; en local (mocks) devuelve
-// datos de demostración para que la UI sea verificable.
+// ─── Staff — Centro de Control del simulador ──────────────────
+// Permite al staff administrar a los alumnos: listarlos con su
+// progreso agregado, ver el detalle de cada uno (progreso, mundo
+// simulado), y ejecutar acciones de administración (reset del mundo,
+// reset de progreso, cambiar especialidad). En producción consulta
+// Supabase; en local (mocks) devuelve datos de demostración.
 
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
+import { resetWorld } from '../services/simWorld';
+import { resetProgress } from '../services/progressTracker';
 
 export const staffRouter = Router();
 
@@ -29,28 +33,26 @@ export function buildDemoStudents(): StudentRow[] {
   ];
 }
 
-staffRouter.get('/students', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    if (!isSupabaseReady()) {
-      res.json({ source: 'demo', students: buildDemoStudents() });
-      return;
-    }
+// ─── Helpers ───────────────────────────────────────────────────
 
-    // Perfiles de alumnos
+async function fetchAllStudents(): Promise<{ source: string; students: StudentRow[] }> {
+  if (!isSupabaseReady()) {
+    return { source: 'demo', students: buildDemoStudents() };
+  }
+
+  try {
     const { data: profiles, error: pErr } = await supabaseAdmin
       .from('profiles')
       .select('id,email,full_name,role,points_earned,specialty')
       .eq('role', 'student');
     if (pErr) throw pErr;
 
-    // Mundo simulado por usuario
     const { data: worlds, error: wErr } = await supabaseAdmin
       .from('sim_world')
       .select('user_id,state');
     if (wErr) throw wErr;
     const worldByUser = new Map((worlds || []).map((w: any) => [w.user_id, w.state]));
 
-    // Progreso agregado (sim_progress: completaciones por usuario/especialidad)
     let progressByUser = new Map<string, { completed: number; total: number; scoreSum: number; traps: number }>();
     try {
       const { data: progRows } = await supabaseAdmin
@@ -88,9 +90,176 @@ staffRouter.get('/students', requireSupabaseAuth, async (req: AuthenticatedReque
       };
     });
 
-    res.json({ source: 'supabase', students });
+    return { source: 'supabase', students };
   } catch (e: any) {
-    // Degradación segura: si falla Supabase, mostramos demo
-    res.json({ source: 'demo', students: buildDemoStudents(), error: e.message });
+    return { source: 'demo', students: buildDemoStudents(), error: e.message };
+  }
+}
+
+function buildDemoStats(students: StudentRow[]) {
+  const total = students.length;
+  const bySpecialty = {
+    accounting: students.filter(s => s.specialty !== 'data_engineering').length,
+    data_engineering: students.filter(s => s.specialty === 'data_engineering').length,
+  };
+  const totalCompleted = students.reduce((s, x) => s + x.completed, 0);
+  const totalTasks = students.reduce((s, x) => s + x.total, 0);
+  const avgScore = total ? Math.round(students.reduce((s, x) => s + x.scorePct, 0) / total) : 0;
+  const trapsDetected = students.reduce((s, x) => s + x.trapsDetected, 0);
+  const pipelineOk = students.filter(s => s.world.pipeline === 'recovered' || s.world.pipeline === '—').length;
+  const slasOk = students.filter(s => s.world.sla === 'met' || s.world.sla === '—').length;
+  return { total, bySpecialty, totalCompleted, totalTasks, avgScore, trapsDetected, pipelineOk, slasOk };
+}
+
+// ─── GET /api/staff/stats ──────────────────────────────────────
+// KPIs agregadas de todos los alumnos del simulador.
+
+staffRouter.get('/stats', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const { source, students } = await fetchAllStudents();
+    res.json({ source, stats: buildDemoStats(students), students: students.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /api/staff/students ───────────────────────────────────
+// Lista los alumnos con progreso agregado y estado del mundo.
+
+staffRouter.get('/students', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const result = await fetchAllStudents();
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── GET /api/staff/students/:id ───────────────────────────────
+// Detalle de un alumno: perfil, mundo simulado y progreso completo.
+
+staffRouter.get('/students/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    if (!isSupabaseReady()) {
+      const demo = buildDemoStudents().find(s => s.id === id);
+      if (!demo) { res.status(404).json({ error: 'Alumno no encontrado' }); return; }
+      res.json({
+        source: 'demo',
+        student: {
+          id: demo.id,
+          name: demo.name,
+          email: demo.email,
+          specialty: demo.specialty,
+          points: 0,
+          world: { pipeline: { status: demo.world.pipeline }, slas: { mrtSla: demo.world.sla } },
+          progress: [],
+          recentCompletions: [],
+          roleProgress: { completed: demo.completed, total: demo.total, avgScore: demo.scorePct, trapsDetected: demo.trapsDetected },
+        },
+      });
+      return;
+    }
+
+    const { data: profile, error: pErr } = await supabaseAdmin
+      .from('profiles')
+      .select('id,email,full_name,role,points_earned,specialty')
+      .eq('id', id)
+      .maybeSingle();
+    if (pErr) throw pErr;
+    if (!profile) { res.status(404).json({ error: 'Alumno no encontrado' }); return; }
+
+    const { data: worldRow } = await supabaseAdmin.from('sim_world').select('state').eq('user_id', id).maybeSingle();
+    const { data: progRows } = await supabaseAdmin.from('sim_progress').select('specialty,data').eq('user_id', id);
+    const progressBySpec: Record<string, any[]> = {};
+    (progRows || []).forEach((p: any) => { progressBySpec[p.specialty] = p.data || []; });
+
+    const specialty = profile.specialty || 'accounting';
+    const list = progressBySpec[specialty] || [];
+    const completed = list.length;
+    const total = Math.max(completed, 12);
+    const avgScore = completed ? Math.round(list.reduce((s, t) => s + Number(t.score || 0), 0) / completed) : 0;
+    const trapsDetected = list.filter((t: any) => t.trapDetected).length;
+
+    res.json({
+      source: 'supabase',
+      student: {
+        id: profile.id,
+        name: profile.full_name || profile.email || 'Alumno',
+        email: profile.email,
+        specialty,
+        points: profile.points_earned || 0,
+        world: worldRow?.state || { pipeline: { status: '—' }, slas: { mrtSla: '—' } },
+        progress: progressBySpec,
+        recentCompletions: list.slice(-10).reverse(),
+        roleProgress: { completed, total, avgScore, trapsDetected },
+      },
+    });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/staff/students/:id/reset-world ─────────────────
+// Reinicia el mundo simulado (pipeline del 05-jul, SLAs) del alumno.
+
+staffRouter.post('/students/:id/reset-world', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ success: true, source: 'demo' });
+      return;
+    }
+    const world = await resetWorld(id);
+    res.json({ success: true, world });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/staff/students/:id/reset-progress ──────────────
+// Borra el progreso (sim_progress) de una especialidad del alumno.
+
+staffRouter.post('/students/:id/reset-progress', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const specialty = (req.body?.specialty as string) || 'accounting';
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ success: true, source: 'demo' });
+      return;
+    }
+    await resetProgress(id, specialty);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/staff/students/:id/specialty ───────────────────
+// Cambia la especialidad activa del alumno.
+
+staffRouter.post('/students/:id/specialty', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  const specialty = req.body?.specialty as string;
+  if (!['accounting', 'data_engineering'].includes(specialty)) {
+    res.status(400).json({ error: 'Especialidad inválida. Usa accounting o data_engineering.' });
+    return;
+  }
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ success: true, source: 'demo' });
+      return;
+    }
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .update({ specialty })
+      .eq('id', id)
+      .select()
+      .maybeSingle();
+    if (error) throw error;
+    if (!data) { res.status(404).json({ error: 'Alumno no encontrado' }); return; }
+    res.json({ success: true, profile: data });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
 });

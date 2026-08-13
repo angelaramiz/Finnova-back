@@ -218,6 +218,19 @@ export async function getQuickStats(userId: string, specialty: string) {
   };
 }
 
+// ─── Reiniciar progreso (staff/admin) ─────────────────────────
+
+export async function resetProgress(userId: string, specialty: string): Promise<void> {
+  memorySet(userId, specialty, []);
+  if (isSupabaseReady()) {
+    try {
+      await supabaseAdmin.from('sim_progress').delete().eq('user_id', userId).eq('specialty', specialty);
+    } catch {
+      // fallback a memoria
+    }
+  }
+}
+
 function calculateStreak(progress: TaskCompletion[]): number {
   const dates = [...new Set(progress.map(t => t.completedAt.split('T')[0]))].sort().reverse();
   let streak = 0;
