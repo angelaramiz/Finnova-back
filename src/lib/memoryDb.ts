@@ -361,6 +361,7 @@ export class MemoryDatabase {
   static simJobs: SimJob[] = [
     { id: 'b0000000-0000-0000-0000-000000000001', title: 'Auxiliar Contable', description: 'Apoyo en registro de operaciones diarias, facturación y conciliación bancaria.', difficulty: 1, requiredCompletion: 0, unlocksJobId: 'b0000000-0000-0000-0000-000000000002', category: 'contabilidad', minScoreToPass: 60 },
     { id: 'b0000000-0000-0000-0000-000000000002', title: 'Analista de Cuentas por Pagar', description: 'Gestión de proveedores, registro de facturas recibidas, programación de pagos.', difficulty: 2, requiredCompletion: 5, unlocksJobId: '', category: 'contabilidad', minScoreToPass: 65 },
+    { id: 'b0000000-0000-0000-0000-000000000003', title: 'Ingeniero de Datos Jr', description: 'SQL, Python, pipelines, calidad de datos y Palantir Foundry.', difficulty: 1, requiredCompletion: 0, unlocksJobId: '', category: 'data_engineering', minScoreToPass: 60 },
   ];
 
   static simTasks: SimTask[] = [

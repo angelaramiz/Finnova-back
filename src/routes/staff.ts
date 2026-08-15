@@ -8,7 +8,7 @@
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
-import { resetWorld } from '../services/simWorld';
+import { resetWorld, resetCareer } from '../services/simWorld';
 import { resetProgress } from '../services/progressTracker';
 
 export const staffRouter = Router();
@@ -23,12 +23,13 @@ export interface StudentRow {
   scorePct: number;
   trapsDetected: number;
   world: { pipeline: string; sla: string };
+  career?: { node: string; branch: string | null; practicePct: number };
 }
 
 export function buildDemoStudents(): StudentRow[] {
   return [
-    { id: 'demo-1', name: 'Ana García', email: 'ana@demo.mx', specialty: 'data_engineering', completed: 8, total: 12, scorePct: 82, trapsDetected: 2, world: { pipeline: 'recovered', sla: 'met' } },
-    { id: 'demo-2', name: 'Carlos López', email: 'carlos@demo.mx', specialty: 'data_engineering', completed: 4, total: 12, scorePct: 61, trapsDetected: 1, world: { pipeline: 'failed', sla: 'breached' } },
+    { id: 'demo-1', name: 'Ana García', email: 'ana@demo.mx', specialty: 'data_engineering', completed: 8, total: 12, scorePct: 82, trapsDetected: 2, world: { pipeline: 'recovered', sla: 'met' }, career: { node: 'data_engineering', branch: 'data_engineering', practicePct: 82 } },
+    { id: 'demo-2', name: 'Carlos López', email: 'carlos@demo.mx', specialty: 'data_engineering', completed: 4, total: 12, scorePct: 61, trapsDetected: 1, world: { pipeline: 'failed', sla: 'breached' }, career: { node: 'analyst', branch: null, practicePct: 61 } },
     { id: 'demo-3', name: 'María Fernández', email: 'maria@demo.mx', specialty: 'accounting', completed: 11, total: 12, scorePct: 90, trapsDetected: 3, world: { pipeline: 'recovered', sla: 'met' } },
   ];
 }
@@ -87,12 +88,18 @@ async function fetchAllStudents(): Promise<{ source: string; students: StudentRo
           pipeline: w?.pipeline?.status || '—',
           sla: w?.slas?.mrtSla || '—',
         },
+        career: w?.careerPath ? {
+          node: w.careerPath.currentNode || 'analyst',
+          branch: w.careerPath.chosenBranch || null,
+          practicePct: w.careerPath.practicePct || 0,
+        } : undefined,
       };
     });
 
     return { source: 'supabase', students };
   } catch (e: any) {
-    return { source: 'demo', students: buildDemoStudents(), error: e.message };
+    console.error('staff.fetchAllStudents fallback a demo:', e.message);
+    return { source: 'demo', students: buildDemoStudents() };
   }
 }
 
@@ -108,7 +115,13 @@ function buildDemoStats(students: StudentRow[]) {
   const trapsDetected = students.reduce((s, x) => s + x.trapsDetected, 0);
   const pipelineOk = students.filter(s => s.world.pipeline === 'recovered' || s.world.pipeline === '—').length;
   const slasOk = students.filter(s => s.world.sla === 'met' || s.world.sla === '—').length;
-  return { total, bySpecialty, totalCompleted, totalTasks, avgScore, trapsDetected, pipelineOk, slasOk };
+  const deStudents = students.filter(s => s.specialty === 'data_engineering');
+  const byBranch = {
+    analyst: deStudents.filter(s => !s.career?.branch).length,
+    engineering: deStudents.filter(s => s.career?.branch === 'data_engineering').length,
+    science: deStudents.filter(s => s.career?.branch === 'data_science').length,
+  };
+  return { total, bySpecialty, totalCompleted, totalTasks, avgScore, trapsDetected, pipelineOk, slasOk, byBranch };
 }
 
 // ─── GET /api/staff/stats ──────────────────────────────────────
@@ -195,6 +208,23 @@ staffRouter.get('/students/:id', requireSupabaseAuth, async (req: AuthenticatedR
         roleProgress: { completed, total, avgScore, trapsDetected },
       },
     });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/staff/students/:id/reset-career ───────────────
+// Reinicia el árbol de rutas del alumno (permite re-elegir rama).
+
+staffRouter.post('/students/:id/reset-career', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ success: true, source: 'demo' });
+      return;
+    }
+    const careerPath = await resetCareer(id);
+    res.json({ success: true, careerPath });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

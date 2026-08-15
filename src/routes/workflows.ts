@@ -1,14 +1,16 @@
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { generateWorkflow, ValidationRule, registerWorkflow, getStoredWorkflow } from '../services/workflowEngine';
-import { getDEWorkflow } from '../services/dataEngineeringWorkflows';
+import { getDEWorkflow, getDSWorkflow } from '../services/dataEngineeringWorkflows';
 import { runDEValidator } from '../services/deValidation';
+import { runDSValidator } from '../services/dsValidation';
 import { recoverIncident } from '../services/simWorld';
 
 export const workflowRouter = Router();
 
 const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut', 'depreciation', 'financial_statements'];
 const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos', 'incident_recovery'];
+const dsTypes = ['eda_churn', 'modelo_baseline', 'eval_metricas'];
 
 // GET /api/sim/workflows/:taskType — Genera workflow para tipo de tarea
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
@@ -21,6 +23,9 @@ workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedR
     res.json(workflow);
   } else if (deTypes.includes(taskType)) {
     const workflow = registerWorkflow(userId, getDEWorkflow(taskType, trap));
+    res.json(workflow);
+  } else if (dsTypes.includes(taskType)) {
+    const workflow = registerWorkflow(userId, getDSWorkflow(taskType));
     res.json(workflow);
   } else {
     res.status(400).json({ error: `Tipo no válido: ${taskType}` });
@@ -37,7 +42,7 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
   }
 
   const stored = typeof workflowId === 'string' ? getStoredWorkflow(userId, workflowId) : undefined;
-  const workflow = stored ?? (deTypes.includes(taskType) ? getDEWorkflow(taskType) : generateWorkflow(taskType, userId, typeof trap === 'string' ? trap : undefined));
+  const workflow = stored ?? (dsTypes.includes(taskType) ? getDSWorkflow(taskType) : deTypes.includes(taskType) ? getDEWorkflow(taskType) : generateWorkflow(taskType, userId, typeof trap === 'string' ? trap : undefined));
   const results: any[] = [];
   let totalScore = 0;
   let maxPossible = 0;
@@ -66,6 +71,24 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
           label: rule.label,
           expected: rule.trap ? `detectar: ${rule.trap}` : rule.validator,
           received: userAnswer !== undefined ? userAnswer : '(código evaluado)',
+          passed,
+          points: passed ? rule.points : 0,
+          maxPoints: rule.points,
+          feedback: vr.feedback,
+        });
+        if (passed) totalScore += rule.points;
+        continue;
+      }
+      case 'ds': {
+        const vr = runDSValidator(rule, answers);
+        passed = vr.passed;
+        if (rule.feedback && !vr.passed) rule.feedback.fail = vr.feedback;
+        if (rule.feedback && vr.passed) rule.feedback.pass = vr.feedback;
+        results.push({
+          field: rule.field,
+          label: rule.label,
+          expected: rule.validator,
+          received: userAnswer !== undefined ? userAnswer : '(texto evaluado)',
           passed,
           points: passed ? rule.points : 0,
           maxPoints: rule.points,

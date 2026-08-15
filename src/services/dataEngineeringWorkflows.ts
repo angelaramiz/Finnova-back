@@ -514,3 +514,136 @@ export function getDEWorkflow(type: string, trap?: string): DEWorkflow {
   const wf = factory ? factory() : generateSQLQueryWorkflow();
   return trap ? applyDETrap(wf, trap) : wf;
 }
+
+// ─── Ciencia de Datos Workflows (R-07) ─────────────────────────
+// Caso churn de Comercial del Norte con features degradadas por el
+// incidente del 05-jul. Validadores DS en dsValidation.ts.
+
+const DS_TOOL_APPS: Record<string, { app: string; title: string; description: string }> = {
+  eda_churn: { app: 'notebook', title: 'Notebook — EDA del churn', description: 'Usa el notebook para explorar las features del mart y detectar la degradación.' },
+  modelo_baseline: { app: 'notebook', title: 'Notebook — Modelo baseline', description: 'Entrena el baseline (split 80/20, target churn) sobre los datos del mart.' },
+  eval_metricas: { app: 'bi', title: 'BiSim — Comparación de métricas', description: 'Revisa el tablero de métricas antes y después de la recuperación del mart.' },
+};
+
+export function generateEDAChurnWorkflow(): DEWorkflow {
+  return {
+    id: `ds-eda-${Date.now()}`,
+    title: 'EDA — Churn Comercial del Norte',
+    type: 'eda_churn',
+    difficulty: 2,
+    estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Caso de negocio — churn',
+        description: 'Analista necesita entender la caída de Comercial del Norte',
+        data: {
+          from: 'Ing. Sandra Mora', to: 'data-scientist@dataflow.com',
+          subject: 'Caso: churn de Comercial del Norte',
+          body: `Hola,\nComercial del Norte redujo su volumen tras el incidente del 05-jul.\n\n**Objetivo:** entender qué features explican el churn.\n\n1. Describe el dataset (filas, columnas, nulos).\n2. Da un insight principal (correlaciones / distribución).\n\nContexto: el mart mrt_ventas_por_cliente tuvo montos negativos/nulos por el fallo de dbt_test.\n\nSaludos,\nIng. Sandra Mora`,
+        },
+      },
+      {
+        id: 'form', type: 'form',
+        title: 'Reporte de EDA',
+        description: 'Completa el análisis exploratorio',
+        data: {
+          fields: [
+            { key: 'row_Describe el dataset (filas, columnas, nulos)', label: 'Describe el dataset (filas, columnas, nulos)', type: 'text' },
+            { key: 'row_Insight principal', label: 'Insight principal', type: 'textarea' },
+          ],
+        },
+      },
+      { id: 'result', type: 'result', title: 'EDA completado', description: 'Análisis exploratorio terminado', data: { type: 'eda_churn' } },
+    ],
+    validation: [
+      { stepId: 'form', field: 'row_Insight principal', validator: 'eda', type: 'ds', label: 'Insight del EDA', points: 20, feedback: { pass: 'EDA correcto', fail: 'Completa el EDA' } },
+    ],
+  };
+}
+
+export function generateModelBaselineWorkflow(): DEWorkflow {
+  return {
+    id: `ds-model-${Date.now()}`,
+    title: 'Modelo baseline — Churn',
+    type: 'modelo_baseline',
+    difficulty: 3,
+    estimatedMinutes: 30,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Entrenamiento del baseline',
+        description: 'Define el split y la variable objetivo',
+        data: {
+          from: 'Ing. Sandra Mora', to: 'data-scientist@dataflow.com',
+          subject: 'Baseline para el caso churn',
+          body: `Continúa con el caso.\n\n**Define:**\n- Split train/test (p. ej. 80/20).\n- Variable objetivo (churn / baja del cliente).\n\nEntrena un baseline simple y regístralo.\n\nSaludos,\nIng. Sandra Mora`,
+        },
+      },
+      {
+        id: 'form', type: 'form',
+        title: 'Configuración del modelo',
+        description: 'Define el baseline',
+        data: {
+          fields: [
+            { key: 'row_Split train/test', label: 'Split train/test', type: 'text' },
+            { key: 'row_Variable objetivo', label: 'Variable objetivo', type: 'text' },
+          ],
+        },
+      },
+      { id: 'result', type: 'result', title: 'Baseline entrenado', description: 'Modelo registrado en el historial de experimentos', data: { type: 'modelo_baseline' } },
+    ],
+    validation: [
+      { stepId: 'form', field: 'row_Variable objetivo', validator: 'model', type: 'ds', label: 'Configuración del baseline', points: 20, feedback: { pass: 'Modelo bien definido', fail: 'Define split y objetivo' } },
+    ],
+  };
+}
+
+export function generateEvalMetricsWorkflow(): DEWorkflow {
+  return {
+    id: `ds-eval-${Date.now()}`,
+    title: 'Evaluación de métricas — Churn',
+    type: 'eval_metricas',
+    difficulty: 2,
+    estimatedMinutes: 20,
+    steps: [
+      {
+        id: 'email', type: 'email',
+        title: 'Reporte de métricas',
+        description: 'Reporta y compara las métricas del baseline',
+        data: {
+          from: 'Ing. Sandra Mora', to: 'data-scientist@dataflow.com',
+          subject: 'Métricas del baseline — reporte',
+          body: `Reporta:\n- RMSE del baseline.\n- Accuracy del baseline.\n- Comparación contra el mart recuperado.\n\nRecuerda: tras el fix del 05-jul, el mart quedó recuperado y las features mejoran.\n\nSaludos,\nIng. Sandra Mora`,
+        },
+      },
+      {
+        id: 'form', type: 'form',
+        title: 'Reporte de métricas',
+        description: 'Métricas y comparación',
+        data: {
+          fields: [
+            { key: 'row_RMSE del baseline', label: 'RMSE del baseline', type: 'number' },
+            { key: 'row_Accuracy del baseline', label: 'Accuracy del baseline', type: 'number' },
+            { key: 'row_Comparación vs mart recuperado', label: 'Comparación vs mart recuperado', type: 'textarea' },
+          ],
+        },
+      },
+      { id: 'result', type: 'result', title: 'Evaluación completada', description: 'Métricas reportadas y comparadas', data: { type: 'eval_metricas' } },
+    ],
+    validation: [
+      { stepId: 'form', field: 'row_Comparación vs mart recuperado', validator: 'metrics', type: 'ds', label: 'Comparación de métricas', points: 20, feedback: { pass: 'Evaluación correcta', fail: 'Completa el reporte de métricas' } },
+    ],
+  };
+}
+
+export const DS_WORKFLOWS: Record<string, () => DEWorkflow> = {
+  eda_churn: () => withTool(generateEDAChurnWorkflow(), DS_TOOL_APPS.eda_churn.app, DS_TOOL_APPS.eda_churn.title, DS_TOOL_APPS.eda_churn.description),
+  modelo_baseline: () => withTool(generateModelBaselineWorkflow(), DS_TOOL_APPS.modelo_baseline.app, DS_TOOL_APPS.modelo_baseline.title, DS_TOOL_APPS.modelo_baseline.description),
+  eval_metricas: () => withTool(generateEvalMetricsWorkflow(), DS_TOOL_APPS.eval_metricas.app, DS_TOOL_APPS.eval_metricas.title, DS_TOOL_APPS.eval_metricas.description),
+};
+
+export function getDSWorkflow(type: string): DEWorkflow {
+  const factory = DS_WORKFLOWS[type];
+  return factory ? factory() : generateEDAChurnWorkflow();
+}

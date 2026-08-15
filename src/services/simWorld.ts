@@ -1,10 +1,12 @@
 // ─── Mundo simulado por usuario (persistente) ─────────────────
-// Estado global del simulador DE: el incidente del 05-jul, los SLAs y el
-// registro de acciones. Se persiste en Supabase (tabla sim_world) cuando el
-// backend está configurado con credenciales reales; en desarrollo (mocks) o
-// ante fallo de conexión degrada a memoria sin romper la simulación.
+// Estado global del simulador DE: el incidente del 05-jul, los SLAs, el
+// registro de acciones y el árbol de rutas de la especialidad data.
+// Se persiste en Supabase (tabla sim_world) cuando el backend está
+// configurado con credenciales reales; en desarrollo (mocks) o ante fallo
+// de conexión degrada a memoria sin romper la simulación.
 
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
+import { freshCareerPath, CareerPathState } from './careerPath';
 
 export interface WorldAction {
   at: string;
@@ -26,6 +28,7 @@ export interface WorldState {
     lastBreach: string;
   };
   actions: WorldAction[];
+  careerPath: CareerPathState;
 }
 
 const worldStore = new Map<string, WorldState>();
@@ -46,6 +49,7 @@ function freshWorld(): WorldState {
     actions: [
       { at: new Date().toISOString(), type: 'seed', detail: 'Run del 05-jul falló en dbt_test (positive(total_ventas))' },
     ],
+    careerPath: freshCareerPath(),
   };
 }
 
@@ -67,6 +71,7 @@ export async function getWorld(userId: string): Promise<WorldState> {
       const { data } = await supabaseAdmin.from('sim_world').select('state').eq('user_id', userId).maybeSingle();
       if (data?.state) {
         const w = data.state as WorldState;
+        if (!w.careerPath) w.careerPath = freshCareerPath();
         worldStore.set(userId, w);
         return w;
       }
@@ -75,7 +80,10 @@ export async function getWorld(userId: string): Promise<WorldState> {
     }
   }
   const existing = worldStore.get(userId);
-  if (existing) return existing;
+  if (existing) {
+    if (!existing.careerPath) existing.careerPath = freshCareerPath();
+    return existing;
+  }
   const w = freshWorld();
   worldStore.set(userId, w);
   await saveRemote(userId, w);
@@ -104,4 +112,28 @@ export async function resetWorld(userId: string): Promise<WorldState> {
   worldStore.set(userId, w);
   await saveRemote(userId, w);
   return w;
+}
+
+// ─── Árbol de rutas (R-07) ────────────────────────────────────
+
+export async function getCareerPath(userId: string): Promise<CareerPathState> {
+  const world = await getWorld(userId);
+  if (!world.careerPath) {
+    world.careerPath = freshCareerPath();
+    await saveRemote(userId, world);
+  }
+  return world.careerPath;
+}
+
+export async function saveCareerPath(userId: string, careerPath: CareerPathState): Promise<CareerPathState> {
+  const world = await getWorld(userId);
+  world.careerPath = careerPath;
+  await saveRemote(userId, world);
+  return careerPath;
+}
+
+export async function resetCareer(userId: string): Promise<CareerPathState> {
+  const cp = freshCareerPath();
+  await saveCareerPath(userId, cp);
+  return cp;
 }

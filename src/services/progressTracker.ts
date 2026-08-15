@@ -218,6 +218,30 @@ export async function getQuickStats(userId: string, specialty: string) {
   };
 }
 
+// ─── Breakdown de práctica para el árbol de rutas (R-07) ─────
+// tasks = tareas de fase analista; sims = workflows validados
+// (score>=70); cases = completaciones marcadas countsAsCase.
+
+export interface PracticeBreakdownRaw {
+  tasks: { done: number; total: number };
+  sims: { validated: number; total: number };
+  cases: { done: number; total: number };
+}
+
+export async function computePracticeBreakdown(userId: string, specialty: string): Promise<PracticeBreakdownRaw> {
+  const progress = await getUserProgress(userId, specialty);
+
+  const taskCompletions = progress.filter(t => (t.category === 'sql' || t.category === 'data_quality' || t.category === 'soporte_datos') && !t.isTrap && t.specialty === specialty);
+  const simCompletions = progress.filter(t => t.score >= 70 && !t.isTrap);
+  const caseCompletions = progress.filter(t => t.isTrap === false && (t as any).countsAsCase || false);
+
+  return {
+    tasks: { done: taskCompletions.length, total: 12 },
+    sims: { validated: simCompletions.length, total: 8 },
+    cases: { done: caseCompletions.length, total: 3 },
+  };
+}
+
 // ─── Reiniciar progreso (staff/admin) ─────────────────────────
 
 export async function resetProgress(userId: string, specialty: string): Promise<void> {

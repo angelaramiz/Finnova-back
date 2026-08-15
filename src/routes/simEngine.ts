@@ -10,9 +10,10 @@ import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGe
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { TRAP_SCENARIOS } from '../services/workflowEngine';
-import { getWorld, addAction, resetWorld } from '../services/simWorld';
+import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '../services/simWorld';
+import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
-import { recordCompletion, getRoleProgress, getQuickStats } from '../services/progressTracker';
+import { recordCompletion, getRoleProgress, getQuickStats, computePracticeBreakdown } from '../services/progressTracker';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
@@ -504,6 +505,64 @@ simEngineRouter.get('/de/pipeline-runs', requireSupabaseAuth, async (_req: Authe
 });
 
 // ─── ONBOARDING & SUBSCRIPTION ────────────────────────────────
+
+// ─── Árbol de Rutas Data (R-07) ───────────────────────────────
+
+// GET /api/sim/career-path — Estado del árbol de rutas + breakdown
+simEngineRouter.get('/career-path', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const careerPath = await getCareerPath(userId);
+    const breakdown = await computePracticeBreakdown(userId, 'data_engineering');
+    const next = applyProgress(careerPath, breakdown);
+    if (next.practicePct !== careerPath.practicePct) await saveCareerPath(userId, next);
+    res.json({ careerPath: { ...next, breakdown }, appSet: careerAppSet(next) });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/career-path/choose {branch} — Elegir rama (irreversible)
+simEngineRouter.post('/career-path/choose', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { branch } = req.body || {};
+  if (!['data_engineering', 'data_science'].includes(branch)) {
+    res.status(400).json({ error: 'Rama inválida. Usa data_engineering o data_science.' });
+    return;
+  }
+  try {
+    const careerPath = await getCareerPath(userId);
+    const breakdown = await computePracticeBreakdown(userId, 'data_engineering');
+    const withProgress = applyProgress(careerPath, breakdown);
+    const next = chooseBranch(withProgress, branch);
+    await saveCareerPath(userId, next);
+    await addAction(userId, 'career_choose', `Ruta elegida: ${branch}`);
+    res.json({ careerPath: { ...next, breakdown } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/career-path/demo-override {enabled} — Atajo demo (vista)
+simEngineRouter.post('/career-path/demo-override', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const enabled = !!(req.body?.enabled);
+  try {
+    const careerPath = await getCareerPath(userId);
+    const breakdown = await computePracticeBreakdown(userId, 'data_engineering');
+    const withProgress = applyProgress(careerPath, breakdown);
+    const next = applyDemoOverride(withProgress, enabled);
+    await saveCareerPath(userId, next);
+    await addAction(userId, enabled ? 'career_demo_on' : 'career_demo_off', 'Atajo demo de rutas');
+    res.json({ careerPath: { ...next, breakdown } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
@@ -520,15 +579,21 @@ simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: Authenticate
       
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('fullName')
+        .select('fullName,full_name,specialty')
         .eq('id', userId)
         .maybeSingle();
 
+      const specialty = profile?.specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+
       res.json({
         userId,
-        fullName: profile?.fullName || req.user?.email || 'Usuario',
+        fullName: profile?.fullName || profile?.full_name || req.user?.email || 'Usuario',
         subscriptionStatus: data ? 'active' : 'none',
         onboardingCompleted: !!data,
+        specialty,
+        assignedJob: specialty === 'data_engineering'
+          ? { id: 'b0000000-0000-0000-0000-000000000003', title: 'Analista de Datos', description: 'SQL, Python, profiling, calidad de datos — desbloquea Ingeniería o Ciencia con tu práctica', difficulty: 1 }
+          : { id: 'b0000000-0000-0000-0000-000000000001', title: 'Auxiliar Contable', description: 'Apoyo en registro de operaciones diarias, facturación y conciliación bancaria.', difficulty: 1 },
       });
       return;
     } catch (e) {
@@ -568,6 +633,13 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
         current_period_start: new Date().toISOString(),
         current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       }).select('id').maybeSingle();
+
+    // Persistir la especialidad elegida en el perfil del alumno
+    const finalSpecialty = specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+    await supabaseAdmin.from('profiles').upsert(
+      { id: userId, specialty: finalSpecialty },
+      { onConflict: 'id' }
+    ).select('id').maybeSingle();
 
     // Ignorar error si ya existe suscripción
     res.json({ success: true });

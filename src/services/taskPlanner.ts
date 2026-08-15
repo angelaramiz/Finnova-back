@@ -22,6 +22,8 @@ export interface PlannedTask {
   trapId?: string;
   trapDescription?: string;
   expectedMistake?: string;
+  phase?: 'analyst' | 'de' | 'ds';
+  countsAsCase?: boolean;
 }
 
 export interface WeekPlan {
@@ -151,48 +153,78 @@ const DE_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     difficulty: ctx.difficulty || 1, time: ctx.difficulty === 1 ? 15 : 25, week: ctx.week, day: ctx.day,
     priority: 'alta', category: 'sql', description: 'Escribir y optimizar consultas SQL',
     emailSubject: 'Solicitud de consulta SQL', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'analyst',
   }),
   etl_pipeline: (ctx) => ({
     id: generateTaskId(), title: 'Pipeline ETL — Transformación', type: 'etl_pipeline',
     difficulty: ctx.difficulty || 2, time: ctx.difficulty === 1 ? 20 : 30, week: ctx.week, day: ctx.day,
     priority: 'alta', category: 'etl', description: 'Crear o mantener pipeline ETL',
     emailSubject: 'Tarea de pipeline ETL', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
   }),
   data_quality: (ctx) => ({
     id: generateTaskId(), title: 'Calidad de datos — Validación', type: 'data_quality',
     difficulty: ctx.difficulty || 2, time: 20, week: ctx.week, day: ctx.day,
     priority: 'media', category: 'data_quality', description: 'Revisar métricas de calidad',
     emailSubject: 'Alerta de calidad de datos', emailFrom: 'Sistema de Monitoreo',
+    phase: ctx.phase || 'analyst',
   }),
   ontology_modeling: (ctx) => ({
     id: generateTaskId(), title: 'Modelado de Ontología', type: 'ontology_modeling',
     difficulty: ctx.difficulty || 2, time: 30, week: ctx.week, day: ctx.day,
     priority: 'media', category: 'ontologia', description: 'Definir entidades y relaciones del modelo semántico',
     emailSubject: 'Tarea de modelado Ontología', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
   }),
   airflow_dag: (ctx) => ({
     id: generateTaskId(), title: 'Orquestación — DAG Airflow', type: 'airflow_dag',
     difficulty: ctx.difficulty || 2, time: 25, week: ctx.week, day: ctx.day,
     priority: 'media', category: 'monitoring', description: 'Crear o mantener DAGs de Airflow',
     emailSubject: 'Tarea de orquestación Airflow', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
   }),
   code_review: (ctx) => ({
     id: generateTaskId(), title: 'Code Review — Revisión de código', type: 'code_review',
     difficulty: ctx.difficulty || 2, time: 15, week: ctx.week, day: ctx.day,
     priority: 'media', category: 'code_review', description: 'Revisar código del equipo',
     emailSubject: 'Solicitud de code review', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
   }),
   soporte_datos: (ctx) => ({
     id: generateTaskId(), title: 'Soporte — Solicitud de datos', type: 'soporte_datos',
     difficulty: ctx.difficulty || 1, time: 15, week: ctx.week, day: ctx.day,
     priority: 'baja', category: 'soporte_datos', description: 'Responder solicitud de datos de analista',
     emailSubject: 'Solicitud de datos — Analista', emailFrom: 'Ana García (Analista)',
+    phase: ctx.phase || 'analyst',
   }),
   incident_recovery: (ctx) => ({
     id: generateTaskId(), title: 'Recuperación de incidente — Pipeline', type: 'incident_recovery',
     difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
     priority: 'critica', category: 'incident', description: 'Diagnosticar y recuperar el pipeline que falló el 05-jul',
     emailSubject: '🔴 INCIDENTE: lno_sales_pipeline falló', emailFrom: 'Sistema de Monitoreo',
+    phase: ctx.phase || 'de',
+  }),
+  // ── Rama Ciencia de Datos (fase analista / ciencia) ─────────
+  eda_churn: (ctx) => ({
+    id: generateTaskId(), title: 'EDA — Churn Comercial del Norte', type: 'eda_churn',
+    difficulty: ctx.difficulty || 2, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'ds', description: 'Análisis exploratorio del churn con features del mart',
+    emailSubject: 'Caso: churn de Comercial del Norte', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'analyst', countsAsCase: ctx.countsAsCase ?? true,
+  }),
+  modelo_baseline: (ctx) => ({
+    id: generateTaskId(), title: 'Modelo baseline — Churn', type: 'modelo_baseline',
+    difficulty: ctx.difficulty || 3, time: 30, week: ctx.week, day: ctx.day,
+    priority: 'alta', category: 'ds', description: 'Entrenar modelo baseline y reportar métricas',
+    emailSubject: 'Entrenamiento modelo churn', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'ds', countsAsCase: ctx.countsAsCase ?? true,
+  }),
+  eval_metricas: (ctx) => ({
+    id: generateTaskId(), title: 'Evaluación de métricas — Churn', type: 'eval_metricas',
+    difficulty: ctx.difficulty || 2, time: 20, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'ds', description: 'Evaluar RMSE/accuracy del baseline y comparar',
+    emailSubject: 'Evaluación de modelo', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'ds',
   }),
 };
 
@@ -213,26 +245,45 @@ const DE_TRAPS: Omit<PlannedTask, 'id'>[] = [
 
 // ─── Plan semanal por especialidad ────────────────────────────
 
-const ACCOUNTING_WEEKS: Record<number, { theme: string; tasks: { type: string; count: number; difficulty: number }[] }> = {
+interface WeekTaskSpec { type: string; count: number; difficulty: number; phase?: 'analyst' | 'de' | 'ds'; countsAsCase?: boolean; }
+interface WeekSpec { theme: string; tasks: WeekTaskSpec[]; }
+
+const ACCOUNTING_WEEKS: Record<number, WeekSpec> = {
   1: { theme: 'Inicio de mes — Facturación', tasks: [{ type: 'invoice_emission', count: 3, difficulty: 1 }, { type: 'payment_registration', count: 2, difficulty: 1 }, { type: 'supplier_invoice', count: 2, difficulty: 1 }] },
   2: { theme: 'Operación — Cobranza y conciliación', tasks: [{ type: 'payment_registration', count: 3, difficulty: 1 }, { type: 'supplier_invoice', count: 2, difficulty: 1 }, { type: 'bank_reconciliation', count: 1, difficulty: 2 }, { type: 'ap_reconciliation', count: 1, difficulty: 2 }] },
   3: { theme: 'Cálculos fiscales y nómina', tasks: [{ type: 'tax_calculation', count: 1, difficulty: 2 }, { type: 'payroll', count: 1, difficulty: 2 }, { type: 'payment_registration', count: 1, difficulty: 1 }, { type: 'cfdi_reception', count: 1, difficulty: 1 }] },
   4: { theme: 'Cierre de mes', tasks: [{ type: 'journal_entry', count: 2, difficulty: 2 }, { type: 'depreciation', count: 1, difficulty: 2 }, { type: 'credit_note', count: 1, difficulty: 2 }, { type: 'cash_cut', count: 1, difficulty: 2 }, { type: 'financial_statements', count: 1, difficulty: 3 }] },
 };
 
-const DE_WEEKS: Record<number, { theme: string; tasks: { type: string; count: number; difficulty: number }[] }> = {
-  1: { theme: 'Fundamentos SQL y Python', tasks: [{ type: 'sql_query', count: 3, difficulty: 1 }, { type: 'etl_pipeline', count: 2, difficulty: 1 }, { type: 'data_quality', count: 1, difficulty: 1 }] },
-  2: { theme: 'Pipeline ETL y limpieza', tasks: [{ type: 'etl_pipeline', count: 2, difficulty: 2 }, { type: 'data_quality', count: 2, difficulty: 2 }, { type: 'sql_query', count: 1, difficulty: 2 }] },
-  3: { theme: 'Ontología y modelado', tasks: [{ type: 'ontology_modeling', count: 2, difficulty: 2 }, { type: 'code_review', count: 1, difficulty: 2 }, { type: 'soporte_datos', count: 1, difficulty: 1 }] },
-  4: { theme: 'Monitoreo y orquestación', tasks: [{ type: 'airflow_dag', count: 2, difficulty: 2 }, { type: 'incident_recovery', count: 1, difficulty: 3 }, { type: 'etl_pipeline', count: 1, difficulty: 3 }, { type: 'code_review', count: 1, difficulty: 2 }] },
+const DE_WEEKS: Record<number, WeekSpec> = {
+  1: { theme: 'Fundamentos SQL y Python (Analista)', tasks: [{ type: 'sql_query', count: 3, difficulty: 1, phase: 'analyst' }, { type: 'etl_pipeline', count: 2, difficulty: 1, phase: 'analyst' }, { type: 'data_quality', count: 1, difficulty: 1, phase: 'analyst' }] },
+  2: { theme: 'Profiling y reportes (Analista)', tasks: [{ type: 'sql_query', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'data_quality', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'soporte_datos', count: 1, difficulty: 1, phase: 'analyst' }] },
+  3: { theme: 'Pipeline ETL (Ingeniería)', tasks: [{ type: 'etl_pipeline', count: 2, difficulty: 2, phase: 'de' }, { type: 'ontology_modeling', count: 1, difficulty: 2, phase: 'de' }, { type: 'code_review', count: 1, difficulty: 2, phase: 'de' }] },
+  4: { theme: 'Monitoreo y orquestación (Ingeniería)', tasks: [{ type: 'airflow_dag', count: 2, difficulty: 2, phase: 'de' }, { type: 'incident_recovery', count: 1, difficulty: 3, phase: 'de' }, { type: 'etl_pipeline', count: 1, difficulty: 3, phase: 'de' }, { type: 'code_review', count: 1, difficulty: 2, phase: 'de' }] },
+};
+
+const DS_WEEKS: Record<number, WeekSpec> = {
+  1: { theme: 'EDA y exploración (Ciencia)', tasks: [{ type: 'eda_churn', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'sql_query', count: 1, difficulty: 2, phase: 'analyst' }, { type: 'data_quality', count: 1, difficulty: 2, phase: 'analyst' }] },
+  2: { theme: 'Modelo baseline (Ciencia)', tasks: [{ type: 'modelo_baseline', count: 2, difficulty: 3, phase: 'ds' }, { type: 'eda_churn', count: 1, difficulty: 2, phase: 'ds' }] },
+  3: { theme: 'Evaluación de modelos (Ciencia)', tasks: [{ type: 'eval_metricas', count: 2, difficulty: 2, phase: 'ds' }, { type: 'modelo_baseline', count: 1, difficulty: 3, phase: 'ds' }] },
+  4: { theme: 'Capstone de ciencia', tasks: [{ type: 'eval_metricas', count: 2, difficulty: 3, phase: 'ds' }, { type: 'eda_churn', count: 1, difficulty: 2, phase: 'ds', countsAsCase: true }, { type: 'modelo_baseline', count: 1, difficulty: 3, phase: 'ds', countsAsCase: true }] },
 };
 
 // ─── Generador principal ─────────────────────────────────────
 
-export function generateMonthPlan(month: number, year: number, specialtyId: string = 'accounting'): MonthPlan {
+export function generateMonthPlan(month: number, year: number, specialtyId: string = 'accounting', route?: 'analyst' | 'de' | 'ds'): MonthPlan {
   const specialty = getSpecialty(specialtyId);
   const isDE = specialtyId === 'data_engineering';
-  const weeks = isDE ? DE_WEEKS : ACCOUNTING_WEEKS;
+  // En la especialidad data, el árbol de rutas define qué semanas se usan:
+  //  - fase analista: semanas 1-2 (base común)
+  //  - ruta ingeniería: semanas 3-4 (DE)
+  //  - ruta ciencia: semanas 3-4 (DS)
+  let weeks = isDE ? DE_WEEKS : ACCOUNTING_WEEKS;
+  if (isDE) {
+    if (route === 'ds') weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...DS_WEEKS };
+    else if (route === 'de') weeks = DE_WEEKS;
+    else weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2] }; // analista: solo base común
+  }
   const templates = isDE ? DE_TASK_TEMPLATES : ACCOUNTING_TASK_TEMPLATES;
   const traps = isDE ? DE_TRAPS : ACCOUNTING_TRAPS;
 
@@ -254,15 +305,15 @@ export function generateMonthPlan(month: number, year: number, specialtyId: stri
 
         const template = templates[taskConfig.type];
         if (template) {
-          const task = template({ week, day, client, supplier, difficulty: taskConfig.difficulty });
+          const task = template({ week, day, client, supplier, difficulty: taskConfig.difficulty, phase: taskConfig.phase, countsAsCase: taskConfig.countsAsCase });
           weekTasks.push(task);
         }
       }
     }
 
-    // Agregar 1 trampa por semana
+    // Agregar 1 trampa por semana (solo semanas base/inferencia, no en analista puro)
     const trapIdx = week - 1;
-    if (trapIdx < traps.length) {
+    if (trapIdx < traps.length && week > 2) {
       const trap = traps[trapIdx];
       weekTasks.push({ ...trap, id: generateTaskId() });
     }
@@ -302,17 +353,17 @@ export function generateMonthPlan(month: number, year: number, specialtyId: stri
   };
 }
 
-export function getTodayTasks(month: number, year: number, week: number, day: number, specialtyId: string = 'accounting'): PlannedTask[] {
-  const plan = generateMonthPlan(month, year, specialtyId);
+export function getTodayTasks(month: number, year: number, week: number, day: number, specialtyId: string = 'accounting', route?: 'analyst' | 'de' | 'ds'): PlannedTask[] {
+  const plan = generateMonthPlan(month, year, specialtyId, route);
   return plan.tasks.filter(t => t.week === week && t.day === day);
 }
 
-export function getWeekTasks(month: number, year: number, week: number, specialtyId: string = 'accounting'): WeekPlan | undefined {
-  const plan = generateMonthPlan(month, year, specialtyId);
+export function getWeekTasks(month: number, year: number, week: number, specialtyId: string = 'accounting', route?: 'analyst' | 'de' | 'ds'): WeekPlan | undefined {
+  const plan = generateMonthPlan(month, year, specialtyId, route);
   return plan.weekPlans.find(w => w.week === week);
 }
 
-export function getMonthStats(month: number, year: number, specialtyId: string = 'accounting') {
-  const plan = generateMonthPlan(month, year, specialtyId);
+export function getMonthStats(month: number, year: number, specialtyId: string = 'accounting', route?: 'analyst' | 'de' | 'ds') {
+  const plan = generateMonthPlan(month, year, specialtyId, route);
   return plan.summary;
 }
