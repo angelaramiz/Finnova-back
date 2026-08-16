@@ -14,6 +14,9 @@ import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '
 import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
 import { recordCompletion, getRoleProgress, getQuickStats, computePracticeBreakdown } from '../services/progressTracker';
+import { buildSkillProfile, buildDemoSkillProfile } from '../services/skillProfile';
+import { getCvExtra, saveCvExtra, generateCvLatex, CvProfileData, CvExtraData } from '../services/cvProfile';
+import { generateCvPdf } from '../services/cvPdf';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
@@ -558,6 +561,162 @@ simEngineRouter.post('/career-path/demo-override', requireSupabaseAuth, async (r
     await saveCareerPath(userId, next);
     await addAction(userId, enabled ? 'career_demo_on' : 'career_demo_off', 'Atajo demo de rutas');
     res.json({ careerPath: { ...next, breakdown } });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── CV Institucional (perfil de egreso con marca) ────────────
+
+// GET /api/sim/cv-profile — datos extra + perfil de habilidades
+// ?demo=analyst|engineering|science|accounting → perfil "como si completado"
+simEngineRouter.get('/cv-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const demo = req.query.demo as string | undefined;
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const extra = await getCvExtra(userId);
+    if (demo) {
+      const role = (['analyst', 'engineering', 'science', 'accounting'].includes(demo) ? demo : 'analyst') as 'analyst' | 'engineering' | 'science' | 'accounting';
+      const skills = buildDemoSkillProfile(role);
+      const profile: CvProfileData = {
+        specialty: role === 'accounting' ? 'accounting' : 'data_engineering',
+        branch: role,
+        practicePct: 88, // demo: "ya casi completo"
+        skills: skills.skills,
+        overall: skills.overall,
+        strengths: skills.strengths,
+        gaps: skills.gaps,
+        extra,
+      };
+      res.json(profile);
+      return;
+    }
+    const [skills, breakdown] = await Promise.all([
+      buildSkillProfile(userId, specialty),
+      computePracticeBreakdown(userId, specialty),
+    ]);
+    const profile: CvProfileData = {
+      specialty,
+      branch: skills.branch,
+      practicePct: Math.round(100 * (0.45 * (breakdown.tasks.done / Math.max(breakdown.tasks.total, 1)) + 0.35 * (breakdown.sims.validated / Math.max(breakdown.sims.total, 1)) + 0.20 * (breakdown.cases.done / Math.max(breakdown.cases.total, 1)))),
+      skills: skills.skills,
+      overall: skills.overall,
+      strengths: skills.strengths,
+      gaps: skills.gaps,
+      extra,
+    };
+    res.json(profile);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/cv-profile — guardar datos extra del CV
+simEngineRouter.post('/cv-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const extra = await saveCvExtra(userId, (req.body || {}) as CvExtraData);
+    res.json({ success: true, extra });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/sim/cv/pdf — PDF semántico del CV con marca
+// ?demo=<role> → PDF demo "como si completado"
+simEngineRouter.get('/cv/pdf', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const demo = req.query.demo as string | undefined;
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const extra = await getCvExtra(userId);
+    let profile: CvProfileData;
+    if (demo) {
+      const role = (['analyst', 'engineering', 'science', 'accounting'].includes(demo) ? demo : 'analyst') as 'analyst' | 'engineering' | 'science' | 'accounting';
+      const skills = buildDemoSkillProfile(role);
+      profile = {
+        specialty: role === 'accounting' ? 'accounting' : 'data_engineering',
+        branch: role,
+        practicePct: 88,
+        skills: skills.skills,
+        overall: skills.overall,
+        strengths: skills.strengths,
+        gaps: skills.gaps,
+        extra,
+      };
+    } else {
+      const [skills, breakdown] = await Promise.all([
+        buildSkillProfile(userId, specialty),
+        computePracticeBreakdown(userId, specialty),
+      ]);
+      profile = {
+        specialty,
+        branch: skills.branch,
+        practicePct: Math.round(100 * (0.45 * (breakdown.tasks.done / Math.max(breakdown.tasks.total, 1)) + 0.35 * (breakdown.sims.validated / Math.max(breakdown.sims.total, 1)) + 0.20 * (breakdown.cases.done / Math.max(breakdown.cases.total, 1)))),
+        skills: skills.skills,
+        overall: skills.overall,
+        strengths: skills.strengths,
+        gaps: skills.gaps,
+        extra,
+      };
+    }
+    const pdf = await generateCvPdf(profile);
+    const name = (extra.fullName || 'alumno').toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'alumno';
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="CV-${name}.pdf"`);
+    res.send(pdf);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/sim/cv/tex — fuente .tex para Overleaf
+// ?demo=<role> → .tex demo "como si completado"
+simEngineRouter.get('/cv/tex', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const demo = req.query.demo as string | undefined;
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const extra = await getCvExtra(userId);
+    let profile: CvProfileData;
+    if (demo) {
+      const role = (['analyst', 'engineering', 'science', 'accounting'].includes(demo) ? demo : 'analyst') as 'analyst' | 'engineering' | 'science' | 'accounting';
+      const skills = buildDemoSkillProfile(role);
+      profile = {
+        specialty: role === 'accounting' ? 'accounting' : 'data_engineering',
+        branch: role,
+        practicePct: 88,
+        skills: skills.skills,
+        overall: skills.overall,
+        strengths: skills.strengths,
+        gaps: skills.gaps,
+        extra,
+      };
+    } else {
+      const [skills, breakdown] = await Promise.all([
+        buildSkillProfile(userId, specialty),
+        computePracticeBreakdown(userId, specialty),
+      ]);
+      profile = {
+        specialty,
+        branch: skills.branch,
+        practicePct: Math.round(100 * (0.45 * (breakdown.tasks.done / Math.max(breakdown.tasks.total, 1)) + 0.35 * (breakdown.sims.validated / Math.max(breakdown.sims.total, 1)) + 0.20 * (breakdown.cases.done / Math.max(breakdown.cases.total, 1)))),
+        skills: skills.skills,
+        overall: skills.overall,
+        strengths: skills.strengths,
+        gaps: skills.gaps,
+        extra,
+      };
+    }
+    const tex = generateCvLatex(profile);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="cv.tex"');
+    res.send(tex);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
