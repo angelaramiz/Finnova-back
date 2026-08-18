@@ -771,14 +771,14 @@ simEngineRouter.post('/expediente/link', requireSupabaseAuth, async (req: Authen
         .eq('active', true);
       const slug = generateSlug();
       const { data, error } = await supabaseAdmin.from('verification_links')
-        .insert({ slug, user_id: userId, active: true, created_at: new Date().toISOString() })
+        .insert({ slug, user_id: userId, specialty, active: true, created_at: new Date().toISOString() })
         .select('*')
         .single();
       if (error) throw error;
       res.json({ link: data });
     } else {
       const slug = generateSlug();
-      res.json({ link: { slug, user_id: userId, active: true, created_at: new Date().toISOString() } });
+      res.json({ link: { slug, user_id: userId, specialty, active: true, created_at: new Date().toISOString() } });
     }
   } catch (e: any) {
     res.status(500).json({ error: e.message });
@@ -821,12 +821,13 @@ simEngineRouter.get('/expediente/:slug', async (req: AuthenticatedRequest, res: 
     }
     const { data: profile } = await supabaseAdmin
       .from('profiles')
-      .select('fullName,specialty,email')
+      .select('*')
       .eq('id', link.user_id)
       .maybeSingle();
-    const specialty = profile?.specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+    // Specialty viene del link (se guardó al crearlo) — no depende del profile
+    const specialty = (link.specialty === 'data_engineering') ? 'data_engineering' : 'accounting';
     const expediente = await buildExpediente(link.user_id, specialty, true);
-    const name = profile?.fullName || profile?.email || 'Alumno';
+    const name = profile?.fullName || profile?.full_name || profile?.email || 'Alumno';
 
     const html = renderExpedientePublicPage(name, expediente, link.revoked_at);
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
