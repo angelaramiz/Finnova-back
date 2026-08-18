@@ -18,6 +18,8 @@ import { buildSkillProfile, buildDemoSkillProfile } from '../services/skillProfi
 import { getCvExtra, saveCvExtra, generateCvLatex, CvProfileData, CvExtraData } from '../services/cvProfile';
 import { generateCvPdf } from '../services/cvPdf';
 import { buildExpediente, generateSlug } from '../services/expediente';
+import { startInterview, completarEntrevista, InterviewAnswer } from '../services/interview';
+import { buildPlanRefuerzo } from '../services/reforzamiento';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
@@ -893,6 +895,57 @@ h2 { font-size:1rem; margin:24px 0 12px; color:#FFB162; }
 </body>
 </html>`;
 }
+
+// ─── Entrevista entrenada (R-08 Fase 2) ───────────────────────
+
+// POST /api/sim/interview/start — genera preguntas sobre logros reales
+simEngineRouter.post('/interview/start', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const specialty = (req.body?.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const session = await startInterview(userId, specialty);
+    if (session.preguntas.length === 0) {
+      res.status(400).json({ error: 'Aún no tienes logros suficientes para ser entrevistado. Completa más tareas primero.' });
+      return;
+    }
+    res.json(session);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/interview/submit — envía respuestas y recibe calificación
+simEngineRouter.post('/interview/submit', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const { session, respuestas } = req.body as { session: any; respuestas: InterviewAnswer[] };
+    if (!session || !Array.isArray(respuestas)) {
+      res.status(400).json({ error: 'Faltan session y respuestas' });
+      return;
+    }
+    const result = completarEntrevista(session, respuestas);
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Práctica a la medida (R-08 Fase 3) ───────────────────────
+
+// GET /api/sim/refuerzo — plan de micro-ejercicios para habilidades bajas
+simEngineRouter.get('/refuerzo', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const plan = await buildPlanRefuerzo(userId, specialty);
+    res.json(plan);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
