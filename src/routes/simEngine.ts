@@ -825,7 +825,7 @@ simEngineRouter.get('/expediente/:slug', async (req: AuthenticatedRequest, res: 
       .eq('id', link.user_id)
       .maybeSingle();
     const specialty = profile?.specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
-    const expediente = await buildExpediente(link.user_id, specialty);
+    const expediente = await buildExpediente(link.user_id, specialty, true);
     const name = profile?.fullName || profile?.email || 'Alumno';
 
     const html = renderExpedientePublicPage(name, expediente, link.revoked_at);

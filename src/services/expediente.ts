@@ -58,8 +58,8 @@ function categoriaDe(taskType: string): string {
   return 'proyecto';
 }
 
-export async function buildExpediente(userId: string, specialty: string): Promise<Expediente> {
-  const progress = await getRoleProgress(userId, specialty, 9999);
+export async function buildExpediente(userId: string, specialty: string, forceFresh = false): Promise<Expediente> {
+  const progress = await getRoleProgress(userId, specialty, 9999, forceFresh);
   const skills = await buildSkillProfile(userId, specialty);
   const completions = progress.recentCompletions || [];
 

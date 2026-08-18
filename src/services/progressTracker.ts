@@ -66,9 +66,9 @@ async function saveRemote(userId: string, specialty: string, list: TaskCompletio
   }
 }
 
-async function getUserProgress(userId: string, specialty: string): Promise<TaskCompletion[]> {
+async function getUserProgress(userId: string, specialty: string, forceFresh = false): Promise<TaskCompletion[]> {
   const cached = memoryGet(userId, specialty);
-  if (cached) return cached;
+  if (cached && !forceFresh) return cached;
   if (isSupabaseReady()) {
     try {
       const { data } = await supabaseAdmin
@@ -126,8 +126,8 @@ export async function recordCompletion(userId: string, data: {
 
 // ─── Obtener progreso por especialidad ───────────────────────
 
-export async function getRoleProgress(userId: string, specialty: string, totalTasks: number = 33): Promise<RoleProgress> {
-  const progress = await getUserProgress(userId, specialty);
+export async function getRoleProgress(userId: string, specialty: string, totalTasks: number = 33, forceFresh = false): Promise<RoleProgress> {
+  const progress = await getUserProgress(userId, specialty, forceFresh);
   const completedTasks = progress.length;
   const pendingTasks = Math.max(0, totalTasks - completedTasks);
   const avgScore = completedTasks > 0 ? Math.round(progress.reduce((s, t) => s + t.score, 0) / completedTasks) : 0;
