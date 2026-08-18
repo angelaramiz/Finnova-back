@@ -17,6 +17,7 @@ import { recordCompletion, getRoleProgress, getQuickStats, computePracticeBreakd
 import { buildSkillProfile, buildDemoSkillProfile } from '../services/skillProfile';
 import { getCvExtra, saveCvExtra, generateCvLatex, CvProfileData, CvExtraData } from '../services/cvProfile';
 import { generateCvPdf } from '../services/cvPdf';
+import { buildExpediente, generateSlug } from '../services/expediente';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 
@@ -721,6 +722,177 @@ simEngineRouter.get('/cv/tex', requireSupabaseAuth, async (req: AuthenticatedReq
     res.status(500).json({ error: e.message });
   }
 });
+
+// ─── Expediente verificable (R-08 Fase 1) ─────────────────────
+
+// GET /api/sim/expediente — expediente del alumno (logros + resumen)
+simEngineRouter.get('/expediente', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const expediente = await buildExpediente(userId, specialty);
+    // Incluir el link activo si existe
+    let link: any = null;
+    if (isSupabaseReady()) {
+      const { data } = await supabaseAdmin
+        .from('verification_links')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('active', true)
+        .maybeSingle();
+      if (data) link = data;
+    }
+    res.json({ ...expediente, link });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/expediente/link — crear link público de verificación
+simEngineRouter.post('/expediente/link', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const specialty = (req.query.specialty as string) === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const expediente = await buildExpediente(userId, specialty);
+    // Requiere al menos 3 logros para ser creíble
+    if (expediente.logros.length < 3) {
+      res.status(400).json({ error: 'Aún no tienes suficientes logros verificables (mínimo 3).' });
+      return;
+    }
+    if (isSupabaseReady()) {
+      // Revocar links previos activos y crear uno nuevo
+      await supabaseAdmin.from('verification_links')
+        .update({ active: false, revoked_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('active', true);
+      const slug = generateSlug();
+      const { data, error } = await supabaseAdmin.from('verification_links')
+        .insert({ slug, user_id: userId, active: true, created_at: new Date().toISOString() })
+        .select('*')
+        .single();
+      if (error) throw error;
+      res.json({ link: data });
+    } else {
+      const slug = generateSlug();
+      res.json({ link: { slug, user_id: userId, active: true, created_at: new Date().toISOString() } });
+    }
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/expediente/link/revoke — revocar link activo
+simEngineRouter.post('/expediente/link/revoke', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    if (isSupabaseReady()) {
+      await supabaseAdmin.from('verification_links')
+        .update({ active: false, revoked_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('active', true);
+    }
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /expediente/:slug — página pública con sello de verificación (sin auth)
+simEngineRouter.get('/expediente/:slug', async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    if (!isSupabaseReady()) {
+      res.status(404).send('Expediente no encontrado (demo)');
+      return;
+    }
+    const { slug } = req.params;
+    const { data: link, error } = await supabaseAdmin
+      .from('verification_links')
+      .select('*')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (error || !link || !link.active) {
+      res.status(404).send('Link de verificación no encontrado o revocado');
+      return;
+    }
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('fullName,specialty,email')
+      .eq('id', link.user_id)
+      .maybeSingle();
+    const specialty = profile?.specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const expediente = await buildExpediente(link.user_id, specialty);
+    const name = profile?.fullName || profile?.email || 'Alumno';
+
+    const html = renderExpedientePublicPage(name, expediente, link.revoked_at);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
+  } catch (e: any) {
+    res.status(500).send('Error al cargar el expediente');
+  }
+});
+
+function renderExpedientePublicPage(name: string, expediente: any, revokedAt: string | null): string {
+  const logrosHtml = expediente.logros.map((l: any) => `
+    <div class="logro">
+      <div class="logro-titulo">${l.titulo}</div>
+      <div class="logro-datos">${l.datos}</div>
+      <div class="logro-meta">${new Date(l.fecha).toLocaleDateString('es-MX')} · ${l.categoria}</div>
+    </div>`).join('');
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Expediente Verificado — ${name}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#0f172a; color:#e2e8f0; padding:24px; }
+.container { max-width:760px; margin:0 auto; }
+.sello { display:inline-flex; align-items:center; gap:8px; background:#22c55e20; border:1px solid #22c55e50; color:#4ade80; padding:6px 14px; border-radius:999px; font-size:.8rem; font-weight:600; margin-bottom:16px; }
+.sello-revocado { background:#ef444420; border-color:#ef444450; color:#f87171; }
+h1 { font-size:1.6rem; margin-bottom:4px; }
+.sub { color:#94a3b8; font-size:.9rem; margin-bottom:24px; }
+.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:12px; margin-bottom:24px; }
+.card { background:#1e293b; border:1px solid #334155; border-radius:12px; padding:16px; }
+.card .v { font-size:1.4rem; font-weight:700; color:#FFB162; }
+.card .l { font-size:.75rem; color:#94a3b8; text-transform:uppercase; letter-spacing:.5px; }
+h2 { font-size:1rem; margin:24px 0 12px; color:#FFB162; }
+.logro { background:#1e293b; border:1px solid #334155; border-radius:10px; padding:14px; margin-bottom:10px; }
+.logro-titulo { font-weight:600; font-size:.95rem; }
+.logro-datos { color:#94a3b8; font-size:.85rem; margin-top:4px; }
+.logro-meta { color:#64748b; font-size:.7rem; margin-top:6px; text-transform:capitalize; }
+.footer { margin-top:32px; padding-top:16px; border-top:1px solid #334155; color:#64748b; font-size:.75rem; }
+.footer .sello-institucional { color:#FFB162; font-weight:600; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="sello ${revokedAt ? 'sello-revocado' : ''}">✓ ${revokedAt ? 'LINK REVOCADO' : 'EXPEDIENTE VERIFICADO'}</div>
+  <h1>${name}</h1>
+  <div class="sub">${expediente.specialty === 'data_engineering' ? 'Especialidad Data · Rama ' + expediente.branch : 'Contabilidad'} · Expediente de logros verificables</div>
+
+  <div class="grid">
+    <div class="card"><div class="v">${expediente.resumen.totalTareas}</div><div class="l">Tareas completadas</div></div>
+    <div class="card"><div class="v">${expediente.resumen.scorePromedio}%</div><div class="l">Score promedio</div></div>
+    <div class="card"><div class="v">${expediente.resumen.horasInvertidas}</div><div class="l">Horas de práctica</div></div>
+    <div class="card"><div class="v">${expediente.resumen.incidentesResueltos}</div><div class="l">Incidentes resueltos</div></div>
+  </div>
+
+  <h2>Logros verificables</h2>
+  ${logrosHtml || '<p style="color:#64748b">Sin logros registrados aún.</p>'}
+
+  <div class="footer">
+    Documento generado por el <span class="sello-institucional">Simulador Laboral institucional</span> — validación académica simulada.
+    <br>Este expediente refleja logros con datos reales de la plataforma; no constituye experiencia laboral formal.
+  </div>
+</div>
+</body>
+</html>`;
+}
 
 simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { Router, Response } from 'express';
+import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import { MemoryDatabase, AllowedEmail, StudentQuestion } from '../lib/memoryDb';
@@ -514,15 +514,39 @@ authRouter.post('/questions/:id/reply', requireSupabaseAuth, (req: Authenticated
 });
 
 /**
+ * GET /api/auth/career-options
+ * Rutas y especialidades disponibles para el formulario de registro.
+ * Público (sin auth) — usado por el registro de alumnos (web y app móvil).
+ */
+authRouter.get('/career-options', async (_req: Request, res: Response): Promise<void> => {
+  res.status(200).json({
+    specialties: [
+      { id: 'accounting', label: 'Contabilidad', icon: '📊', desc: 'Contador General Junior — facturación, impuestos, reportes' },
+      { id: 'data_engineering', label: 'Data Engineering', icon: '🔀', desc: 'Analista de Datos (ruta inicial) — desbloquea Ingeniería o Ciencia' },
+    ],
+    branches: [
+      { id: 'analyst', label: '🧭 Analista de Datos', specialty: 'data_engineering', desc: 'SQL, profiling, reportes y calidad' },
+      { id: 'engineering', label: '🔀 Ingeniería de Datos', specialty: 'data_engineering', desc: 'Pipelines, dbt, Airflow, Foundry' },
+      { id: 'science', label: '🧪 Ciencia de Datos', specialty: 'data_engineering', desc: 'EDA, modelos, experimentos, churn' },
+    ],
+    defaultJob: { accounting: 'Auxiliar Contable', data_engineering: 'Analista de Datos' },
+  });
+});
+
+/**
  * POST /api/auth/register-requests
  * Submit a request to register an account
  */
 authRouter.post('/register-requests', async (req: any, res: Response): Promise<void> => {
-  const { fullName, email, role, specialty } = req.body;
+  const { fullName, email, role, specialty, careerBranch } = req.body;
   if (!fullName || !email || !role) {
     res.status(400).json({ error: 'Bad Request', message: 'Faltan campos obligatorios.' });
     return;
   }
+
+  // Validar especialidad y rama si vienen
+  const validSpecialty = specialty === 'data_engineering' ? 'data_engineering' : specialty === 'accounting' ? 'accounting' : (specialty?.trim() || null);
+  const validBranch = careerBranch && ['analyst', 'engineering', 'science'].includes(careerBranch) ? careerBranch : null;
 
   const normalizedEmail = email.trim().toLowerCase();
 
@@ -575,7 +599,8 @@ authRouter.post('/register-requests', async (req: any, res: Response): Promise<v
         fullName: fullName.trim(),
         email: normalizedEmail,
         role,
-        specialty: specialty?.trim() || null,
+        specialty: validSpecialty,
+        career_branch: validBranch,
         status: 'pending',
         createdAt: new Date().toISOString()
       };
@@ -615,7 +640,8 @@ authRouter.post('/register-requests', async (req: any, res: Response): Promise<v
     fullName: fullName.trim(),
     email: normalizedEmail,
     role,
-    specialty: specialty?.trim(),
+    specialty: validSpecialty,
+    careerBranch: validBranch,
     status: 'pending',
     createdAt: new Date().toISOString()
   };
@@ -797,6 +823,36 @@ authRouter.post('/register-requests/:id/approve', requireSupabaseAuth, async (re
       if (profileErr) {
         res.status(500).json({ error: 'Database Error', message: profileErr.message });
         return;
+      }
+
+      // Si el alumno eligió una rama del árbol data en el registro, precargarla
+      // en su mundo simulado (careerPath.chosenBranch) para que la ruta quede fija.
+      const reqBranch = request.career_branch || request.careerBranch;
+      if (request.specialty === 'data_engineering' && reqBranch && ['analyst', 'engineering', 'science'].includes(reqBranch)) {
+        try {
+          const { data: existingWorld } = await supabaseAdmin
+            .from('sim_world')
+            .select('state')
+            .eq('user_id', targetUserId)
+            .maybeSingle();
+          const world = existingWorld?.state || {};
+          const cp = world.careerPath || {
+            currentNode: 'analyst', chosenBranch: null, practicePct: 0,
+            unlocked: { data_engineering: false, data_science: false },
+            demoOverride: { enabled: false },
+            history: [],
+          };
+          if (reqBranch === 'engineering' || reqBranch === 'science') {
+            cp.chosenBranch = reqBranch;
+            cp.currentNode = reqBranch;
+            cp.unlocked = { data_engineering: true, data_science: true };
+            cp.history = [...(cp.history || []), { ts: new Date().toISOString(), event: 'CHOOSE' }];
+          }
+          await supabaseAdmin.from('sim_world').upsert(
+            { user_id: targetUserId, state: { ...world, careerPath: cp }, updated_at: new Date().toISOString() },
+            { onConflict: 'user_id' }
+          );
+        } catch { /* si falla la precarga de ruta, el alumno inicia como analista */ }
       }
 
       await supabaseAdmin
