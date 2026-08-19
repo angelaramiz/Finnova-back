@@ -22,6 +22,9 @@ import { startInterview, completarEntrevista, InterviewAnswer } from '../service
 import { buildPlanRefuerzo } from '../services/reforzamiento';
 import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflows';
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
+import { getStoryState, getActiveCase, completeScene, resetStory } from '../services/storyState';
+import { getChronicle } from '../services/chronicle';
+import { getArcsForRoute, type RouteId } from '../data/storyArcs';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -1122,4 +1125,77 @@ simEngineRouter.get('/documents/:type', requireSupabaseAuth, async (req: Authent
     return;
   }
   res.type('html').send(doc.html);
+});
+
+// ─── R-09 Lore vivo: mundo, arcos y NPCs ───────────────────────
+
+// GET /api/sim/story/state — estado del mundo vivo (arco activo, NPCs, casos)
+simEngineRouter.get('/story/state', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const route = (req.query.route as RouteId) || 'contable';
+  const arcId = req.query.arcId as string | undefined;
+  try {
+    const state = await getStoryState(userId, route, arcId);
+    res.json({ route, arcId: state.arcId, activeScene: state.activeScene, npcs: state.npcs, events: state.events, arcs: getArcsForRoute(route).map(a => ({ id: a.id, nombre: a.nombre, escenas: a.escenas.length })) });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/sim/story/case — genera (o reutiliza) el caso del día con semilla
+simEngineRouter.get('/story/case', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const route = (req.query.route as RouteId) || 'contable';
+  const arcId = req.query.arcId as string | undefined;
+  const weekKey = (req.query.weekKey as string) || '2026-W28';
+  try {
+    const c = await getActiveCase(userId, weekKey, route, arcId);
+    res.json({ seed: c.seed, sceneId: c.sceneId, route: c.route, npc: c.npc, taskType: c.taskType, payload: c.payload, golden: c.golden, loreText: c.loreText, attempt: c.attempt, audited: c.audited });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/sim/story/chronicle — crónica de hitos (fuente de logros R-08)
+simEngineRouter.get('/story/chronicle', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const chronicle = await getChronicle(userId);
+    res.json({ chronicle });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/story/scene/complete — registrar resultado → npcEngine → crónica
+simEngineRouter.post('/story/scene/complete', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { sceneId, taskType, resultado, trapId, npcEvent } = req.body || {};
+  if (!sceneId || !['completada', 'fallida'].includes(resultado)) {
+    res.status(400).json({ error: 'Cuerpo inválido: sceneId y resultado (completada|fallida) requeridos' });
+    return;
+  }
+  try {
+    const { state, reaction } = await completeScene(userId, { sceneId, taskType: taskType || '', resultado, trapId, npcEvent });
+    res.json({ npc: reaction?.npcName, correo: reaction?.correo, toast: reaction?.toast, microArco: reaction?.microArco, escenaEspecial: reaction?.escenaEspecial, trust: reaction?.state.trust, chronicleCount: state.chronicle.length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/story/reset — reiniciar el mundo vivo
+simEngineRouter.post('/story/reset', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const route = (req.body?.route as RouteId) || 'contable';
+  try {
+    const state = await resetStory(userId, route);
+    res.json({ ok: true, route: state.route });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
 });

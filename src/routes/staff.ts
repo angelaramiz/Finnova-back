@@ -247,6 +247,39 @@ staffRouter.post('/students/:id/reset-world', requireSupabaseAuth, async (req: A
   }
 });
 
+// ─── GET /api/staff/students/:id/story — reproducir el mundo vivo del alumno ──
+// Devuelve el estado del mundo vivo (casos, NPCs, crónica) para debug/soporte.
+
+staffRouter.get('/students/:id/story', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ source: 'demo', story: null });
+      return;
+    }
+    const { data } = await supabaseAdmin.from('sim_story').select('*').eq('user_id', id).maybeSingle();
+    res.json({ source: 'supabase', story: data || null });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── POST /api/staff/students/:id/reset-story — reiniciar el mundo vivo ──
+
+staffRouter.post('/students/:id/reset-story', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    if (!isSupabaseReady()) {
+      res.json({ success: true, source: 'demo' });
+      return;
+    }
+    await supabaseAdmin.from('sim_story').delete().eq('user_id', id);
+    res.json({ success: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ─── POST /api/staff/students/:id/reset-progress ──────────────
 // Borra el progreso (sim_progress) de una especialidad del alumno.
 
