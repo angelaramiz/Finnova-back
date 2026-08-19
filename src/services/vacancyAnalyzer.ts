@@ -22,11 +22,18 @@ export interface AnalyzedVacancy {
 const SKILL_KEYWORDS: { skill: string; keywords: string[] }[] = [
   { skill: 'SQL', keywords: ['sql', 'consultas', 'query'] },
   { skill: 'Excel', keywords: ['excel', 'hoja de calculo', 'tablas dinamicas', 'vlookup'] },
+  { skill: 'Power BI', keywords: ['power bi', 'dax', 'powerbi'] },
+  { skill: 'Pronóstico', keywords: ['pronostico', 'forecast', 'media movil', 'tendencia lineal', 'planeacion y pronostico'] },
+  { skill: 'Automatización', keywords: ['n8n', 'power automate', 'make.com', 'automatizacion', 'workflow de automatizacion', 'webhook'] },
+  { skill: 'APIs LLM', keywords: ['api de modelos', 'openai', 'anthropic', 'llm', 'chat completions', 'gemini api'] },
+  { skill: 'Agentes', keywords: ['agentes', 'agente de ia', 'asistentes con llm', 'agentes con llm', 'tools y funciones'] },
+  { skill: 'Prompt engineering', keywords: ['prompt engineering', 'prompts', 'few-shot', 'system prompt'] },
+  { skill: 'ERP', keywords: ['sap', 'oracle', 'erp', 'sap fi', 'sap mm', 'sap sd'] },
   { skill: 'dbt', keywords: ['dbt', 'data build tool'] },
   { skill: 'Python', keywords: ['python', 'pandas', 'pyspark'] },
   { skill: 'Airflow', keywords: ['airflow', 'dag', 'orquestador'] },
   { skill: 'ETL', keywords: ['etl', 'elt', 'pipelines', 'ingesta'] },
-  { skill: 'BI', keywords: ['bi', 'looker', 'power bi', 'tablero', 'dashboard', 'visualizacion'] },
+  { skill: 'BI', keywords: ['bi', 'looker', 'tablero', 'dashboard', 'visualizacion'] },
   { skill: 'Cloud', keywords: ['aws', 's3', 'redshift', 'gcp', 'azure', 'cloud'] },
   { skill: 'CFDI', keywords: ['cfdi', 'facturacion electronica', 'sat', 'comprobante fiscal'] },
   { skill: 'Conciliación', keywords: ['conciliacion', 'bancaria'] },
@@ -72,7 +79,9 @@ export function analyzeVacancyDeterministic(text: string): AnalyzedVacancy {
 
   const min_years = detectYears(text);
   const senior = SENIOR_KEYWORDS.some(k => lower.includes(k));
-  const requires_experience = min_years > 2 || (senior && min_years >= 1);
+  // Un puesto que pide experiencia (1+ años) exige acreditar equivalencia →
+  // la Etapa 3 existe para compensarla con evidencia verificable (densidad).
+  const requires_experience = min_years >= 1;
 
   return {
     title: (text.match(/(?:puesto|posici[oó]n|vacante):\s*([^\n\r]+)/i)?.[1] || 'Vacante').trim().slice(0, 80),
@@ -115,7 +124,7 @@ export async function analyzeVacancy(text: string): Promise<AnalyzedVacancy> {
       skills,
       min_years: Number(out.min_years) || 0,
       senior: !!out.senior,
-      requires_experience: (Number(out.min_years) || 0) > 2 || !!out.senior,
+      requires_experience: (Number(out.min_years) || 0) >= 1 || !!out.senior,
       source: 'ai',
     };
   } catch (err) {
