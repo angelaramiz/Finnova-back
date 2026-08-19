@@ -10,6 +10,7 @@ import { computeMatch, UMBRAL_MODO_A } from './matchScorer';
 import { routeStage, UMBRAL_DENSIDAD } from './stageRouter';
 import { buildSkillProfile } from './skillProfile';
 import { trackVacancy, updateVacancyMode } from './vacancyTracker';
+import { ingestEvents } from './learningAnalytics';
 
 export interface Stage1Result {
   assessment_id: string;
@@ -104,6 +105,14 @@ export async function analyzeVacancyForUser(userId: string, vacancyText: string,
   memAssessments.set(userId, list);
   await saveRemote(row);
 
+  // R-11: telemetría de la vacante analizada (taxonomía de skills demandados).
+  await ingestEvents(userId, [{
+    stage: 1, // diagnóstico
+    type: 'vacancy_analyzed',
+    ref: { vacancyId: row.id, skills: (vacancy.skills || []).map(s => s.skill) },
+    data: { match_pct: match.match_pct, top_gaps: match.top_gaps || [], routing },
+  }]).catch(() => {});
+
   return {
     assessment_id: row.id,
     vacancy,
@@ -138,6 +147,15 @@ export async function submitStage1(userId: string, assessmentId: string, answers
   row.answers = answers;
   row.routing = routing;
   await saveRemote(row);
+
+  // R-11: telemetría de preguntas fallidas del diagnóstico (flywheel).
+  const wrongAnswers = Object.entries(answers || {}).filter(([, v]) => v !== undefined && v !== null && v !== '' && v !== true && v !== 'true' && String(v).trim() !== '1');
+  await ingestEvents(userId, wrongAnswers.map(([q]) => ({
+    stage: 1, // diagnóstico
+    type: 'question_answered',
+    ref: { questionId: q, vacancyId: row.id },
+    data: { correct: false, phase: 'pre' },
+  }))).catch(() => {});
 
   // CONEXIÓN Etapa 1 → Etapa 2: al completar el diagnóstico, se registra
   // la vacante en seguimiento con modo A/B según el routing final.

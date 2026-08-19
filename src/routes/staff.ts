@@ -10,6 +10,7 @@ import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { resetWorld, resetCareer } from '../services/simWorld';
 import { resetProgress } from '../services/progressTracker';
+import { getQualityDashboard, setTicketStatus } from '../services/learningAnalytics';
 
 export const staffRouter = Router();
 
@@ -322,6 +323,50 @@ staffRouter.post('/students/:id/specialty', requireSupabaseAuth, async (req: Aut
     if (error) throw error;
     if (!data) { res.status(404).json({ error: 'Alumno no encontrado' }); return; }
     res.json({ success: true, profile: data });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── R-11: Flywheel de calidad ────────────────────────────────
+// GET /api/staff/quality — tablero de calidad (agregados + tickets)
+staffRouter.get('/quality', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const dashboard = await getQualityDashboard();
+    res.json(dashboard);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/staff/tickets — cola de tickets de mejora
+staffRouter.get('/tickets', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const dashboard = await getQualityDashboard();
+    res.json({ tickets: dashboard.tickets });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/staff/tickets/:id/approve|reject — gate humano (nada se despliega sin esto)
+staffRouter.post('/tickets/:id/approve', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const ok = await setTicketStatus(Number(req.params.id), 'aprobado', req.user?.id);
+  res.json({ ok });
+});
+staffRouter.post('/tickets/:id/reject', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const ok = await setTicketStatus(Number(req.params.id), 'rechazado', req.user?.id);
+  res.json({ ok });
+});
+
+// DELETE /api/staff/users/:hash/data — derecho al olvido (borra telemetría del usuario)
+staffRouter.delete('/users/:hash/data', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const hash = req.params.hash;
+  if (!isSupabaseReady()) { res.json({ ok: true, source: 'demo' }); return; }
+  try {
+    await supabaseAdmin.from('quality_events').delete().eq('user_hash', hash);
+    await supabaseAdmin.from('outcome_tracking').delete().eq('user_hash', hash);
+    res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

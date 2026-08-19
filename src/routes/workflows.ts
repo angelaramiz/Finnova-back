@@ -5,6 +5,8 @@ import { getDEWorkflow, getDSWorkflow } from '../services/dataEngineeringWorkflo
 import { runDEValidator } from '../services/deValidation';
 import { runDSValidator } from '../services/dsValidation';
 import { recoverIncident } from '../services/simWorld';
+import { ingestEvents } from '../services/learningAnalytics';
+import { enrichFeedback } from '../services/qualityConsumption';
 
 export const workflowRouter = Router();
 
@@ -127,6 +129,27 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
 
   const passed = totalScore >= (maxPossible * 0.6);
   const scorePct = maxPossible > 0 ? Math.round((totalScore / maxPossible) * 100) : 0;
+
+  // R-11: telemetría anonimizada de cada regla fallida (flywheel).
+  if (userId) {
+    const events = results
+      .filter(r => !r.passed)
+      .map(r => ({
+        stage: 2, // simulador
+        type: trap ? 'trap_missed' : 'task_fail',
+        ref: { taskId: taskType, ruleField: r.field, trap },
+        data: { pattern: trap ? `trampa no detectada: ${trap}` : 'regla incorrecta', ruleLabel: r.label, scorePct },
+      }));
+    await ingestEvents(userId, events).catch(() => {});
+
+    // R-11 T5: enriquece el feedback de los resultados DE fallidos con
+    // misconceptions aprobadas por staff (insight del flywheel).
+    for (const r of results) {
+      if (r.passed) continue;
+      const skill = r.field.replace('row_', '') || taskType;
+      r.feedback = await enrichFeedback(skill, r.feedback || 'Revisa la regla.');
+    }
+  }
 
   // Side effect: aprobar la recuperación del incidente actualiza el mundo
   if (taskType === 'incident_recovery' && passed && userId) {

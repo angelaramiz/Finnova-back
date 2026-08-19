@@ -25,6 +25,7 @@ import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } fr
 import { getStoryState, getActiveCase, completeScene, resetStory } from '../services/storyState';
 import { getChronicle } from '../services/chronicle';
 import { getArcsForRoute, type RouteId } from '../data/storyArcs';
+import { ingestEvents } from '../services/learningAnalytics';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -1195,6 +1196,23 @@ simEngineRouter.post('/story/reset', requireSupabaseAuth, async (req: Authentica
   try {
     const state = await resetStory(userId, route);
     res.json({ ok: true, route: state.route });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/sim/telemetry — ingesta batch anonimizada (R-11 flywheel)
+simEngineRouter.post('/telemetry', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const events = req.body?.events;
+  if (!Array.isArray(events)) {
+    res.status(400).json({ error: 'events debe ser un arreglo.' });
+    return;
+  }
+  try {
+    const result = await ingestEvents(userId, events);
+    res.json({ ok: true, ...result });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

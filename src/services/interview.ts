@@ -4,6 +4,7 @@
 // concreto y se califica con rúbrica técnica.
 
 import { buildExpediente, ExpedienteLogro } from './expediente';
+import { getApprovedMisconceptions } from './qualityConsumption';
 
 export interface InterviewQuestion {
   id: string;
@@ -113,6 +114,23 @@ export async function startInterview(userId: string, specialty: string): Promise
     const q = preguntaPara(expediente.logros[i], i);
     if (q) preguntas.push(q);
   }
+
+  // R-11 T5: pregunta sobre el error real más frecuente aprobado por staff
+  // en la especialidad, para que el alumno demuestre cómo lo evitaría.
+  try {
+    const aprobadas = await getApprovedMisconceptions();
+    if (aprobadas.length && preguntas.length < 5) {
+      const top = aprobadas[0];
+      preguntas.push({
+        id: `iq-flywheel-0`,
+        logroIndex: preguntas.length,
+        pregunta: `El equipo detectó que el error más frecuente en "${top.skill_id}" es: "${top.pattern}". ¿Cómo lo detectarías y qué harías para evitarlo en tu propio trabajo?`,
+        contexto: top.example_anon || `patrón: ${top.pattern}`,
+        rubrica: top.pattern.toLowerCase().split(/\s+/).slice(0, 5),
+        puntajeMaximo: 10,
+      });
+    }
+  } catch { /* sin misconception → seguimos con las preguntas del expediente */ }
 
   return {
     userId,

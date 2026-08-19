@@ -4,6 +4,7 @@
 // Cada recomendación tiene evidencia (qué habilidad, qué score, qué hacer).
 
 import { buildSkillProfile } from './skillProfile';
+import { getApprovedMisconceptions } from './qualityConsumption';
 
 export interface EjercicioRefuerzo {
   id: string;
@@ -60,6 +61,10 @@ const EJERCICIOS: Record<string, Omit<EjercicioRefuerzo, 'id' | 'habilidad' | 'l
 export async function buildPlanRefuerzo(userId: string, specialty: string): Promise<PlanRefuerzo> {
   const skills = await buildSkillProfile(userId, specialty);
 
+  // R-11 T5: misconceptions aprobadas por staff → el drill se ajusta al error real.
+  let aprobadas = [] as Awaited<ReturnType<typeof getApprovedMisconceptions>>;
+  try { aprobadas = await getApprovedMisconceptions(); } catch { aprobadas = []; }
+
   const recomendaciones: EjercicioRefuerzo[] = [];
   for (const skill of skills.skills) {
     if (skill.score >= UMBRAL_REFUERZO) continue;
@@ -67,12 +72,19 @@ export async function buildPlanRefuerzo(userId: string, specialty: string): Prom
     if (!catalogo || catalogo.length === 0) continue;
     // Elige el ejercicio cuyo nivel objetivo sea el siguiente nivel del alumno
     const siguiente = catalogo.find(e => e.nivelObjetivo !== skill.level) || catalogo[0];
+    const errorReal = aprobadas.find(m => m.skill_id === skill.id);
     recomendaciones.push({
       id: `ref-${skill.id}-${recomendaciones.length}`,
       habilidad: skill.id,
       label: skill.label,
       scoreActual: skill.score,
       ...siguiente,
+      instrucciones: errorReal
+        ? `${siguiente.instrucciones} (El equipo detectó este error real ×${errorReal.frequency}: ${errorReal.pattern})`
+        : siguiente.instrucciones,
+      evidenciaEsperada: errorReal?.pattern
+        ? `${siguiente.evidenciaEsperada} — evita "${errorReal.pattern}"`
+        : siguiente.evidenciaEsperada,
     });
   }
 

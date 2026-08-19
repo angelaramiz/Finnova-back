@@ -5,6 +5,7 @@ import { analyzeVacancyForUser, submitStage1, reevaluateStage1, saveDensity, lis
 import { buildIntensivePlan } from '../services/intensivePlanner';
 import { buildCareerKit } from '../services/careerCenter';
 import { computeDensity } from '../services/experienceDensity';
+import { recordOutcome, getOutcome } from '../services/learningAnalytics';
 
 export const stage1Router = Router();
 
@@ -120,6 +121,41 @@ stage1Router.post('/density', requireSupabaseAuth, async (req: AuthenticatedRequ
     // Persiste la densidad en el perfil (Etapa 3 como evidencia transversal).
     if (userId) await saveDensity(userId, result.density_pct);
     res.json({ ...result, persisted: !!userId });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/stage1/outcome — leer outcome actual (resultados reales consentidos)
+stage1Router.get('/outcome', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const outcome = await getOutcome(userId);
+    res.json({ outcome });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/stage1/outcome — registrar resultado real (consentido, R-11 T6)
+// Requiere consentimiento explícito del alumno (el frontend lo pide primero).
+stage1Router.post('/outcome', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { applied, interviews, hired, skills_entrevista, consent } = req.body || {};
+  if (consent !== true) {
+    res.status(400).json({ error: 'Se requiere consentimiento explícito para guardar tu resultado laboral.' });
+    return;
+  }
+  try {
+    const result = await recordOutcome(userId, {
+      applied: Number(applied) || 0,
+      interviews: Number(interviews) || 0,
+      hired: !!hired,
+      skills_entrevista: Array.isArray(skills_entrevista) ? skills_entrevista : [],
+    });
+    res.json(result);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }

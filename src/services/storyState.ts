@@ -8,6 +8,7 @@ import { buildCase, GeneratedCase } from './caseGenerator';
 import { STORY_ARCS, type RouteId } from '../data/storyArcs';
 import { freshNpcWorld, applyNpcEvent, NpcWorld, NpcReaction, NpcEventType } from './npcEngine';
 import { appendChronicle } from './chronicle';
+import { ingestEvents } from './learningAnalytics';
 
 export interface StoryState {
   route: RouteId;
@@ -113,6 +114,14 @@ export async function completeScene(
   state.npcs[npcId] = reaction.state;
   state.events.push(reaction);
   if (state.events.length > 30) state.events = state.events.slice(-30);
+
+  // R-11: telemetría del resultado de escena (flywheel).
+  await ingestEvents(userId, [{
+    stage: 2, // simulador
+    type: input.resultado === 'completada' ? 'case_pass' : (input.trapId ? 'trap_missed' : 'task_fail'),
+    ref: { caseSeed: state.cases[state.cases.length - 1]?.seed, sceneId: input.sceneId, taskType: input.taskType, trapId: input.trapId },
+    data: { npc: npcId, eventType },
+  }]).catch(() => {});
 
   // Crónica
   await appendChronicle(userId, {
