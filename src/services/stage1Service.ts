@@ -9,6 +9,7 @@ import { analyzeVacancy } from './vacancyAnalyzer';
 import { computeMatch, UMBRAL_MODO_A } from './matchScorer';
 import { routeStage, UMBRAL_DENSIDAD } from './stageRouter';
 import { buildSkillProfile } from './skillProfile';
+import { trackVacancy, updateVacancyMode } from './vacancyTracker';
 
 export interface Stage1Result {
   assessment_id: string;
@@ -20,12 +21,14 @@ export interface Stage1Result {
   routing: 'ETAPA_2_MODO_A' | 'ETAPA_2_MODO_B' | 'ETAPA_3';
   needs_experience: boolean;
   source: string;
+  tracked?: boolean;   // true si el diagnóstico registró la vacante en seguimiento
 }
 
 interface AssessmentRow {
   id: string;
   user_id: string;
   vacancy_text: string;
+  vacancy_title: string;
   vacancy_skills: any;
   requires_experience: boolean;
   match_pct: number;
@@ -87,6 +90,7 @@ export async function analyzeVacancyForUser(userId: string, vacancyText: string,
     id: `stage1-${userId.slice(0, 8)}-${Date.now().toString(36)}`,
     user_id: userId,
     vacancy_text: vacancyText.slice(0, 4000),
+    vacancy_title: (vacancy.title || 'Vacante').slice(0, 120),
     vacancy_skills: vacancy.skills,
     requires_experience: vacancy.requires_experience,
     match_pct: match.match_pct,
@@ -135,9 +139,13 @@ export async function submitStage1(userId: string, assessmentId: string, answers
   row.routing = routing;
   await saveRemote(row);
 
+  // CONEXIÓN Etapa 1 → Etapa 2: al completar el diagnóstico, se registra
+  // la vacante en seguimiento con modo A/B según el routing final.
+  const tracked = await ensureTracked(userId, row);
+
   return {
     assessment_id: row.id,
-    vacancy: { skills: row.vacancy_skills, requires_experience: row.requires_experience },
+    vacancy: { skills: row.vacancy_skills, requires_experience: row.requires_experience, title: row.vacancy_title },
     match_pct,
     breakdown: match.breakdown,
     top_gaps: match.top_gaps,
@@ -145,7 +153,25 @@ export async function submitStage1(userId: string, assessmentId: string, answers
     routing,
     needs_experience: !!row.requires_experience,
     source: 'submit',
+    tracked,
   };
+}
+
+// Registra (o actualiza) la vacante en vacancy_tracking según el routing.
+async function ensureTracked(userId: string, row: AssessmentRow): Promise<boolean> {
+  if (row.routing === 'ETAPA_3') return false; // Etapa 3 no entra a seguimiento de vacante
+  const modo = row.routing === 'ETAPA_2_MODO_A' ? 'A' : 'B';
+  const stack = (Array.isArray(row.vacancy_skills) ? row.vacancy_skills : [])
+    .map((s: any) => s.skill).join(', ').slice(0, 120);
+  const res = await trackVacancy(userId, {
+    vacancy_id: `vac-${row.id}`,
+    stage1_result_id: row.id,
+    modo,
+    vacante_titulo: row.vacancy_title || 'Vacante',
+    vacante_stack: stack,
+    match_pct: row.match_pct,
+  });
+  return res.ok === true;
 }
 
 // POST /api/stage1/reevaluate — misma vacante tras completar bloques
@@ -164,9 +190,14 @@ export async function reevaluateStage1(userId: string, assessmentId: string, spe
   row.routing = routing;
   await saveRemote(row);
 
+  // Reevaluación: si migra a Modo A, actualiza la vacante en seguimiento.
+  if (routing === 'ETAPA_2_MODO_A' || routing === 'ETAPA_2_MODO_B') {
+    await updateVacancyMode(userId, row.id, routing === 'ETAPA_2_MODO_A' ? 'A' : 'B', match.match_pct);
+  }
+
   return {
     assessment_id: row.id,
-    vacancy: { skills: row.vacancy_skills, requires_experience: row.requires_experience },
+    vacancy: { skills: row.vacancy_skills, requires_experience: row.requires_experience, title: row.vacancy_title },
     match_pct: match.match_pct,
     breakdown: match.breakdown,
     top_gaps: match.top_gaps,
@@ -193,6 +224,30 @@ async function getDensity(userId: string): Promise<number> {
   } catch {
     return 0;
   }
+}
+
+// Persiste la densidad de experiencia en profiles.experience_density.
+// Regla de oro: el número sale de experienceDensity.computeDensity (motor).
+export async function saveDensity(userId: string, density_pct: number): Promise<boolean> {
+  if (!isSupabaseReady()) return false;
+  try {
+    await supabaseAdmin.from('profiles').update({ experience_density: Math.round(density_pct) }).eq('id', userId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// GET assessments — para listar diagnósticos previos y reevaluar.
+export async function listAssessments(userId: string): Promise<Array<{ assessment_id: string; title: string; match_pct: number; routing: string; created_at: string }>> {
+  const list = await getAssessments(userId);
+  return list.map(a => ({
+    assessment_id: a.id,
+    title: a.vacancy_title || 'Vacante',
+    match_pct: a.match_pct,
+    routing: a.routing,
+    created_at: a.created_at,
+  }));
 }
 
 export { UMBRAL_MODO_A, UMBRAL_DENSIDAD };

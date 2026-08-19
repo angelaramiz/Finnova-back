@@ -145,6 +145,20 @@ export async function listVacancies(userId: string): Promise<{ vacancies: Vacanc
   return { vacancies, active: vacancies.filter(v => v.status !== 'cerrada').length, limit: FREE_LIMIT, plan };
 }
 
+// Actualiza el modo (A/B) y match de una vacante ya registrada (para la
+// reevaluación: al migrar Modo B → A se actualiza en el tracking).
+export async function updateVacancyMode(userId: string, stage1ResultId: string, modo: 'A' | 'B', match_pct?: number): Promise<VacancyRow | null> {
+  const vacancies = await getVacancies(userId);
+  const row = vacancies.find(v => v.stage1_result_id === stage1ResultId);
+  if (!row) return null;
+  row.modo = modo;
+  if (match_pct != null) row.match_pct = match_pct;
+  row.updated_at = new Date().toISOString();
+  memStore.set(userId, vacancies);
+  await saveRemote(row);
+  return row;
+}
+
 // Para tests: limpiar el store de memoria de un usuario (no toca Supabase).
 export function resetVacancyMem(userId: string): void {
   memStore.delete(userId);

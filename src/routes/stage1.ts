@@ -1,12 +1,24 @@
 // ─── Etapa 1 — Diagnóstico de vacante (R-10 v2) ───────────────
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
-import { analyzeVacancyForUser, submitStage1, reevaluateStage1 } from '../services/stage1Service';
+import { analyzeVacancyForUser, submitStage1, reevaluateStage1, saveDensity, listAssessments } from '../services/stage1Service';
 import { buildIntensivePlan } from '../services/intensivePlanner';
 import { buildCareerKit } from '../services/careerCenter';
 import { computeDensity } from '../services/experienceDensity';
 
 export const stage1Router = Router();
+
+// GET /api/stage1/assessments — diagnósticos previos (para reevaluar)
+stage1Router.get('/assessments', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  try {
+    const list = await listAssessments(userId);
+    res.json({ assessments: list });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
 
 // POST /api/stage1/analyze — pegar vacante → skills + prueba + routing preliminar
 stage1Router.post('/analyze', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
@@ -95,6 +107,7 @@ stage1Router.post('/kit', requireSupabaseAuth, async (req: AuthenticatedRequest,
 
 // POST /api/stage1/density — densidad de experiencia (Etapa 3)
 stage1Router.post('/density', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
   const { casosResueltos, complejidad, variedad, incidentes, resultados } = req.body || {};
   try {
     const result = computeDensity({
@@ -104,7 +117,9 @@ stage1Router.post('/density', requireSupabaseAuth, async (req: AuthenticatedRequ
       incidentes: Number(incidentes) || 0,
       resultados: Number(resultados) || 0,
     });
-    res.json(result);
+    // Persiste la densidad en el perfil (Etapa 3 como evidencia transversal).
+    if (userId) await saveDensity(userId, result.density_pct);
+    res.json({ ...result, persisted: !!userId });
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
