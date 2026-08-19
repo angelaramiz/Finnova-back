@@ -2,6 +2,9 @@
 import { Router, Response } from 'express';
 import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { analyzeVacancyForUser, submitStage1, reevaluateStage1 } from '../services/stage1Service';
+import { buildIntensivePlan } from '../services/intensivePlanner';
+import { buildCareerKit } from '../services/careerCenter';
+import { computeDensity } from '../services/experienceDensity';
 
 export const stage1Router = Router();
 
@@ -50,6 +53,57 @@ stage1Router.post('/reevaluate', requireSupabaseAuth, async (req: AuthenticatedR
   }
   try {
     const result = await reevaluateStage1(userId, assessmentId, specialty);
+    res.json(result);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/stage1/intensive — plan intensivo (Modo B) a partir de gaps
+stage1Router.post('/intensive', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { assessmentId, gaps } = req.body || {};
+  if (!assessmentId || !Array.isArray(gaps)) {
+    res.status(400).json({ error: 'assessmentId y gaps requeridos' });
+    return;
+  }
+  try {
+    const plan = buildIntensivePlan(userId, assessmentId, gaps);
+    res.json(plan);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/stage1/kit — kit de postulación (Modo A)
+stage1Router.post('/kit', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { vacancyTitle, skillsTarget, match_pct, specialty } = req.body || {};
+  if (!vacancyTitle || !Array.isArray(skillsTarget)) {
+    res.status(400).json({ error: 'vacancyTitle y skillsTarget requeridos' });
+    return;
+  }
+  try {
+    const kit = await buildCareerKit(userId, vacancyTitle, skillsTarget, Number(match_pct) || 0, specialty);
+    res.json(kit);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/stage1/density — densidad de experiencia (Etapa 3)
+stage1Router.post('/density', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { casosResueltos, complejidad, variedad, incidentes, resultados } = req.body || {};
+  try {
+    const result = computeDensity({
+      casosResueltos: Number(casosResueltos) || 0,
+      complejidad: Number(complejidad) || 0,
+      variedad: Number(variedad) || 0,
+      incidentes: Number(incidentes) || 0,
+      resultados: Number(resultados) || 0,
+    });
     res.json(result);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
