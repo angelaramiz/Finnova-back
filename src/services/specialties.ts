@@ -48,6 +48,7 @@ export const ACCOUNTING_SPECIALTY: Specialty = {
     'invoice_emission',
     'payment_registration',
     'supplier_invoice',
+    'business_expense',
     'tax_calculation',
     'bank_reconciliation',
     'journal_entry',

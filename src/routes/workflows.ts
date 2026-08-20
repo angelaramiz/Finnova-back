@@ -10,7 +10,7 @@ import { enrichFeedback } from '../services/qualityConsumption';
 
 export const workflowRouter = Router();
 
-const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut', 'depreciation', 'financial_statements'];
+const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'business_expense', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut', 'depreciation', 'financial_statements'];
 const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos', 'incident_recovery'];
 const dsTypes = ['eda_churn', 'modelo_baseline', 'eval_metricas'];
 

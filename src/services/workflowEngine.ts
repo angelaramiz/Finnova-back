@@ -2,12 +2,21 @@
 
 export type StepType = 'email' | 'form' | 'spreadsheet' | 'result';
 
+export interface GuideBubble {
+  id: string;
+  title: string;
+  body: string;
+  anchor?: string;
+  position?: 'top' | 'bottom' | 'left' | 'right' | 'center';
+}
+
 export interface WorkflowStep {
   id: string;
   type: StepType;
   title: string;
   description: string;
   data: any;
+  guides?: GuideBubble[];
 }
 
 export interface ValidationRule {
@@ -129,6 +138,10 @@ export function generateInvoiceWorkflow(userId?: string): Workflow {
     steps: [
       {
         id: 'email', type: 'email', title: 'Correo del jefe', description: 'Revisa las instrucciones en tu bandeja de entrada',
+        guides: [
+          { id: 'g-portal', title: 'El flujo en el portal SAT', body: 'En la práctica real emitirías desde el portal facturación del SAT o tu sistema (Odoo). El flujo es: 1) capturas los datos del cliente y del servicio, 2) el sistema valida el RFC y el régimen contra el padrón del SAT, 3) el sistema timbra el CFDI con el sello fiscal, 4) se envía el XML + PDF al cliente y una copia al SAT. Hoy practicarás ese flujo en el sistema contable del simulador.', position: 'top' },
+          { id: 'g-datos', title: 'Qué datos debes identificar', body: 'Del correo del jefe extrae: el CLIENTE (nombre y RFC), el CONCEPTO del servicio y el PRECIO UNITARIO. Esos son los insumos que capturarás en el formulario siguiente.', position: 'bottom' },
+        ],
         data: {
           from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
           subject: `Solicitud de factura — ${client.name}`,
@@ -160,6 +173,12 @@ Logística del Norte S.A. de C.V.`,
       },
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Nueva Factura', description: 'Llena los campos de la factura',
+        guides: [
+          { id: 'g-cfdi', title: '¿Qué es un CFDI?', body: 'El CFDI 4.0 (Comprobante Fiscal Digital por Internet) es la factura electrónica que emites ante el SAT. Sin él, el cliente NO puede deducir el gasto. Debe contener: RFC emisor/receptor, uso de CFDI, régimen fiscal, método de pago y los importes.', position: 'top' },
+          { id: 'g-rfc', title: '¿Por qué importa el RFC?', body: 'El RFC del cliente debe ser EXACTO (homoclave incluida). Un RFC con error hace el CFDI inválido ante el SAT y genera una multa. Cópialo del catálogo de clientes.', anchor: '[data-guide="rfc"]', position: 'right' },
+          { id: 'g-iva', title: '¿Cómo se calcula el IVA?', body: 'El IVA en México es 16%. Se calcula sobre el subtotal: IVA = subtotal × 0.16. El total es subtotal + IVA. Si el cliente te pide IVA al 10% o 8%, es una TRAMPA: vigila siempre la tasa vigente.', anchor: '[data-guide="iva"]', position: 'bottom' },
+          { id: 'g-uso', title: '¿Qué es el uso de CFDI?', body: 'El "uso de CFDI" indica para qué usará el cliente el comprobante (G03 gastos en general, D03 gastos de transporte, etc.). Si el uso no corresponde al régimen del cliente, el SAT puede rechazar la factura.', position: 'top' },
+        ],
         data: {
           fields: [
             { key: 'clientName', label: 'Cliente', type: 'choice', options: resolveClientList(userId), correct: client.name, validation: { required: true } },
@@ -227,6 +246,10 @@ Departamento de Finanzas`,
       },
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Registro de Pago', description: 'Registra el pago en el sistema',
+        guides: [
+          { id: 'g-aplicar', title: '¿A qué factura aplico el pago?', body: 'Siempre verifica el FOLIO de la factura y el CLIENTE que transfirió. Un error común es aplicar el pago del cliente A a la factura del cliente B; eso corrompe los saldos. Cruza el nombre del remitente contra el correo de cobranza.', position: 'top' },
+          { id: 'g-saldo', title: 'Saldo pendiente', body: 'El saldo pendiente = total de la factura − monto recibido. Si el cliente pagó de menos, la factura queda como "pago parcial" y el saldo sigue siendo cobrable. No inventes el saldo: calcúlalo.', anchor: '[data-guide="outstandingBalance"]', position: 'bottom' },
+        ],
         data: {
           fields: [
             { key: 'invoiceNumber', label: 'Factura a pagar', type: 'text', correct: invNum, validation: { required: true } },
@@ -546,6 +569,10 @@ Departamento de Facturación`,
       },
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Registro de CFDI', description: 'Registra la factura del proveedor',
+        guides: [
+          { id: 'g-cfdi-prov', title: 'CFDI de gasto vs CFDI de ingreso', body: 'Esta factura es un CFDI RECIBIDO: te permite ACREDITAR el IVA (reducir lo que pagas de IVA al SAT). Requisitos para que sea válido: que el proveedor esté en el padrón, que el RFC sea correcto y que la tasa de IVA sea 16%.', position: 'top' },
+          { id: 'g-iva-acred', title: 'IVA acreditable', body: 'El IVA acreditable se suma a la cuenta de IVA por pagar en el DEBE (lo reduces). Verifica: IVA = subtotal × 0.16. Un CFDI con IVA mayor/menor es señal de error o de proveedor no confiable.', anchor: '[data-guide="iva"]', position: 'bottom' },
+        ],
         data: {
           fields: [
             { key: 'supplierName', label: 'Proveedor', type: 'choice', options: resolveSupplierList(userId), correct: supplier.name, validation: { required: true } },
@@ -567,6 +594,89 @@ Departamento de Facturación`,
       { stepId: 'form', field: 'amount', type: 'calculated', expected: amount, tolerance: 0, label: 'Subtotal', points: 4, feedback: { pass: 'Subtotal correcto', fail: `El subtotal era $${fmt(amount)}` } },
       { stepId: 'form', field: 'iva', type: 'calculated', expected: iva, tolerance: 1, label: 'IVA', points: 4, feedback: { pass: 'IVA correcto', fail: `IVA = $${fmt(amount)} × 16% = $${fmt(iva)}` } },
       { stepId: 'form', field: 'total', type: 'calculated', expected: total, tolerance: 1, label: 'Total', points: 4, feedback: { pass: 'Total correcto', fail: `Total = $${fmt(amount)} + $${fmt(iva)} = $${fmt(total)}` } },
+    ],
+  };
+}
+
+// ─── Gasto interno: comida empresarial ─────────────────────────
+// Escenario del Módulo 2: leer un ticket de restaurante, separar
+// deducible/no deducible y registrar el gasto con IVA acreditable.
+export function generateBusinessExpenseWorkflow(userId?: string): Workflow {
+  const subtotal = r(800, 6000);            // consumos deducibles
+  const iva = Math.round(subtotal * 0.16);  // IVA acreditable
+  const propina = Math.round(subtotal * 0.1); // propina NO deducible
+  const total = subtotal + iva + propina;
+  const ticket = `TK-${r(10000, 99999)}`;
+  const razon = pick(['Comida de trabajo con cliente Comercial del Norte', 'Comida de equipo del departamento', 'Reunión de trabajo con proveedor Transportes Express']);
+
+  return {
+    taskId: `wf-bexp-${r(1000, 9999)}`, taskTitle: 'Gasto por Comida Empresarial', taskType: 'business_expense', difficulty: 2, estimatedMinutes: 15,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Solicitud de gasto', description: 'Registra el gasto por comida empresarial',
+        guides: [
+          { id: 'g-porque', title: '¿Por qué importa este gasto?', body: 'Los gastos por comida de trabajo son DEDUCIBLES para la empresa (65% en restaurantes), pero el IVA y la propina se tratan distinto. Si lo registras mal, la empresa paga de más de impuestos o cae en una observación de auditoría.', position: 'top' },
+          { id: 'g-ticket', title: 'Cómo leer el ticket', body: 'En el ticket del restaurante identifica 4 datos: SUBTOTAL (consumo), IVA desglosado (16%), PROPINA (no deducible y sin IVA) y TOTAL. El ticket lo emite el restaurante a nombre del establecimiento; solo es válido como soporte si el RFC del establecimiento aparece impreso.', position: 'top' },
+        ],
+        data: {
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: `Reembolso de gasto por comida — Ticket ${ticket}`,
+          body: `Buenos días,
+
+Adjunto el ticket del restaurante por una comida de trabajo del equipo.
+
+**Datos del ticket:**
+- Establecimiento: La Parrilla del Norte (RFC: LPN-880707-ABC)
+- Ticket: ${ticket}
+- Fecha: ${new Date().toLocaleDateString('es-MX')}
+- Subtotal (consumos): $${fmt(subtotal)}
+- IVA (16%): $${fmt(iva)}
+- Propina: $${fmt(propina)}
+- Total pagado: $${fmt(total)}
+
+**Instrucciones:**
+1. Revisa el ticket y separa lo deducible de lo no deducible
+2. Registra el gasto en el sistema contable (cuenta de gastos de administración)
+3. El IVA de este consumo es acreditable
+4. La propina NO es deducible y tampoco genera IVA acreditable
+5. La comida fue: ${razon}
+
+Saludos,
+Lic. Gómez
+Contador General`,
+          urgency: 'media',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de cálculo — Registro de gasto', description: 'Calcula el gasto deducible y el IVA acreditable',
+        guides: [
+          { id: 'g-deducible', title: '¿Cuánto es deducible?', body: 'Para gastos de restaurantes, la deducción es del 65% del consumo (subtotal). La propina NO es deducible. Registra el subtotal como gasto y el IVA (16% del subtotal) como IVA acreditable.', anchor: '[data-guide="Gasto deducible (65% restaurantes)"]', position: 'top' },
+          { id: 'g-cargo', title: '¿Dónde se registra en la contabilidad?', body: 'El asiento es: Cargo a "5-03 Gastos de administración" por el subtotal, cargo a "2-03 IVA por pagar" (lado acreditable) por el IVA, y abono a "1-02 Bancos" por el total pagado. La propina no aparece como gasto deducible.', anchor: '[data-guide="Total pagado"]', position: 'bottom' },
+        ],
+        data: {
+          rows: [
+            { label: 'Subtotal del ticket', cell_B: subtotal },
+            { label: 'Propina (no deducible)', cell_B: propina },
+            { label: 'IVA del consumo (16%)', cell_B: iva, formula: '=B1*0.16' },
+            { label: 'Total pagado', cell_B: total, formula: '=B1+B2+B3' },
+            { label: 'Gasto deducible (65% restaurantes)', cell_B: Math.round(subtotal * 0.65), formula: '=B1*0.65' },
+            { label: 'IVA acreditable', cell_B: iva, formula: '=B3' },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Gasto registrado', description: 'El gasto se registró con su asiento contable',
+        guides: [
+          { id: 'g-asiento', title: 'Tu asiento contable', body: 'Cargo 5-03 Gastos de administración por $' + fmt(subtotal) + ', cargo 2-03 IVA por pagar por $' + fmt(iva) + ', abono 1-02 Bancos por $' + fmt(total) + '. La propina de $' + fmt(propina) + ' se liquidó pero NO es deducible: se reclasifica como gasto no deducible en la conciliación fiscal.', position: 'center' },
+        ],
+        data: { ticket, establecimiento: 'La Parrilla del Norte', subtotal, iva, propina, total, gastoDeducible: Math.round(subtotal * 0.65), ivaAcreditable: iva, razon, date: new Date().toISOString().split('T')[0] },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_IVA del consumo (16%)', label: 'IVA del consumo', type: 'calculated', expected: iva, tolerance: 1, points: 4, feedback: { pass: 'IVA del consumo correcto', fail: `IVA = $${fmt(subtotal)} × 16% = $${fmt(iva)}` } },
+      { stepId: 'spreadsheet', field: 'row_Total pagado', label: 'Total pagado', type: 'calculated', expected: total, tolerance: 1, points: 4, feedback: { pass: 'Total pagado correcto', fail: `Total = $${fmt(subtotal)} + $${fmt(iva)} + $${fmt(propina)} = $${fmt(total)}` } },
+      { stepId: 'spreadsheet', field: 'row_Gasto deducible (65% restaurantes)', label: 'Gasto deducible', type: 'calculated', expected: Math.round(subtotal * 0.65), tolerance: 1, points: 5, feedback: { pass: 'Gasto deducible correcto (65%)', fail: `Gasto deducible = $${fmt(subtotal)} × 65% = $${fmt(Math.round(subtotal * 0.65))}. La propina NO es deducible.` } },
+      { stepId: 'spreadsheet', field: 'row_IVA acreditable', label: 'IVA acreditable', type: 'calculated', expected: iva, tolerance: 1, points: 5, feedback: { pass: 'IVA acreditable correcto', fail: `El IVA acreditable es el IVA del consumo: $${fmt(iva)} (la propina no genera IVA acreditable).` } },
     ],
   };
 }
@@ -1105,6 +1215,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'journal_entry': wf = generateJournalEntryWorkflow(); break;
     case 'payroll': wf = generatePayrollWorkflow(); break;
     case 'supplier_invoice': wf = generateSupplierInvoiceWorkflow(userId); break;
+    case 'business_expense': wf = generateBusinessExpenseWorkflow(userId); break;
     case 'payment_scheduling': wf = generatePaymentSchedulingWorkflow(); break;
     case 'ap_reconciliation': wf = generateAPReconciliationWorkflow(); break;
     case 'cfdi_reception': wf = generateCFDIWorkflow(); break;

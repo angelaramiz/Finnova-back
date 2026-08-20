@@ -79,6 +79,12 @@ const ACCOUNTING_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     category: 'compras', description: `Registrar factura de ${ctx.supplier}`,
     emailSubject: `Factura — ${ctx.supplier}`, emailFrom: ctx.supplier,
   }),
+  business_expense: (ctx) => ({
+    id: generateTaskId(), title: 'Comida empresarial — gasto interno', type: 'business_expense',
+    difficulty: 2, time: 15, week: ctx.week, day: ctx.day, priority: 'alta',
+    category: 'gastos', description: 'Registrar gasto por comida de trabajo con IVA acreditable y deducibilidad 65%',
+    emailSubject: 'Reembolso de gasto por comida', emailFrom: 'Lic. Gómez',
+  }),
   bank_reconciliation: (ctx) => ({
     id: generateTaskId(), title: 'Conciliación bancaria', type: 'bank_reconciliation',
     difficulty: 2, time: 20, week: ctx.week, day: ctx.day, priority: 'alta',
@@ -255,6 +261,14 @@ const ACCOUNTING_WEEKS: Record<number, WeekSpec> = {
   4: { theme: 'Cierre de mes', tasks: [{ type: 'journal_entry', count: 2, difficulty: 2 }, { type: 'depreciation', count: 1, difficulty: 2 }, { type: 'credit_note', count: 1, difficulty: 2 }, { type: 'cash_cut', count: 1, difficulty: 2 }, { type: 'financial_statements', count: 1, difficulty: 3 }] },
 };
 
+// Plan de prácticas profesionales: módulos procedurales con guía 💡.
+const PRACTICAS_WEEKS: Record<number, WeekSpec> = {
+  1: { theme: 'Módulo 1 — Facturación electrónica (CFDI 4.0)', tasks: [{ type: 'invoice_emission', count: 3, difficulty: 1 }, { type: 'payment_registration', count: 1, difficulty: 1 }] },
+  2: { theme: 'Módulo 2 — Gastos internos y comida empresarial', tasks: [{ type: 'business_expense', count: 2, difficulty: 2 }, { type: 'invoice_emission', count: 1, difficulty: 1 }, { type: 'supplier_invoice', count: 1, difficulty: 1 }] },
+  3: { theme: 'Módulo 3-4 — Cobranza y proveedores', tasks: [{ type: 'payment_registration', count: 2, difficulty: 1 }, { type: 'supplier_invoice', count: 2, difficulty: 1 }, { type: 'payment_scheduling', count: 1, difficulty: 1 }] },
+  4: { theme: 'Módulo 5-6 — Nómina, conciliación y cierre', tasks: [{ type: 'payroll', count: 1, difficulty: 2 }, { type: 'bank_reconciliation', count: 1, difficulty: 2 }, { type: 'cash_cut', count: 1, difficulty: 2 }, { type: 'journal_entry', count: 1, difficulty: 2 }] },
+};
+
 const DE_WEEKS: Record<number, WeekSpec> = {
   1: { theme: 'Fundamentos SQL y Python (Analista)', tasks: [{ type: 'sql_query', count: 3, difficulty: 1, phase: 'analyst' }, { type: 'etl_pipeline', count: 2, difficulty: 1, phase: 'analyst' }, { type: 'data_quality', count: 1, difficulty: 1, phase: 'analyst' }] },
   2: { theme: 'Profiling y reportes (Analista)', tasks: [{ type: 'sql_query', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'data_quality', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'soporte_datos', count: 1, difficulty: 1, phase: 'analyst' }] },
@@ -278,7 +292,7 @@ export function generateMonthPlan(month: number, year: number, specialtyId: stri
   //  - fase analista: semanas 1-2 (base común)
   //  - ruta ingeniería: semanas 3-4 (DE)
   //  - ruta ciencia: semanas 3-4 (DS)
-  let weeks = isDE ? DE_WEEKS : ACCOUNTING_WEEKS;
+  let weeks = isDE ? DE_WEEKS : specialtyId === 'practicas' ? PRACTICAS_WEEKS : ACCOUNTING_WEEKS;
   if (isDE) {
     if (route === 'ds') weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...DS_WEEKS };
     else if (route === 'de') weeks = DE_WEEKS;

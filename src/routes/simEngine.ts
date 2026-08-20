@@ -4,12 +4,13 @@ import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { MemoryDatabase } from '../lib/memoryDb';
 import { generateDocument } from '../services/documentGenerator';
 import { calculateScore, checkProgression, checkDeadline, validateTransition, generateRandomEvent } from '../services/engines';
-import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
+import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateBusinessExpenseEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
 import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { TRAP_SCENARIOS } from '../services/workflowEngine';
+import { getPracticasModules, getPracticasModule } from '../services/practicasModules';
 import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '../services/simWorld';
 import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
@@ -196,6 +197,7 @@ simEngineRouter.post('/generate-entries', requireSupabaseAuth, async (req: Authe
     case 'payment': entries = generatePaymentEntries(data); break;
     case 'supplier': entries = generateSupplierEntries(data); break;
     case 'payroll': entries = generatePayrollEntries(data); break;
+    case 'business_expense': entries = generateBusinessExpenseEntries(data); break;
     case 'journal': entries = generateJournalEntryForType(data); break;
     default: res.status(400).json({ error: 'Tipo no válido' }); return;
   }
@@ -1216,4 +1218,15 @@ simEngineRouter.post('/telemetry', requireSupabaseAuth, async (req: Authenticate
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ─── Prácticas profesionales (R-13) ─────────────────────────────
+simEngineRouter.get('/practicas/modules', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json({ modules: getPracticasModules() });
+});
+
+simEngineRouter.get('/practicas/modules/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const mod = getPracticasModule(req.params.id);
+  if (!mod) { res.status(404).json({ error: 'Módulo no encontrado' }); return; }
+  res.json({ module: mod });
 });

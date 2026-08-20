@@ -81,6 +81,29 @@ export function generatePayrollEntries(data: {
   ];
 }
 
+// ─── Business expense auto-entries ────────────────────────────
+export function generateBusinessExpenseEntries(data: {
+  subtotal: number;
+  iva: number;
+  total: number;
+  propina?: number;
+}): JournalEntry[] {
+  const date = rDate();
+  const ref = `GAS-${date.replace(/\//g, '')}`;
+  const entries = [
+    { date, ref, desc: 'Gasto por comida empresarial (deducible 65%)', account: '5-03 Gastos de administración', debit: data.subtotal, credit: 0, type: 'Gasto' },
+    { date, ref, desc: 'IVA acreditable del consumo', account: '2-03 IVA por pagar', debit: data.iva, credit: 0, type: 'Gasto' },
+    { date, ref, desc: 'Pago de gasto con bancos', account: '1-02 Bancos', debit: 0, credit: data.total, type: 'Gasto' },
+  ];
+  // La propina se paga pero NO es deducible: se reclasifica como gasto
+  // no deducible (se concilia al cierre fiscal).
+  const propina = data.propina || 0;
+  if (propina > 0) {
+    entries.push({ date, ref, desc: 'Propina no deducible (reclasificación fiscal)', account: '5-08 Gastos no deducibles', debit: propina, credit: 0, type: 'Gasto' });
+  }
+  return entries;
+}
+
 // ─── Journal entry generator ──────────────────────────────────
 export function generateJournalEntryForType(data: {
   type: string;
