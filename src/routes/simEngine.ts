@@ -10,7 +10,7 @@ import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGe
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { TRAP_SCENARIOS } from '../services/workflowEngine';
-import { getPracticasModules, getPracticasModule } from '../services/practicasModules';
+import { getPracticasModules, getPracticasModule, getPracticasCursos, getPracticaCurso, evaluatePracticaPrueba, buildPracticasTracker } from '../services/practicasModules';
 import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '../services/simWorld';
 import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
@@ -1229,4 +1229,38 @@ simEngineRouter.get('/practicas/modules/:id', requireSupabaseAuth, async (req: A
   const mod = getPracticasModule(req.params.id);
   if (!mod) { res.status(404).json({ error: 'Módulo no encontrado' }); return; }
   res.json({ module: mod });
+});
+
+// Tracker semanal de prácticas (tareas repetidas por tema para mecanizar)
+simEngineRouter.get('/practicas/tracker', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  const month = parseInt(String(_req.query.month || 7)) || 7;
+  const year = parseInt(String(_req.query.year || 2026)) || 2026;
+  const tracker = buildPracticasTracker(month, year);
+  res.json({ semanas: tracker });
+});
+
+// Curso teórico del capacitador por módulo
+simEngineRouter.get('/practicas/cursos', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json({ cursos: getPracticasCursos() });
+});
+
+simEngineRouter.get('/practicas/curso/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const curso = getPracticaCurso(req.params.id);
+  if (!curso) { res.status(404).json({ error: 'Curso no encontrado' }); return; }
+  res.json({ curso });
+});
+
+// Prueba de conocimiento/comprensión al final de cada tema
+simEngineRouter.post('/practicas/prueba/:id', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { answers } = req.body || {};
+  if (!Array.isArray(answers)) {
+    res.status(400).json({ error: 'answers debe ser un arreglo de índices de respuesta' });
+    return;
+  }
+  try {
+    const result = evaluatePracticaPrueba(req.params.id, answers);
+    res.json({ ...result });
+  } catch (e: any) {
+    res.status(404).json({ error: e.message || 'Prueba no encontrada' });
+  }
 });

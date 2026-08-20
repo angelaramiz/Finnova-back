@@ -190,6 +190,15 @@ export const NPCS: Record<string, NpcDef> = {
     traits: { paciencia: 2, formalidad: 0, aversionRiesgo: 0, memoria: true },
     ladder: ['solicitud_sql', 'necesito_mas_datos', 'bloqueo_reportes'],
   },
+  capacitador: {
+    id: 'capacitador',
+    nombre: 'Capacitador de Prácticas',
+    rol: 'Capacitador de Prácticas Profesionales',
+    company: 'lno',
+    route: 'contable',
+    traits: { paciencia: 2, formalidad: 1, aversionRiesgo: 1, memoria: true },
+    ladder: ['bienvenida', 'explicacion', 'recordatorio_practica', 'microarco_capacitacion'],
+  },
 };
 
 export function getNpc(id: string): NpcDef | undefined {
