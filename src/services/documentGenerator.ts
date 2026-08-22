@@ -301,7 +301,7 @@ export function generatePaymentReceipt(clientIdx?: number): { html: string; data
   <tr><td><strong>Subtotal:</strong></td><td>$${formatCurrency(amount)}</td></tr>
   <tr><td><strong>IVA (16%):</strong></td><td>$${formatCurrency(iva)}</td></tr>
   <tr><td><strong>TOTAL:</strong></td><td><strong>$${formatCurrency(total)}</strong></td></tr>
-  <tr><td><strong>Forma de pago:</strong></td><td>Transferencia Electrónica (SPEIU)</td></tr>
+  <tr><td><strong>Forma de pago:</strong></td><td>Transferencia Electrónica (SPEI)</td></tr>
   <tr><td><strong>Referencia:</strong></td><td>${ref}</td></tr>
   <tr><td><strong>Fecha:</strong></td><td>${new Date().toLocaleDateString('es-MX')}</td></tr>
 </table>

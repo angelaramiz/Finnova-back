@@ -177,7 +177,7 @@ Logística del Norte S.A. de C.V.`,
           { id: 'g-cfdi', title: '¿Qué es un CFDI?', body: 'El CFDI 4.0 (Comprobante Fiscal Digital por Internet) es la factura electrónica que emites ante el SAT. Sin él, el cliente NO puede deducir el gasto. Debe contener: RFC emisor/receptor, uso de CFDI, régimen fiscal, método de pago y los importes.', position: 'top' },
           { id: 'g-rfc', title: '¿Por qué importa el RFC?', body: 'El RFC del cliente debe ser EXACTO (homoclave incluida). Un RFC con error hace el CFDI inválido ante el SAT y genera una multa. Cópialo del catálogo de clientes.', anchor: '[data-guide="rfc"]', position: 'right' },
           { id: 'g-iva', title: '¿Cómo se calcula el IVA?', body: 'El IVA en México es 16%. Se calcula sobre el subtotal: IVA = subtotal × 0.16. El total es subtotal + IVA. Si el cliente te pide IVA al 10% o 8%, es una TRAMPA: vigila siempre la tasa vigente.', anchor: '[data-guide="iva"]', position: 'bottom' },
-          { id: 'g-uso', title: '¿Qué es el uso de CFDI?', body: 'El "uso de CFDI" indica para qué usará el cliente el comprobante (G03 gastos en general, D03 gastos de transporte, etc.). Si el uso no corresponde al régimen del cliente, el SAT puede rechazar la factura.', position: 'top' },
+          { id: 'g-uso', title: '¿Cómo se calcula el total?', body: 'El subtotal es Cantidad × Precio unitario. El IVA se calcula sobre el subtotal (16%). El Total = Subtotal + IVA. Todos estos campos se calculan automáticamente; solo necesitas llenar Cantidad y Precio unitario.', position: 'top' },
         ],
         data: {
           fields: [
@@ -255,7 +255,7 @@ Departamento de Finanzas`,
             { key: 'invoiceNumber', label: 'Factura a pagar', type: 'text', correct: invNum, validation: { required: true } },
             { key: 'clientName', label: 'Cliente', type: 'choice', options: resolveClientList(userId), correct: client.name, validation: { required: true } },
             { key: 'amountReceived', label: 'Monto recibido ($)', type: 'currency', correct: amountPaid, validation: { required: true, min: 1 } },
-            { key: 'paymentMethod', label: 'Método de pago', type: 'choice', options: ['Transferencia SPEIU', 'Cheque', 'Efectivo', 'Tarjeta'], correct: 'Transferencia SPEIU', validation: { required: true } },
+            { key: 'paymentMethod', label: 'Método de pago', type: 'choice', options: ['Transferencia SPEI', 'Cheque', 'Efectivo', 'Tarjeta'], correct: 'Transferencia SPEI', validation: { required: true } },
             { key: 'outstandingBalance', label: 'Saldo pendiente ($)', type: 'calculated', correct: remaining, formula: 'totalInvoice - amountReceived', dependsOn: 'amountReceived' },
           ],
         },
@@ -348,6 +348,9 @@ function generateBankReconciliationWorkflow(): Workflow {
     steps: [
       {
         id: 'email', type: 'email', title: 'Estado de cuenta', description: 'Recibiste el estado de cuenta del banco',
+        guides: [
+          { id: 'g-estado', title: '¿Qué es un estado de cuenta?', body: 'Es el resumen que el banco te envía cada mes con todos los movimientos de tu cuenta: depósitos, cheques cobrados, comisiones y el saldo final. Este saldo es el punto de partida de la conciliación.', position: 'top' },
+        ],
         data: {
           from: 'Banco Norte - Notificaciones', to: 'contabilidad@logistica.com',
           subject: 'Estado de cuenta electrónico — Julio 2026',
@@ -375,6 +378,11 @@ Servicio al Cliente`,
       },
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de conciliación', description: 'Completa la conciliación',
+        guides: [
+          { id: 'g-depositos', title: '¿Qué son los depósitos en tránsito?', body: 'Son depósitos que YA registraste en tu contabilidad pero que el banco AÚN NO procesó. Se suman al saldo bancario porque el banco los va a reflejar pronto.', anchor: '[data-guide="Depósitos en tránsito"]', position: 'top' },
+          { id: 'g-cheques', title: '¿Qué son los cheques sin cobrar?', body: 'Son cheques que YA emitiste (y registraste como gasto) pero que el beneficiario AÚN NO cobró en el banco. Se restan del saldo bancario porque cuando se cobren, el saldo bajará.', anchor: '[data-guide="Cheques sin cobrar"]', position: 'bottom' },
+          { id: 'g-formula', title: 'Fórmula de conciliación', body: 'Saldo conciliado = Saldo bancario + Depósitos en tránsito - Cheques sin cobrar. Si el resultado coincide con tu saldo en libros, la conciliación cuadra.', position: 'center' },
+        ],
         data: {
           rows: [
             { label: 'Saldo bancario', cell_B: bankBalance },
@@ -434,6 +442,11 @@ Contador General`,
       },
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Póliza de Diario', description: 'Llena los datos de la póliza',
+        guides: [
+          { id: 'g-debe', title: '¿Qué es el DEBE (cargo)?', body: 'El DEBE es el lado izquierdo del asiento. Se registra aquí cuando la empresa GASTA o pierde valor. La depreciación es un gasto, por eso va en DEBE.', anchor: '[data-guide="debitAccount"]', position: 'right' },
+          { id: 'g-haber', title: '¿Qué es el HABER (abono)?', body: 'El HABER es el lado derecho del asiento. La Depreciación Acumulada es una cuenta que REDUCE el valor del activo (contra-activo), por eso va en HABER.', anchor: '[data-guide="creditAccount"]', position: 'left' },
+          { id: 'g-monto', title: '¿Cómo calculo el monto?', body: 'Depreciación mensual = Costo original ÷ Vida útil en meses. Si el equipo costó $120,000 y su vida útil es 4 años (48 meses), la depreciación mensual es $120,000 ÷ 48 = $2,500.', anchor: '[data-guide="amount"]', position: 'bottom' },
+        ],
         data: {
           fields: [
             { key: 'debitAccount', label: 'Cuenta Cargo (DEBE)', type: 'choice', options: ['Gastos de depreciación', 'Depreciación acumulada', 'Inventario', 'Caja chica'], correct: 'Gastos de depreciación', validation: { required: true } },
@@ -503,6 +516,11 @@ Contador General`,
       },
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de nómina', description: 'Completa la nómina',
+        guides: [
+          { id: 'g-isr', title: '¿Qué es el ISR?', body: 'El ISR (Impuesto Sobre la Renta) se retiene del sueldo bruto del empleado. En este ejercicio usamos 15% como tasa simplificada. El neto es lo que el empleado recibe después de las retenciones.', anchor: '[data-guide="ISR (15%)"]', position: 'right' },
+          { id: 'g-imss', title: '¿Qué es el IMSS?', body: 'El IMSS es la cuota del trabajador al Instituto Mexicano del Seguro Social (5%). Cubre riesgos de trabajo, enfermedad y retiro. Se descuenta del sueldo bruto junto con el ISR.', anchor: '[data-guide="IMSS (5%)"]', position: 'left' },
+          { id: 'g-neto', title: '¿Cómo se calcula el neto?', body: 'Sueldo neto = Sueldo bruto - ISR - IMSS. El neto es lo que finalmente se deposita al empleado. Verifica que la resta sea correcta antes de aprobar la nómina.', anchor: '[data-guide="Total neto"]', position: 'bottom' },
+        ],
         data: {
           rows: [
             ...employees.map(e => ({ label: e.name, cell_B: e.salary })),
@@ -919,6 +937,11 @@ Contador General`,
       },
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de cálculo — Corte de Caja', description: 'Completa la hoja de corte',
+        guides: [
+          { id: 'g-tarjeta', title: '¿Por qué las ventas con tarjeta no cuentan?', body: 'Las ventas con tarjeta van directamente al banco (no pasan por la caja física). Se registran para el total de ventas, pero NO se suman al efectivo esperado. Solo el efectivo recibido afecta la caja.', anchor: '[data-guide="Ventas con tarjeta"]', position: 'right' },
+          { id: 'g-esperado', title: '¿Cómo se calcula el efectivo esperado?', body: 'Efectivo esperado = Fondo inicial + Ventas en efectivo - Gastos del turno - Depósitos realizados. Las tarjetas NO entran en esta fórmula porque no son efectivo.', anchor: '[data-guide="Efectivo esperado"]', position: 'bottom' },
+          { id: 'g-diferencia', title: '¿Qué pasa si hay diferencia?', body: 'Si la diferencia es mayor a $100, hay un descuadre que debe reportarse. Puede ser por cambio mal dado, cobro incorrecto o efectivo faltante. La diferencia se registra como "Sobrante" o "Faltante".', anchor: '[data-guide="Diferencia"]', position: 'top' },
+        ],
         data: {
           rows: [
             { label: 'Fondo inicial', cell_B: cashInBox },
