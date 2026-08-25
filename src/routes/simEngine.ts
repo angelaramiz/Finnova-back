@@ -1114,14 +1114,14 @@ function formatSimProfile(data: any) {
 
 simEngineRouter.get('/documents/:type', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { type } = req.params;
-  const validTypes = ['invoice', 'bank_statement', 'payment_receipt', 'trial_balance', 'payroll'];
+  const validTypes = ['invoice', 'bank_statement', 'payment_receipt', 'trial_balance', 'payroll', 'purchase_ticket', 'supplier_invoice', 'tax_declaration'];
   if (!validTypes.includes(type)) {
     res.status(400).json({ error: 'Tipo de documento no válido. Usa: ' + validTypes.join(', ') });
     return;
   }
-  const clientIdx = req.query.clientIdx ? parseInt(req.query.clientIdx as string) : undefined;
   const format = req.query.format as string || 'html';
-  const doc = generateDocument(type, clientIdx);
+  const userId = req.user?.id;
+  const doc = generateDocument(type, userId);
 
   if (format === 'json') {
     res.json({ type, ...doc.data });
