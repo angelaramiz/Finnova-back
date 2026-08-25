@@ -3,6 +3,8 @@ import { requireSupabaseAuth, AuthenticatedRequest } from '../middleware/auth';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { MemoryDatabase } from '../lib/memoryDb';
 import { generateDocument } from '../services/documentGenerator';
+import { generateCfdiXml, generateCfdiPdfHtml } from '../services/cfdiGenerator';
+import { simIso, simShort } from '../lib/simTime';
 import { calculateScore, checkProgression, checkDeadline, validateTransition, generateRandomEvent } from '../services/engines';
 import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateBusinessExpenseEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
@@ -1128,6 +1130,15 @@ simEngineRouter.get('/documents/:type', requireSupabaseAuth, async (req: Authent
     return;
   }
   res.type('html').send(doc.html);
+});
+
+// ─── R-14: Generar CFDI en PDF + XML simbólico ───────────────
+simEngineRouter.get('/documents/cfdi', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  const base = generateDocument('invoice', userId);
+  const xml = generateCfdiXml({ ...base.data, uuid: base.data.uuid, date: simIso() });
+  const pdfHtml = generateCfdiPdfHtml({ ...base.data, uuid: base.data.uuid, date: simShort() });
+  res.json({ type: 'cfdi', xml, pdfHtml, data: base.data });
 });
 
 // ─── R-09 Lore vivo: mundo, arcos y NPCs ───────────────────────
