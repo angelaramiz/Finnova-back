@@ -1114,6 +1114,14 @@ function formatSimProfile(data: any) {
   };
 }
 
+simEngineRouter.get('/documents/cfdi', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  const base = generateDocument('invoice', userId);
+  const xml = generateCfdiXml({ ...base.data, uuid: base.data.uuid, date: simIso() });
+  const pdfHtml = generateCfdiPdfHtml({ ...base.data, uuid: base.data.uuid, date: simShort() });
+  res.json({ type: 'cfdi', xml, pdfHtml, data: base.data });
+});
+
 simEngineRouter.get('/documents/:type', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { type } = req.params;
   const validTypes = ['invoice', 'bank_statement', 'payment_receipt', 'trial_balance', 'payroll', 'purchase_ticket', 'supplier_invoice', 'tax_declaration'];
@@ -1130,15 +1138,6 @@ simEngineRouter.get('/documents/:type', requireSupabaseAuth, async (req: Authent
     return;
   }
   res.type('html').send(doc.html);
-});
-
-// ─── R-14: Generar CFDI en PDF + XML simbólico ───────────────
-simEngineRouter.get('/documents/cfdi', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
-  const userId = req.user?.id;
-  const base = generateDocument('invoice', userId);
-  const xml = generateCfdiXml({ ...base.data, uuid: base.data.uuid, date: simIso() });
-  const pdfHtml = generateCfdiPdfHtml({ ...base.data, uuid: base.data.uuid, date: simShort() });
-  res.json({ type: 'cfdi', xml, pdfHtml, data: base.data });
 });
 
 // ─── R-09 Lore vivo: mundo, arcos y NPCs ───────────────────────
