@@ -17,9 +17,10 @@ export function auditDocument(type: string, data: any, userId?: string): AuditRe
   const validTypes = ['invoice', 'bank_statement', 'payment_receipt', 'trial_balance', 'payroll', 'purchase_ticket', 'supplier_invoice', 'tax_declaration'];
   checks.push({ name: 'Tipo válido', ok: validTypes.includes(type), detail: `Tipo: ${type}` });
 
-  // 2. Empresa correcta
-  const hasCompany = data.company === 'Operadora Logística del Norte S.A. de C.V.' || data.companyName === 'Operadora Logística del Norte S.A. de C.V.';
-  checks.push({ name: 'Empresa correcta', ok: hasCompany, detail: data.company || data.companyName || 'missing' });
+  // 2. Empresa correcta (solo si el documento declara empresa)
+  const declaredCompany = data.company || data.companyName;
+  const companyOk = !declaredCompany || declaredCompany === 'Operadora Logística del Norte S.A. de C.V.';
+  checks.push({ name: 'Empresa correcta', ok: companyOk, detail: declaredCompany || 'N/A (documento de la empresa)' });
 
   // 3. Subtotal cuadra (si existe)
   if (data.items && data.subtotal !== undefined) {
