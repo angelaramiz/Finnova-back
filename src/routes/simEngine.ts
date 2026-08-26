@@ -972,15 +972,15 @@ simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: Authenticate
       
       const { data: profile } = await supabaseAdmin
         .from('profiles')
-        .select('fullName,full_name,specialty')
+        .select('*')
         .eq('id', userId)
         .maybeSingle();
 
-      const specialty = profile?.specialty || 'accounting';
+      const specialty = (profile as any)?.specialty || 'accounting';
 
       res.json({
         userId,
-        fullName: profile?.fullName || profile?.full_name || req.user?.email || 'Usuario',
+        fullName: (profile as any)?.fullName || (profile as any)?.full_name || req.user?.email || 'Usuario',
         subscriptionStatus: data ? 'active' : 'none',
         onboardingCompleted: !!data,
         specialty,
