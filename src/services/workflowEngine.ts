@@ -175,9 +175,14 @@ Logística del Norte S.A. de C.V.`,
         id: 'form', type: 'form', title: 'Sistema Contable — Nueva Factura', description: 'Llena los campos de la factura',
         guides: [
           { id: 'g-cfdi', title: '¿Qué es un CFDI?', body: 'El CFDI 4.0 (Comprobante Fiscal Digital por Internet) es la factura electrónica que emites ante el SAT. Sin él, el cliente NO puede deducir el gasto. Debe contener: RFC emisor/receptor, uso de CFDI, régimen fiscal, método de pago y los importes.', position: 'top' },
+          { id: 'g-cliente', title: 'Selecciona el cliente', body: 'Elige en el catálogo al cliente del correo del Lic. Gómez. Un cliente equivocado emite el CFDI a la persona errónea.', anchor: '[data-guide="clientName"]', position: 'right' },
           { id: 'g-rfc', title: '¿Por qué importa el RFC?', body: 'El RFC del cliente debe ser EXACTO (homoclave incluida). Un RFC con error hace el CFDI inválido ante el SAT y genera una multa. Cópialo del catálogo de clientes.', anchor: '[data-guide="rfc"]', position: 'right' },
+          { id: 'g-servicio', title: 'El concepto del servicio', body: 'Selecciona el servicio prestado (el mismo del correo). Define qué se está facturando y su precio unitario.', anchor: '[data-guide="productDesc"]', position: 'right' },
+          { id: 'g-cantidad', title: 'Cantidad del servicio', body: 'Ingresa cuántas unidades/veces se prestó el servicio. Es un insumo para el subtotal (cantidad × precio unitario).', anchor: '[data-guide="quantity"]', position: 'right' },
+          { id: 'g-precio', title: 'Precio unitario', body: 'El precio de UNA unidad del servicio, del catálogo de productos. No lo inventes: tómnalo del catálogo o del correo.', anchor: '[data-guide="unitPrice"]', position: 'right' },
+          { id: 'g-subtotal', title: 'Cómo se calcula el subtotal', body: 'Subtotal = Cantidad × Precio unitario. El sistema lo calcula automáticamente; solo verifica que coincida.', anchor: '[data-guide="subtotal"]', position: 'right' },
           { id: 'g-iva', title: '¿Cómo se calcula el IVA?', body: 'El IVA en México es 16%. Se calcula sobre el subtotal: IVA = subtotal × 0.16. El total es subtotal + IVA. Si el cliente te pide IVA al 10% o 8%, es una TRAMPA: vigila siempre la tasa vigente.', anchor: '[data-guide="iva"]', position: 'bottom' },
-          { id: 'g-uso', title: '¿Cómo se calcula el total?', body: 'El subtotal es Cantidad × Precio unitario. El IVA se calcula sobre el subtotal (16%). El Total = Subtotal + IVA. Todos estos campos se calculan automáticamente; solo necesitas llenar Cantidad y Precio unitario.', position: 'top' },
+          { id: 'g-total', title: 'El total de la factura', body: 'Total = Subtotal + IVA. Es el importe que el cliente pagará. Verifica que los tres importes (subtotal, IVA, total) sean coherentes.', anchor: '[data-guide="total"]', position: 'right' },
         ],
         data: {
           fields: [
@@ -247,8 +252,11 @@ Departamento de Finanzas`,
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Registro de Pago', description: 'Registra el pago en el sistema',
         guides: [
-          { id: 'g-aplicar', title: '¿A qué factura aplico el pago?', body: 'Siempre verifica el FOLIO de la factura y el CLIENTE que transfirió. Un error común es aplicar el pago del cliente A a la factura del cliente B; eso corrompe los saldos. Cruza el nombre del remitente contra el correo de cobranza.', position: 'top' },
-          { id: 'g-saldo', title: 'Saldo pendiente', body: 'El saldo pendiente = total de la factura − monto recibido. Si el cliente pagó de menos, la factura queda como "pago parcial" y el saldo sigue siendo cobrable. No inventes el saldo: calcúlalo.', anchor: '[data-guide="outstandingBalance"]', position: 'bottom' },
+          { id: 'g-factura', title: '¿Qué factura se paga?', body: 'Escribe el folio de la factura que el cliente dice pagar en su correo. Un folio equivocado aplica el pago a la factura incorrecta.', anchor: '[data-guide="invoiceNumber"]', position: 'right' },
+          { id: 'g-cliente', title: '¿Qué cliente pagó?', body: 'Selecciona el cliente que transfirió (el remitente del SPEI en el correo). Aplicar el pago de A a la factura de B corrompe los saldos (trampa #2).', anchor: '[data-guide="clientName"]', position: 'right' },
+          { id: 'g-monto', title: 'Monto recibido', body: 'El importe de la transferencia SPEI, del correo del cliente. Es lo que ingresa a tu banco. No lo redondees.', anchor: '[data-guide="amountReceived"]', position: 'right' },
+          { id: 'g-metodo', title: 'Método de pago', body: 'Cómo se pagó: el correo indica Transferencia SPEI. Selecciónalo para que el asiento sea coherente (bancos).', anchor: '[data-guide="paymentMethod"]', position: 'right' },
+          { id: 'g-saldo', title: 'Saldo pendiente', body: 'Saldo pendiente = total de la factura − monto recibido. Si el cliente pagó de menos, la factura queda como pago parcial. No inventes el saldo: calcúlalo.', anchor: '[data-guide="outstandingBalance"]', position: 'bottom' },
         ],
         data: {
           fields: [
@@ -269,6 +277,7 @@ Departamento de Finanzas`,
       { stepId: 'form', field: 'invoiceNumber', type: 'exact', expected: invNum, label: 'Factura correcta', points: 3, feedback: { pass: 'Factura correcta', fail: `La factura a pagar era ${invNum}` } },
       { stepId: 'form', field: 'clientName', type: 'choice', expected: client.name, label: 'Cliente', points: 3, feedback: { pass: 'Cliente correcto', fail: 'Cliente incorrecto' } },
       { stepId: 'form', field: 'amountReceived', type: 'calculated', expected: amountPaid, tolerance: 0, label: 'Monto recibido', points: 4, feedback: { pass: 'Monto correcto', fail: `El monto era $${fmt(amountPaid)}` } },
+      { stepId: 'form', field: 'paymentMethod', type: 'choice', expected: 'Transferencia SPEI', label: 'Método de pago', points: 2, feedback: { pass: 'Método correcto', fail: 'El pago llegó por Transferencia SPEI' } },
       { stepId: 'form', field: 'outstandingBalance', type: 'calculated', expected: remaining, tolerance: 1, label: 'Saldo pendiente', points: 5, feedback: { pass: 'Saldo correcto', fail: `El saldo era $${fmt(remaining)}` } },
     ],
   };
@@ -379,16 +388,17 @@ Servicio al Cliente`,
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de conciliación', description: 'Completa la conciliación',
         guides: [
-          { id: 'g-depositos', title: '¿Qué son los depósitos en tránsito?', body: 'Son depósitos que YA registraste en tu contabilidad pero que el banco AÚN NO procesó. Se suman al saldo bancario porque el banco los va a reflejar pronto.', anchor: '[data-guide="Depósitos en tránsito"]', position: 'top' },
-          { id: 'g-cheques', title: '¿Qué son los cheques sin cobrar?', body: 'Son cheques que YA emitiste (y registraste como gasto) pero que el beneficiario AÚN NO cobró en el banco. Se restan del saldo bancario porque cuando se cobren, el saldo bajará.', anchor: '[data-guide="Cheques sin cobrar"]', position: 'bottom' },
-          { id: 'g-formula', title: 'Fórmula de conciliación', body: 'Saldo conciliado = Saldo bancario + Depósitos en tránsito - Cheques sin cobrar. Si el resultado coincide con tu saldo en libros, la conciliación cuadra.', position: 'center' },
+          { id: 'g-saldo', title: 'Saldo bancario', body: 'Es el saldo al corte que reporta el banco en el estado de cuenta (correo). Es el punto de partida de la conciliación. Cópialo tal cual.', anchor: '[data-guide="Saldo bancario"]', position: 'right' },
+          { id: 'g-depositos', title: '¿Qué son los depósitos en tránsito?', body: 'Son depósitos que YA registraste en tu contabilidad pero que el banco AÚN NO procesó. Se suman al saldo bancario porque el banco los va a reflejar pronto.', anchor: '[data-guide="Depósitos en tránsito"]', position: 'right' },
+          { id: 'g-cheques', title: '¿Qué son los cheques sin cobrar?', body: 'Son cheques que YA emitiste (y registraste como gasto) pero que el beneficiario AÚN NO cobró en el banco. Se restan del saldo bancario porque cuando se cobren, el saldo bajará.', anchor: '[data-guide="Cheques sin cobrar"]', position: 'right' },
+          { id: 'g-formula', title: 'Fórmula de conciliación', body: 'Saldo conciliado = Saldo bancario + Depósitos en tránsito − Cheques sin cobrar. Si el resultado coincide con tu saldo en libros, la conciliación cuadra. Calcúlalo tú.', anchor: '[data-guide="Saldo conciliado"]', position: 'bottom' },
         ],
         data: {
           rows: [
-            { label: 'Saldo bancario', cell_B: bankBalance },
-            { label: 'Depósitos en tránsito', cell_B: depositsInTransit },
-            { label: 'Cheques sin cobrar', cell_B: outstandingChecks },
-            { label: 'Saldo conciliado', cell_B: adjustedBank, formula: '=B1+B2-B3' },
+            { label: 'Saldo bancario', cell_B: bankBalance, editable: true },
+            { label: 'Depósitos en tránsito', cell_B: depositsInTransit, editable: true },
+            { label: 'Cheques sin cobrar', cell_B: outstandingChecks, editable: true },
+            { label: 'Saldo conciliado', cell_B: adjustedBank, editable: true },
           ],
         },
       },
@@ -398,7 +408,10 @@ Servicio al Cliente`,
       },
     ],
     validation: [
-      { stepId: 'spreadsheet', field: 'row_Saldo conciliado', label: 'Saldo conciliado', type: 'calculated', expected: adjustedBank, tolerance: 10, points: 10, feedback: { pass: 'Conciliación correcta', fail: `Saldo conciliado = $${fmt(bankBalance)} + $${fmt(depositsInTransit)} - $${fmt(outstandingChecks)} = $${fmt(adjustedBank)}` } },
+      { stepId: 'spreadsheet', field: 'row_Saldo bancario', label: 'Saldo bancario', type: 'exact', expected: bankBalance, tolerance: 0, points: 2, feedback: { pass: 'Saldo bancario correcto', fail: `El saldo bancario del estado de cuenta era $${fmt(bankBalance)}` } },
+      { stepId: 'spreadsheet', field: 'row_Depósitos en tránsito', label: 'Depósitos en tránsito', type: 'exact', expected: depositsInTransit, tolerance: 0, points: 3, feedback: { pass: 'Depósitos en tránsito correctos', fail: `Los depósitos en tránsito eran $${fmt(depositsInTransit)}` } },
+      { stepId: 'spreadsheet', field: 'row_Cheques sin cobrar', label: 'Cheques sin cobrar', type: 'exact', expected: outstandingChecks, tolerance: 0, points: 3, feedback: { pass: 'Cheques sin cobrar correctos', fail: `Los cheques sin cobrar eran $${fmt(outstandingChecks)}` } },
+      { stepId: 'spreadsheet', field: 'row_Saldo conciliado', label: 'Saldo conciliado', type: 'calculated', expected: adjustedBank, tolerance: 10, points: 10, feedback: { pass: 'Conciliación correcta', fail: `Saldo conciliado = $${fmt(bankBalance)} + $${fmt(depositsInTransit)} − $${fmt(outstandingChecks)} = $${fmt(adjustedBank)}` } },
     ],
   };
 }
@@ -469,20 +482,33 @@ Contador General`,
   };
 }
 
+function isrProgresivo(bruto: number): number {
+  // Tarifa mensual ISR ilustrativa (progresiva, NO % fijo — trampa #4).
+  // LISR tarifa: cuota fija + % sobre excedente por rango de ingreso.
+  if (bruto <= 6000) return 0;
+  if (bruto <= 30000) return Math.round(115.2 + (bruto - 6000) * 0.064);
+  return Math.round(1651.2 + (bruto - 30000) * 0.1088);
+}
+
 function generatePayrollWorkflow(): Workflow {
   const employees = [
     { name: 'Ana García', salary: 25000 },
     { name: 'Carlos López', salary: 32000 },
     { name: 'María Fernández', salary: 28000 },
     { name: 'Roberto Méndez', salary: 35000 },
-  ];
+  ].map(e => ({
+    ...e,
+    isr: isrProgresivo(e.salary),
+    imss: Math.round(e.salary * 0.05),
+    neto: e.salary - isrProgresivo(e.salary) - Math.round(e.salary * 0.05),
+  }));
   const totalGross = employees.reduce((s, e) => s + e.salary, 0);
-  const totalIsr = Math.round(totalGross * 0.15);
-  const totalImss = Math.round(totalGross * 0.05);
-  const totalNeto = totalGross - totalIsr - totalImss;
+  const totalIsr = employees.reduce((s, e) => s + e.isr, 0);
+  const totalImss = employees.reduce((s, e) => s + e.imss, 0);
+  const totalNeto = employees.reduce((s, e) => s + e.neto, 0);
 
   return {
-    taskId: `wf-nom-${r(1000, 9999)}`, taskTitle: 'Cálculo de Nómina', taskType: 'payroll', difficulty: 2, estimatedMinutes: 25,
+    taskId: `wf-nom-${r(1000, 9999)}`, taskTitle: 'Cálculo de Nómina', taskType: 'payroll', difficulty: 2, estimatedMinutes: 30,
     steps: [
       {
         id: 'email', type: 'email', title: 'Instrucciones de nómina', description: 'Calcula la nómina del mes',
@@ -496,16 +522,15 @@ Es hora de calcular la nómina de la quincena del 1 al 15 de julio.
 **Empleados y sueldos brutos:**
 ${employees.map(e => `- ${e.name}: $${fmt(e.salary)}/quincena`).join('\n')}
 
-**Retenciones a aplicar:**
-- ISR: 15% sobre sueldo bruto (conforme a tablas SAT)
-- IMSS: 5% cuota del trabajador
+**Retenciones (TARIFA PROGRESIVA del SAT — NUNCA un % fijo):**
+- ISR: tarifa mensual → tramo 1: hasta 6,000 cuota 0; tramo 2: 6,000–30,000 cuota 115.20 + 6.4% del excedente; tramo 3: +30,000 cuota 1,651.20 + 10.88% del excedente.
+- IMSS: 5% cuota del trabajador.
 
 **Instrucciones:**
-1. Ingresa a la hoja de cálculo de nómina
-2. Verifica que los sueldos brutos sean correctos
-3. Calcula ISR e IMSS para cada empleado
-4. Determina el neto a depositar
-5. Guarda el archivo para revisión
+1. Ingresa a la hoja de nómina y verifica los sueldos brutos.
+2. Calcula el ISR de CADA empleado con la tarifa (no un 15% fijo: eso es una trampa laboral).
+3. Calcula el IMSS (5%) y el neto (bruto − ISR − IMSS) de cada uno.
+4. Determina los totales de la nómina.
 
 La nómina debe estar lista antes del viernes para programar los depósitos del lunes.
 
@@ -515,19 +540,23 @@ Contador General`,
         },
       },
       {
-        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de nómina', description: 'Completa la nómina',
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de nómina', description: 'Completa la nómina con tarifa progresiva',
         guides: [
-          { id: 'g-isr', title: '¿Qué es el ISR?', body: 'El ISR (Impuesto Sobre la Renta) se retiene del sueldo bruto del empleado. En este ejercicio usamos 15% como tasa simplificada. El neto es lo que el empleado recibe después de las retenciones.', anchor: '[data-guide="ISR (15%)"]', position: 'right' },
-          { id: 'g-imss', title: '¿Qué es el IMSS?', body: 'El IMSS es la cuota del trabajador al Instituto Mexicano del Seguro Social (5%). Cubre riesgos de trabajo, enfermedad y retiro. Se descuenta del sueldo bruto junto con el ISR.', anchor: '[data-guide="IMSS (5%)"]', position: 'left' },
-          { id: 'g-neto', title: '¿Cómo se calcula el neto?', body: 'Sueldo neto = Sueldo bruto - ISR - IMSS. El neto es lo que finalmente se deposita al empleado. Verifica que la resta sea correcta antes de aprobar la nómina.', anchor: '[data-guide="Total neto"]', position: 'bottom' },
+          { id: 'g-tarifa', title: 'ISR con tarifa progresiva (no % fijo)', body: 'Aplica la tarifa por empleado según su sueldo. Ej: $25,000 cae en tramo 2: cuota $115.20 + 6.4% de (25,000−6,000)=1,216 → ISR ≈ $1,331. Un % fijo (15%) es la trampa #4: puede demandarte el trabajador.', position: 'top' },
+          { id: 'g-bruto', title: 'Sueldo bruto', body: 'Es lo pactado con cada empleado, antes de retenciones. Cópialo del correo del Lic. Gómez y verifica que coincida.', anchor: '[data-guide="Ana García"]', position: 'right' },
+          { id: 'g-isr', title: '¿Qué es el ISR?', body: 'El ISR se retiene con la TARIFA PROGRESIVA del SAT (cuota fija + % del excedente por tramo), NO con un porcentaje fijo. Cada empleado cae en un tramo distinto según su ingreso.', anchor: '[data-guide="ISR Ana García"]', position: 'right' },
+          { id: 'g-imss', title: '¿Qué es el IMSS?', body: 'El IMSS es la cuota del trabajador al Instituto Mexicano del Seguro Social (5%). Se descuenta del sueldo bruto junto con el ISR.', anchor: '[data-guide="IMSS Ana García"]', position: 'left' },
+          { id: 'g-neto', title: '¿Cómo se calcula el neto?', body: 'Sueldo neto = Sueldo bruto − ISR − IMSS. Es lo que finalmente se deposita al empleado. Verifica la resta antes de aprobar.', anchor: '[data-guide="Neto Ana García"]', position: 'bottom' },
         ],
         data: {
           rows: [
-            ...employees.map(e => ({ label: e.name, cell_B: e.salary })),
-            { label: 'Total bruto', cell_B: totalGross, formula: '=SUMA(B1:B4)' },
-            { label: 'ISR (15%)', cell_B: totalIsr, formula: '=B5*0.15' },
-            { label: 'IMSS (5%)', cell_B: totalImss, formula: '=B5*0.05' },
-            { label: 'Total neto', cell_B: totalNeto, formula: '=B5-B6-B7' },
+            ...employees.map(e => ({ label: e.name, cell_B: e.salary, editable: true })),
+            ...employees.map(e => ({ label: `ISR ${e.name}`, cell_B: e.isr, editable: true })),
+            ...employees.map(e => ({ label: `IMSS ${e.name}`, cell_B: e.imss, editable: true })),
+            ...employees.map(e => ({ label: `Neto ${e.name}`, cell_B: e.neto, editable: true })),
+            { label: 'Total bruto', cell_B: totalGross, editable: true },
+            { label: 'Total ISR', cell_B: totalIsr, editable: true },
+            { label: 'Total neto', cell_B: totalNeto, editable: true },
           ],
         },
       },
@@ -537,10 +566,15 @@ Contador General`,
       },
     ],
     validation: [
-      { stepId: 'spreadsheet', field: 'row_Total bruto', label: 'Total bruto', type: 'calculated', expected: totalGross, tolerance: 0, points: 3, feedback: { pass: 'Total bruto correcto', fail: `El total bruto era $${fmt(totalGross)}` } },
-      { stepId: 'spreadsheet', field: 'row_ISR (15%)', label: 'ISR', type: 'calculated', expected: totalIsr, tolerance: 10, points: 4, feedback: { pass: 'ISR correcto', fail: `ISR = $${fmt(totalGross)} × 15% = $${fmt(totalIsr)}` } },
-      { stepId: 'spreadsheet', field: 'row_IMSS (5%)', label: 'IMSS', type: 'calculated', expected: totalImss, tolerance: 10, points: 4, feedback: { pass: 'IMSS correcto', fail: `IMSS = $${fmt(totalGross)} × 5% = $${fmt(totalImss)}` } },
-      { stepId: 'spreadsheet', field: 'row_Total neto', label: 'Total neto', type: 'calculated', expected: totalNeto, tolerance: 20, points: 5, feedback: { pass: 'Total neto correcto', fail: `Neto = $${fmt(totalGross)} - $${fmt(totalIsr)} - $${fmt(totalImss)} = $${fmt(totalNeto)}` } },
+      ...employees.flatMap(e => ([
+        { stepId: 'spreadsheet', field: `row_${e.name}`, label: `Bruto ${e.name}`, type: 'exact' as const, expected: e.salary, tolerance: 0, points: 1, feedback: { pass: 'Bruto correcto', fail: `El bruto de ${e.name} era $${fmt(e.salary)}` } },
+        { stepId: 'spreadsheet', field: `row_ISR ${e.name}`, label: `ISR ${e.name}`, type: 'calculated' as const, expected: e.isr, tolerance: 20, points: 3, feedback: { pass: `ISR de ${e.name} correcto (tarifa)`, fail: `ISR de ${e.name} con tarifa = $${fmt(e.isr)} (no un % fijo)` } },
+        { stepId: 'spreadsheet', field: `row_IMSS ${e.name}`, label: `IMSS ${e.name}`, type: 'calculated' as const, expected: e.imss, tolerance: 10, points: 2, feedback: { pass: `IMSS de ${e.name} correcto`, fail: `IMSS de ${e.name} = $${fmt(e.salary)} × 5% = $${fmt(e.imss)}` } },
+        { stepId: 'spreadsheet', field: `row_Neto ${e.name}`, label: `Neto ${e.name}`, type: 'calculated' as const, expected: e.neto, tolerance: 30, points: 3, feedback: { pass: `Neto de ${e.name} correcto`, fail: `Neto de ${e.name} = $${fmt(e.salary)} − $${fmt(e.isr)} − $${fmt(e.imss)} = $${fmt(e.neto)}` } },
+      ])),
+      { stepId: 'spreadsheet', field: 'row_Total bruto', label: 'Total bruto', type: 'calculated', expected: totalGross, tolerance: 0, points: 2, feedback: { pass: 'Total bruto correcto', fail: `El total bruto era $${fmt(totalGross)}` } },
+      { stepId: 'spreadsheet', field: 'row_Total ISR', label: 'Total ISR', type: 'calculated', expected: totalIsr, tolerance: 50, points: 2, feedback: { pass: 'Total ISR correcto', fail: `Total ISR = $${fmt(totalIsr)}` } },
+      { stepId: 'spreadsheet', field: 'row_Total neto', label: 'Total neto', type: 'calculated', expected: totalNeto, tolerance: 80, points: 2, feedback: { pass: 'Total neto correcto', fail: `Total neto = $${fmt(totalNeto)}` } },
     ],
   };
 }
@@ -588,8 +622,13 @@ Departamento de Facturación`,
       {
         id: 'form', type: 'form', title: 'Sistema Contable — Registro de CFDI', description: 'Registra la factura del proveedor',
         guides: [
-          { id: 'g-cfdi-prov', title: 'CFDI de gasto vs CFDI de ingreso', body: 'Esta factura es un CFDI RECIBIDO: te permite ACREDITAR el IVA (reducir lo que pagas de IVA al SAT). Requisitos para que sea válido: que el proveedor esté en el padrón, que el RFC sea correcto y que la tasa de IVA sea 16%.', position: 'top' },
-          { id: 'g-iva-acred', title: 'IVA acreditable', body: 'El IVA acreditable se suma a la cuenta de IVA por pagar en el DEBE (lo reduces). Verifica: IVA = subtotal × 0.16. Un CFDI con IVA mayor/menor es señal de error o de proveedor no confiable.', anchor: '[data-guide="iva"]', position: 'bottom' },
+          { id: 'g-cfdi-prov', title: 'CFDI de gasto vs CFDI de ingreso', body: 'Esta factura es un CFDI RECIBIDO: te permite ACREDITAR el IVA (reducir lo que pagas de IVA al SAT). Requisitos: que el proveedor esté en el padrón, que el RFC sea correcto y que la tasa de IVA sea 16%.', position: 'top' },
+          { id: 'g-proveedor', title: 'Selecciona el proveedor', body: 'Elige al proveedor que emitió el CFDI (remitente del correo). Registrar un proveedor equivocado invalida la acreditación del IVA.', anchor: '[data-guide="supplierName"]', position: 'right' },
+          { id: 'g-folio', title: 'Folio fiscal', body: 'El folio CFDI-xxxxxx del encabezado del correo. Identifica el comprobante ante el SAT.', anchor: '[data-guide="folio"]', position: 'right' },
+          { id: 'g-subtotal', title: 'Subtotal', body: 'El importe antes de IVA, del CFDI del proveedor. Sobre este monto se calcula el IVA acreditable.', anchor: '[data-guide="amount"]', position: 'right' },
+          { id: 'g-iva-acred', title: 'IVA acreditable', body: 'El IVA acreditable = subtotal × 0.16. Se suma a la cuenta de IVA por pagar en el DEBE (lo reduces). Un CFDI con IVA mayor/menor es señal de error.', anchor: '[data-guide="iva"]', position: 'bottom' },
+          { id: 'g-total', title: 'Total', body: 'Total = Subtotal + IVA. Es el pasivo que registrarás con el proveedor (abono a 2-01).', anchor: '[data-guide="total"]', position: 'right' },
+          { id: 'g-categoria', title: 'Categoría', body: 'Clasifica el gasto (Servicios, Papelería, Transporte, Mantenimiento). Influye en qué cuenta de gasto se carga.', anchor: '[data-guide="category"]', position: 'right' },
         ],
         data: {
           fields: [
@@ -609,9 +648,11 @@ Departamento de Facturación`,
     ],
     validation: [
       { stepId: 'form', field: 'supplierName', type: 'choice', expected: supplier.name, label: 'Proveedor', points: 3, feedback: { pass: 'Proveedor correcto', fail: 'El proveedor no coincide' } },
+      { stepId: 'form', field: 'folio', type: 'exact', expected: folio, label: 'Folio fiscal', points: 2, feedback: { pass: 'Folio correcto', fail: `El folio fiscal era ${folio}` } },
       { stepId: 'form', field: 'amount', type: 'calculated', expected: amount, tolerance: 0, label: 'Subtotal', points: 4, feedback: { pass: 'Subtotal correcto', fail: `El subtotal era $${fmt(amount)}` } },
       { stepId: 'form', field: 'iva', type: 'calculated', expected: iva, tolerance: 1, label: 'IVA', points: 4, feedback: { pass: 'IVA correcto', fail: `IVA = $${fmt(amount)} × 16% = $${fmt(iva)}` } },
       { stepId: 'form', field: 'total', type: 'calculated', expected: total, tolerance: 1, label: 'Total', points: 4, feedback: { pass: 'Total correcto', fail: `Total = $${fmt(amount)} + $${fmt(iva)} = $${fmt(total)}` } },
+      { stepId: 'form', field: 'category', type: 'choice', expected: 'Servicios', label: 'Categoría', points: 2, feedback: { pass: 'Categoría correcta', fail: 'La categoría correcta era Servicios' } },
     ],
   };
 }
@@ -960,15 +1001,15 @@ Contador General`,
         ],
         data: {
           rows: [
-            { label: 'Fondo inicial', cell_B: cashInBox },
-            { label: 'Ventas en efectivo', cell_B: salesCash },
-            { label: 'Ventas con tarjeta', cell_B: salesCard },
-            { label: 'Total ventas', cell_B: totalSales, formula: '=SUMA(B2:B3)' },
-            { label: 'Gastos del turno', cell_B: expenses },
-            { label: 'Depósitos realizados', cell_B: deposits },
-            { label: 'Efectivo esperado', cell_B: expectedCash, formula: '=B1+B2-B5-B6' },
-            { label: 'Efectivo contado', cell_B: actualCash },
-            { label: 'Diferencia', cell_B: difference, formula: '=B8-B7' },
+            { label: 'Fondo inicial', cell_B: cashInBox, editable: true },
+            { label: 'Ventas en efectivo', cell_B: salesCash, editable: true },
+            { label: 'Ventas con tarjeta', cell_B: salesCard, editable: true },
+            { label: 'Total ventas', cell_B: totalSales, editable: true },
+            { label: 'Gastos del turno', cell_B: expenses, editable: true },
+            { label: 'Depósitos realizados', cell_B: deposits, editable: true },
+            { label: 'Efectivo esperado', cell_B: expectedCash, editable: true },
+            { label: 'Efectivo contado', cell_B: actualCash, editable: true },
+            { label: 'Diferencia', cell_B: difference, editable: true },
           ],
         },
       },
@@ -978,8 +1019,15 @@ Contador General`,
       },
     ],
     validation: [
-      { stepId: 'spreadsheet', field: 'row_Efectivo esperado', label: 'Efectivo esperado', type: 'calculated', expected: expectedCash, tolerance: 10, points: 8, feedback: { pass: 'Efectivo esperado correcto', fail: `Efectivo esperado = $${fmt(expectedCash)}` } },
-      { stepId: 'spreadsheet', field: 'row_Diferencia', label: 'Diferencia', type: 'calculated', expected: difference, tolerance: 10, points: 7, feedback: { pass: 'Diferencia correcta', fail: `Diferencia = $${fmt(actualCash)} - $${fmt(expectedCash)} = $${fmt(difference)}` } },
+      { stepId: 'spreadsheet', field: 'row_Fondo inicial', label: 'Fondo inicial', type: 'exact', expected: cashInBox, tolerance: 0, points: 2, feedback: { pass: 'Fondo correcto', fail: `El fondo de caja era $${fmt(cashInBox)}` } },
+      { stepId: 'spreadsheet', field: 'row_Ventas en efectivo', label: 'Ventas en efectivo', type: 'exact', expected: salesCash, tolerance: 0, points: 2, feedback: { pass: 'Ventas en efectivo correctas', fail: `Las ventas en efectivo eran $${fmt(salesCash)}` } },
+      { stepId: 'spreadsheet', field: 'row_Ventas con tarjeta', label: 'Ventas con tarjeta', type: 'exact', expected: salesCard, tolerance: 0, points: 1, feedback: { pass: 'Ventas con tarjeta correctas', fail: `Las ventas con tarjeta eran $${fmt(salesCard)}` } },
+      { stepId: 'spreadsheet', field: 'row_Total ventas', label: 'Total ventas', type: 'calculated', expected: totalSales, tolerance: 0, points: 2, feedback: { pass: 'Total ventas correcto', fail: `Total ventas = $${fmt(salesCash)} + $${fmt(salesCard)} = $${fmt(totalSales)}` } },
+      { stepId: 'spreadsheet', field: 'row_Gastos del turno', label: 'Gastos del turno', type: 'exact', expected: expenses, tolerance: 0, points: 1, feedback: { pass: 'Gastos correctos', fail: `Los gastos del turno eran $${fmt(expenses)}` } },
+      { stepId: 'spreadsheet', field: 'row_Depósitos realizados', label: 'Depósitos realizados', type: 'exact', expected: deposits, tolerance: 0, points: 1, feedback: { pass: 'Depósitos correctos', fail: `Los depósitos realizados eran $${fmt(deposits)}` } },
+      { stepId: 'spreadsheet', field: 'row_Efectivo esperado', label: 'Efectivo esperado', type: 'calculated', expected: expectedCash, tolerance: 10, points: 8, feedback: { pass: 'Efectivo esperado correcto', fail: `Efectivo esperado = $${fmt(cashInBox)} + $${fmt(salesCash)} − $${fmt(expenses)} − $${fmt(deposits)} = $${fmt(expectedCash)}` } },
+      { stepId: 'spreadsheet', field: 'row_Efectivo contado', label: 'Efectivo contado', type: 'exact', expected: actualCash, tolerance: 0, points: 2, feedback: { pass: 'Efectivo contado correcto', fail: `El efectivo físico contado era $${fmt(actualCash)}` } },
+      { stepId: 'spreadsheet', field: 'row_Diferencia', label: 'Diferencia', type: 'calculated', expected: difference, tolerance: 10, points: 7, feedback: { pass: 'Diferencia correcta', fail: `Diferencia = $${fmt(actualCash)} − $${fmt(expectedCash)} = $${fmt(difference)}` } },
     ],
   };
 }
@@ -1185,7 +1233,14 @@ function applyTrap(wf: Workflow, trap: string): Workflow {
       if (email) {
         email.data.body += `\n\n**IMPORTANTE — REVISAR:**\nLa semana pasada se emitió un cheque de **$${fmt(missingCheck)}** a Transportes Express que aún no aparece cobrado en el estado de cuenta.\nVerifica que esté considerado en los cheques sin cobrar de la conciliación.\n`;
       }
-      wf.validation.push({ stepId: 'spreadsheet', field: 'row_Cheques sin cobrar', label: 'Cheques sin cobrar (cheque faltante)', type: 'calculated', expected: correctChecks, tolerance: 10, points: 6, feedback: { pass: 'Correcto: incluiste el cheque de $3,500 que faltaba', fail: `El cheque de $3,500 emitido la semana pasada no estaba en el estado de cuenta. Cheques sin cobrar = $${fmt(outstandingChecks)} + $3,500 = $${fmt(correctChecks)}` } });
+      // Actualiza la regla base (existe gracias a la comprobación de tarea) en vez de duplicarla.
+      const cheqRule = wf.validation.find(v => v.field === 'row_Cheques sin cobrar');
+      if (cheqRule) {
+        cheqRule.expected = correctChecks;
+        cheqRule.points = 6;
+        cheqRule.label = 'Cheques sin cobrar (cheque faltante)';
+        cheqRule.feedback = { pass: 'Correcto: incluiste el cheque de $3,500 que faltaba', fail: `El cheque de $3,500 emitido la semana pasada no estaba en el estado de cuenta. Cheques sin cobrar = $${fmt(outstandingChecks)} + $3,500 = $${fmt(correctChecks)}` };
+      }
       const saldoRule = wf.validation.find(v => v.field === 'row_Saldo conciliado');
       if (saldoRule) {
         saldoRule.expected = bankBalance + depositsInTransit - correctChecks;
