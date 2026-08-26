@@ -668,6 +668,7 @@ Contador General`,
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de cálculo — Registro de gasto', description: 'Calcula el gasto deducible y el IVA acreditable',
         guides: [
+          { id: 'g-extract', title: '🧾 Qué extraer del ticket', body: 'Mira el ticket (panel derecho): cada línea marca "→ campo X". El encabezado trae Empresa, RFC y Folio; la tabla trae Subtotal, IVA, Propina y Total. Todo lo extraído va al portal izquierdo, en su campo. Avanza la guía para ver campo por campo.', anchor: '[data-guide="ticket"]', position: 'left' },
           { id: 'g-empresa', title: '🏢 Empresa / Razón social', body: 'La razón social está en el encabezado del ticket. Cópiala tal cual aparece: "La Parrilla del Norte". Es el establecimiento que emitió el ticket.', anchor: '[data-guide="Empresa / Razón social"]', position: 'right' },
           { id: 'g-rfc', title: '🪪 RFC del establecimiento', body: 'El RFC impreso en el ticket es "LPN-880707-ABC". Sin RFC válido el ticket no es soporte fiscal. Cópialo exacto, con guiones.', anchor: '[data-guide="RFC del establecimiento"]', position: 'right' },
           { id: 'g-folio', title: '🎫 Folio del ticket', body: 'El folio (TK-xxxxx) identifica el ticket. Está en el encabezado después de "Folio:". Servirá como referencia del gasto.', anchor: '[data-guide="Folio del ticket"]', position: 'right' },
