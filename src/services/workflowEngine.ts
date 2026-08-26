@@ -668,8 +668,15 @@ Contador General`,
       {
         id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja de cálculo — Registro de gasto', description: 'Calcula el gasto deducible y el IVA acreditable',
         guides: [
-          { id: 'g-deducible', title: '¿Cuánto es deducible?', body: 'Para gastos de restaurantes, la deducción es del 65% del consumo (subtotal). La propina NO es deducible. Registra el subtotal como gasto y el IVA (16% del subtotal) como IVA acreditable.', anchor: '[data-guide="Gasto deducible (65% restaurantes)"]', position: 'top' },
-          { id: 'g-cargo', title: '¿Dónde se registra en la contabilidad?', body: 'El asiento es: Cargo a "5-03 Gastos de administración" por el subtotal, cargo a "2-03 IVA por pagar" (lado acreditable) por el IVA, y abono a "1-02 Bancos" por el total pagado. La propina no aparece como gasto deducible.', anchor: '[data-guide="Total pagado"]', position: 'bottom' },
+          { id: 'g-empresa', title: '🏢 Empresa / Razón social', body: 'La razón social está en el encabezado del ticket. Cópiala tal cual aparece: "La Parrilla del Norte". Es el establecimiento que emitió el ticket.', anchor: '[data-guide="Empresa / Razón social"]', position: 'right' },
+          { id: 'g-rfc', title: '🪪 RFC del establecimiento', body: 'El RFC impreso en el ticket es "LPN-880707-ABC". Sin RFC válido el ticket no es soporte fiscal. Cópialo exacto, con guiones.', anchor: '[data-guide="RFC del establecimiento"]', position: 'right' },
+          { id: 'g-folio', title: '🎫 Folio del ticket', body: 'El folio (TK-xxxxx) identifica el ticket. Está en el encabezado después de "Folio:". Servirá como referencia del gasto.', anchor: '[data-guide="Folio del ticket"]', position: 'right' },
+          { id: 'g-subtotal', title: '📋 Subtotal del ticket', body: 'El consumo sin IVA ni propina. En el ticket es la línea "Subtotal (consumos)". Esse es el monto deducible base (el 65% se aplica sobre él).', anchor: '[data-guide="Subtotal del ticket"]', position: 'right' },
+          { id: 'g-propina', title: '💡 Propina (no deducible)', body: 'La propina es voluntaria, NO es deducible y NO genera IVA. En el ticket es la línea "Propina". Se liquida pero se reclasifica como gasto no deducible.', anchor: '[data-guide="Propina (no deducible)"]', position: 'right' },
+          { id: 'g-iva', title: '🧮 IVA del consumo (16%)', body: 'IVA = Subtotal × 16%. Solo del consumo, sin propina. Si subtotal=$1,563, IVA=$250 (redondeo). Este IVA SÍ es acreditable.', anchor: '[data-guide="IVA del consumo (16%)"]', position: 'right' },
+          { id: 'g-total', title: '💰 Total pagado', body: 'Total = Subtotal + IVA + Propina. Todo lo que se pagó con la tarjeta. Abona a "1-02 Bancos" por este monto.', anchor: '[data-guide="Total pagado"]', position: 'right' },
+          { id: 'g-deducible', title: '📊 Gasto deducible (65%)', body: 'En restaurantes solo el 65% del subtotal es deducible (LISR). Ej: $1,563 × 65% = $1,016. La propina no entra. Va a "5-03 Gastos de administración".', anchor: '[data-guide="Gasto deducible (65% restaurantes)"]', position: 'right' },
+          { id: 'g-acreditable', title: '✅ IVA acreditable', body: 'El IVA acreditable es el mismo IVA del consumo ($250). Es el IVA que reduces de tu IVA por pagar al SAT. La propina no genera IVA acreditable.', anchor: '[data-guide="IVA acreditable"]', position: 'right' },
         ],
         data: {
           rows: [
