@@ -976,7 +976,7 @@ simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: Authenticate
         .eq('id', userId)
         .maybeSingle();
 
-      const specialty = profile?.specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+      const specialty = profile?.specialty || 'accounting';
 
       res.json({
         userId,
@@ -986,6 +986,8 @@ simEngineRouter.get('/my-profile', requireSupabaseAuth, async (req: Authenticate
         specialty,
         assignedJob: specialty === 'data_engineering'
           ? { id: 'b0000000-0000-0000-0000-000000000003', title: 'Analista de Datos', description: 'SQL, Python, profiling, calidad de datos — desbloquea Ingeniería o Ciencia con tu práctica', difficulty: 1 }
+          : specialty === 'practicas'
+          ? { id: 'b0000000-0000-0000-0000-000000000005', title: 'Practicante de Contabilidad', description: 'Módulos guiados de facturación, gastos, cobranza, proveedores, nómina y conciliación.', difficulty: 1 }
           : { id: 'b0000000-0000-0000-0000-000000000001', title: 'Auxiliar Contable', description: 'Apoyo en registro de operaciones diarias, facturación y conciliación bancaria.', difficulty: 1 },
       });
       return;
