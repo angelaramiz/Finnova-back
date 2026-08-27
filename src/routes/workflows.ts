@@ -4,6 +4,7 @@ import { generateWorkflow, ValidationRule, registerWorkflow, getStoredWorkflow }
 import { getDEWorkflow, getDSWorkflow } from '../services/dataEngineeringWorkflows';
 import { runDEValidator } from '../services/deValidation';
 import { runDSValidator } from '../services/dsValidation';
+import { getAdvancedWorkflow, runAdvancedValidator } from '../services/advancedDataEngines';
 import { recoverIncident } from '../services/simWorld';
 import { ingestEvents } from '../services/learningAnalytics';
 import { enrichFeedback } from '../services/qualityConsumption';
@@ -13,6 +14,7 @@ export const workflowRouter = Router();
 const accountingTypes = ['invoice_emission', 'payment_registration', 'tax_calculation', 'bank_reconciliation', 'journal_entry', 'payroll', 'supplier_invoice', 'business_expense', 'payment_scheduling', 'ap_reconciliation', 'cfdi_reception', 'credit_note', 'cash_cut', 'depreciation', 'financial_statements'];
 const deTypes = ['sql_query', 'etl_pipeline', 'data_quality', 'ontology_modeling', 'airflow_dag', 'code_review', 'soporte_datos', 'incident_recovery'];
 const dsTypes = ['eda_churn', 'modelo_baseline', 'eval_metricas'];
+const advancedTypes = ['excel_advanced', 'powerbi_dax', 'forecast_sales', 'automation_etl', 'llm_integration', 'agent_task', 'prompt_engineering'];
 
 // GET /api/sim/workflows/:taskType — Genera workflow para tipo de tarea
 workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
@@ -28,6 +30,9 @@ workflowRouter.get('/:taskType', requireSupabaseAuth, async (req: AuthenticatedR
     res.json(workflow);
   } else if (dsTypes.includes(taskType)) {
     const workflow = registerWorkflow(userId, getDSWorkflow(taskType));
+    res.json(workflow);
+  } else if (advancedTypes.includes(taskType)) {
+    const workflow = registerWorkflow(userId, getAdvancedWorkflow(taskType));
     res.json(workflow);
   } else {
     res.status(400).json({ error: `Tipo no válido: ${taskType}` });
@@ -83,6 +88,24 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
       }
       case 'ds': {
         const vr = runDSValidator(rule, answers);
+        passed = vr.passed;
+        if (rule.feedback && !vr.passed) rule.feedback.fail = vr.feedback;
+        if (rule.feedback && vr.passed) rule.feedback.pass = vr.feedback;
+        results.push({
+          field: rule.field,
+          label: rule.label,
+          expected: rule.validator,
+          received: userAnswer !== undefined ? userAnswer : '(texto evaluado)',
+          passed,
+          points: passed ? rule.points : 0,
+          maxPoints: rule.points,
+          feedback: vr.feedback,
+        });
+        if (passed) totalScore += rule.points;
+        continue;
+      }
+      case 'advanced': {
+        const vr = runAdvancedValidator(rule, answers);
         passed = vr.passed;
         if (rule.feedback && !vr.passed) rule.feedback.fail = vr.feedback;
         if (rule.feedback && vr.passed) rule.feedback.pass = vr.feedback;

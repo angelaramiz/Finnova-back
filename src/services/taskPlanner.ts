@@ -232,6 +232,56 @@ const DE_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     emailSubject: 'Evaluación de modelo', emailFrom: 'Ing. Sandra Mora',
     phase: ctx.phase || 'ds',
   }),
+  // ── Motores avanzados R-15 (carrera data completa) ──────────
+  excel_advanced: (ctx) => ({
+    id: generateTaskId(), title: 'Excel avanzado — Reporte con XLOOKUP/SUMIFS', type: 'excel_advanced',
+    difficulty: ctx.difficulty || 2, time: 20, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'excel', description: 'Resolver reporte con funciones avanzadas o tabla dinámica',
+    emailSubject: 'Reporte avanzado de ventas', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'analyst',
+  }),
+  powerbi_dax: (ctx) => ({
+    id: generateTaskId(), title: 'Power BI — Medida DAX del mart', type: 'powerbi_dax',
+    difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'bi', description: 'Escribir medida DAX (CALCULATE + SUMX) sobre mrt_ventas_por_cliente',
+    emailSubject: 'Medida DAX para el panel de ventas', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'analyst',
+  }),
+  forecast_sales: (ctx) => ({
+    id: generateTaskId(), title: 'Pronóstico — Ventas con media móvil', type: 'forecast_sales',
+    difficulty: ctx.difficulty || 2, time: 20, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'forecast', description: 'Pronosticar ventas y reportar MAPE',
+    emailSubject: 'Pronóstico de ventas de julio', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'analyst',
+  }),
+  automation_etl: (ctx) => ({
+    id: generateTaskId(), title: 'Automatización — Workflow n8n de ingesta', type: 'automation_etl',
+    difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'automation', description: 'Diseñar workflow n8n de ingesta diaria',
+    emailSubject: 'Automatizar la ingesta diaria', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
+  }),
+  llm_integration: (ctx) => ({
+    id: generateTaskId(), title: 'API LLM — Resumen de ventas', type: 'llm_integration',
+    difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'llm', description: 'Llamada chat completions con system prompt',
+    emailSubject: 'Integrar LLM para resumen ejecutivo', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
+  }),
+  agent_task: (ctx) => ({
+    id: generateTaskId(), title: 'Agente — Consulta con loop y herramienta', type: 'agent_task',
+    difficulty: ctx.difficulty || 3, time: 25, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'agent', description: 'Diseñar agente que consulta herramienta con memoria',
+    emailSubject: 'Agente para consultas de negocio', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'de',
+  }),
+  prompt_engineering: (ctx) => ({
+    id: generateTaskId(), title: 'Prompt engineering — Mejora de instrucción', type: 'prompt_engineering',
+    difficulty: ctx.difficulty || 2, time: 20, week: ctx.week, day: ctx.day,
+    priority: 'media', category: 'prompt', description: 'Mejorar prompt con formato y few-shot',
+    emailSubject: 'Mejorar prompt del asistente', emailFrom: 'Ing. Sandra Mora',
+    phase: ctx.phase || 'ds',
+  }),
 };
 
 // ─── Trampas por especialidad ─────────────────────────────────
@@ -280,7 +330,14 @@ const DS_WEEKS: Record<number, WeekSpec> = {
   1: { theme: 'EDA y exploración (Ciencia)', tasks: [{ type: 'eda_churn', count: 2, difficulty: 2, phase: 'analyst' }, { type: 'sql_query', count: 1, difficulty: 2, phase: 'analyst' }, { type: 'data_quality', count: 1, difficulty: 2, phase: 'analyst' }] },
   2: { theme: 'Modelo baseline (Ciencia)', tasks: [{ type: 'modelo_baseline', count: 2, difficulty: 3, phase: 'ds' }, { type: 'eda_churn', count: 1, difficulty: 2, phase: 'ds' }] },
   3: { theme: 'Evaluación de modelos (Ciencia)', tasks: [{ type: 'eval_metricas', count: 2, difficulty: 2, phase: 'ds' }, { type: 'modelo_baseline', count: 1, difficulty: 3, phase: 'ds' }] },
-  4: { theme: 'Capstone de ciencia', tasks: [{ type: 'eval_metricas', count: 2, difficulty: 3, phase: 'ds' }, { type: 'eda_churn', count: 1, difficulty: 2, phase: 'ds', countsAsCase: true }, { type: 'modelo_baseline', count: 1, difficulty: 3, phase: 'ds', countsAsCase: true }] },
+  4: { theme: 'Capstone de ciencia', tasks: [{ type: 'eval_metricas', count: 2, difficulty: 3, phase: 'ds' }, { type: 'eda_churn', count: 1, difficulty: 2, phase: 'ds', countsAsCase: true }, { type: 'modelo_baseline', count: 1, difficulty: 3, phase: 'ds', countsAsCase: true }, { type: 'prompt_engineering', count: 1, difficulty: 2, phase: 'ds' }] },
+};
+
+// Semanas de motores avanzados R-15: se fusionan con las semanas base.
+const ADVANCED_WEEKS: Record<string, Record<number, WeekSpec>> = {
+  analyst: { 3: { theme: 'Motores avanzados — Analista (BI/DAX, Excel, Pronóstico)', tasks: [{ type: 'powerbi_dax', count: 2, difficulty: 3, phase: 'analyst' }, { type: 'excel_advanced', count: 1, difficulty: 2, phase: 'analyst' }, { type: 'forecast_sales', count: 1, difficulty: 2, phase: 'analyst' }] } },
+  engineering: { 3: { theme: 'Motores avanzados — Ingeniería (n8n, LLM, Agentes)', tasks: [{ type: 'automation_etl', count: 2, difficulty: 3, phase: 'de' }, { type: 'llm_integration', count: 1, difficulty: 3, phase: 'de' }, { type: 'agent_task', count: 1, difficulty: 3, phase: 'de' }] } },
+  science: { 4: { theme: 'Motores avanzados — Ciencia (Prompt)', tasks: [{ type: 'prompt_engineering', count: 2, difficulty: 2, phase: 'ds' }] } },
 };
 
 // ─── Generador principal ─────────────────────────────────────
@@ -294,9 +351,9 @@ export function generateMonthPlan(month: number, year: number, specialtyId: stri
   //  - ruta ciencia: semanas 3-4 (DS)
   let weeks = isDE ? DE_WEEKS : specialtyId === 'practicas' ? PRACTICAS_WEEKS : ACCOUNTING_WEEKS;
   if (isDE) {
-    if (route === 'ds') weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...DS_WEEKS };
-    else if (route === 'de') weeks = DE_WEEKS;
-    else weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2] }; // analista: solo base común
+    if (route === 'ds') weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...DS_WEEKS, ...ADVANCED_WEEKS.science };
+    else if (route === 'de') weeks = { ...DE_WEEKS, ...ADVANCED_WEEKS.engineering };
+    else weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...ADVANCED_WEEKS.analyst }; // analista: base + motores avanzados
   }
   const templates = isDE ? DE_TASK_TEMPLATES : ACCOUNTING_TASK_TEMPLATES;
   const traps = isDE ? DE_TRAPS : ACCOUNTING_TRAPS;
