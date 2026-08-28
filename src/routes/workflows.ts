@@ -155,7 +155,7 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
     });
   }
 
-  const passed = totalScore >= (maxPossible * 0.6);
+  const passed = maxPossible > 0 && totalScore >= (maxPossible * 0.6);
   const scorePct = maxPossible > 0 ? Math.round((totalScore / maxPossible) * 100) : 0;
 
   // R-11: telemetría anonimizada de cada regla fallida (flywheel).
