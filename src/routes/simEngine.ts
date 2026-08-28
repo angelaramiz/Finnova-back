@@ -340,7 +340,8 @@ simEngineRouter.get('/task-plan/:month/:year', requireSupabaseAuth, async (req: 
   const month = parseInt(req.params.month) || 6;
   const year = parseInt(req.params.year) || 2026;
   const specialty = (req.query.specialty as string) || 'accounting';
-  const plan = generateMonthPlan(month, year, specialty);
+  const route = (req.query.route as 'analyst' | 'de' | 'ds') || undefined;
+  const plan = generateMonthPlan(month, year, specialty, route);
   res.json(plan);
 });
 
@@ -350,7 +351,8 @@ simEngineRouter.get('/today-tasks/:month/:year/:week/:day', requireSupabaseAuth,
   const week = parseInt(req.params.week) || 1;
   const day = parseInt(req.params.day) || 1;
   const specialty = (req.query.specialty as string) || 'accounting';
-  const tasks = getTodayTasks(month, year, week, day, specialty);
+  const route = (req.query.route as 'analyst' | 'de' | 'ds') || undefined;
+  const tasks = getTodayTasks(month, year, week, day, specialty, route);
   res.json(tasks);
 });
 
@@ -359,7 +361,8 @@ simEngineRouter.get('/week-tasks/:month/:year/:week', requireSupabaseAuth, async
   const year = parseInt(req.params.year) || 2026;
   const week = parseInt(req.params.week) || 1;
   const specialty = (req.query.specialty as string) || 'accounting';
-  const tasks = getWeekTasks(month, year, week, specialty);
+  const route = (req.query.route as 'analyst' | 'de' | 'ds') || undefined;
+  const tasks = getWeekTasks(month, year, week, specialty, route);
   res.json(tasks);
 });
 
@@ -434,8 +437,8 @@ simEngineRouter.get('/exercises/difficulty/:level', requireSupabaseAuth, async (
 simEngineRouter.post('/progress/record', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
-  const { taskId, taskType, title, category, specialty, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback } = req.body;
-  const completion = await recordCompletion(userId, { taskId, taskType, title, category, specialty: specialty || 'accounting', difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback });
+  const { taskId, taskType, title, category, specialty, difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback, countsAsCase } = req.body;
+  const completion = await recordCompletion(userId, { taskId, taskType, title, category, specialty: specialty || 'accounting', difficulty, score, maxScore, passed, week, day, timeSpent, isTrap, trapDetected, feedback, countsAsCase: !!countsAsCase });
   res.json(completion);
 });
 

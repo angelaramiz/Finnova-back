@@ -4,6 +4,9 @@
 // configurado; en desarrollo (mocks) o ante fallo degrada a memoria.
 
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
+import { getSpecialty } from './specialties';
+
+const CASE_TYPES = new Set(['eda_churn', 'modelo_baseline', 'eval_metricas', 'ecosistema_da', 'ecosistema_de', 'ecosistema_ds']);
 
 export interface TaskCompletion {
   id: string;
@@ -109,6 +112,7 @@ export async function recordCompletion(userId: string, data: {
   isTrap?: boolean;
   trapDetected?: boolean;
   feedback?: string;
+  countsAsCase?: boolean;
 }): Promise<TaskCompletion> {
   const progress = await getUserProgress(userId, data.specialty);
   const completion: TaskCompletion = {
@@ -235,10 +239,16 @@ export async function computePracticeBreakdown(userId: string, specialty: string
   const simCompletions = progress.filter(t => t.score >= 70 && !t.isTrap);
   const caseCompletions = progress.filter(t => t.isTrap === false && (t as any).countsAsCase || false);
 
+  // Totales derivados del plan real (no hardcodeados) para que Capa 0 +
+  // ecosistema + motores avanzados no saturen los buckets.
+  const wfTypes = getSpecialty(specialty).workflowTypes || [];
+  const simsTotal = Math.max(8, wfTypes.length);            // todos los workflows validables
+  const casesTotal = Math.max(3, wfTypes.filter(t => CASE_TYPES.has(t)).length);
+
   return {
     tasks: { done: taskCompletions.length, total: 12 },
-    sims: { validated: simCompletions.length, total: 8 },
-    cases: { done: caseCompletions.length, total: 3 },
+    sims: { validated: simCompletions.length, total: simsTotal },
+    cases: { done: caseCompletions.length, total: casesTotal },
   };
 }
 

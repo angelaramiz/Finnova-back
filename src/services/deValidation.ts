@@ -3,7 +3,7 @@
 // código/query/decisión que escribió el estudiante y devuelven feedback
 // técnico, como lo haría un lead revisando el trabajo.
 
-export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review' | 'incident';
+export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review' | 'incident' | 'bi' | 'basic_read';
 
 export interface DEValidationResult {
   passed: boolean;
@@ -149,6 +149,28 @@ export function validateIncident(answers: Record<string, any>): DEValidationResu
   return { passed: true, feedback: 'Diagnóstico correcto: dbt_test falló en positive(total_ventas); corregiste el modelo y reprocesaste el run.' };
 }
 
+export function validateBI(answers: Record<string, any>): DEValidationResult {
+  const visual = normalize(answers['row_Visual del tablero']);
+  const fuente = normalize(answers['row_Origen de los datos']);
+  const ok = /barras|tabla|gráfico|grafico|linea|linea|tarjeta|kpi|punto/.test(visual)
+    && /mart|warehouse|mrt|dato|base|fuente|query|ventas/.test(fuente);
+  if (!visual || !fuente) return { passed: false, feedback: 'Completa el visual (barras/tabla/gráfico) y el origen de los datos (mart/warehouse).' };
+  if (!ok) return { passed: false, feedback: 'Un visual BI básico: 1 gráfico (barras/tabla) alimentado de un dataset (mart/warehouse), publicado.' };
+  return { passed: true, feedback: 'BI básico correcto: visual publicado desde el dataset.' };
+}
+
+// Mini-módulo de solo lectura: basta identificar el dato/estado solicitado.
+export function validateBasicRead(answers: Record<string, any>): DEValidationResult {
+  const field = ruleField(answers);
+  if (field && String(field).trim()) return { passed: true, feedback: 'Identificación correcta (solo lectura).' };
+  return { passed: false, feedback: 'Identifica el dato solicitado (estado/SLA/métrica) para completar la lectura.' };
+}
+
+function ruleField(answers: Record<string, any>): any {
+  const key = Object.keys(answers).find(k => /row_/.test(k));
+  return key ? answers[key] : undefined;
+}
+
 export function runDEValidator(rule: any, answers: Record<string, any>): DEValidationResult {
   switch (rule.validator) {
     case 'sql': return validateSQL(answers, rule.trap);
@@ -156,6 +178,8 @@ export function runDEValidator(rule: any, answers: Record<string, any>): DEValid
     case 'quality_decision': return validateQualityDecision(answers, rule.field, rule.trap);
     case 'review': return validateReview(answers);
     case 'incident': return validateIncident(answers);
+    case 'bi': return validateBI(answers);
+    case 'basic_read': return validateBasicRead(answers);
     default: return { passed: false, feedback: `Validador desconocido: ${rule.validator}` };
   }
 }

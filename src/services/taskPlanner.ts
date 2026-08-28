@@ -282,6 +282,23 @@ const DE_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     emailSubject: 'Mejorar prompt del asistente', emailFrom: 'Ing. Sandra Mora',
     phase: ctx.phase || 'ds',
   }),
+  // ── Fundamentos Capa 0 (no countsAsCase) ─────────────────────
+  excel_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Excel básico', type: 'excel_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'excel', description: 'Concepto de Excel (tablas, tipos, Power Query)', emailSubject: 'Fundamento Excel', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'analyst' }),
+  sql_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — SQL básico', type: 'sql_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'sql', description: 'SELECT/WHERE/JOIN', emailSubject: 'Fundamento SQL', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'analyst' }),
+  catalog_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Catálogo', type: 'catalog_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'data_quality', description: 'Linaje raw→stg→mrt', emailSubject: 'Fundamento Catálogo', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'analyst' }),
+  bi_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — BI', type: 'bi_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'bi', description: 'Un visual desde un dataset', emailSubject: 'Fundamento BI', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'analyst' }),
+  python_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Python/pandas', type: 'python_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'etl', description: 'Limpieza básica', emailSubject: 'Fundamento Python', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de' }),
+  foundry_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Foundry', type: 'foundry_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'etl', description: '@transform mínimo', emailSubject: 'Fundamento Foundry', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de' }),
+  airflow_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Airflow', type: 'airflow_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'monitoring', description: 'DAG y dependencia', emailSubject: 'Fundamento Airflow', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de' }),
+  git_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Git', type: 'git_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'code_review', description: 'PR y hallazgos', emailSubject: 'Fundamento Git', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de' }),
+  monitor_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Monitor', type: 'monitor_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'incident', description: 'Estado/SLA (solo lectura)', emailSubject: 'Fundamento Monitor', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de' }),
+  stats_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Stats', type: 'stats_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'ds', description: 'describe/nulos', emailSubject: 'Fundamento Stats', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'ds' }),
+  ml_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — ML', type: 'ml_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'ds', description: 'split/target', emailSubject: 'Fundamento ML', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'ds' }),
+  metricas_basico: (ctx) => ({ id: generateTaskId(), title: 'Fundamento — Métricas', type: 'metricas_basico', difficulty: 1, time: 15, week: ctx.week, day: ctx.day, priority: 'baja', category: 'ds', description: 'RMSE/accuracy', emailSubject: 'Fundamento Métricas', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'ds' }),
+  // ── Ecosistema Capa 1 (countsAsCase) ─────────────────────────
+  ecosistema_da: (ctx) => ({ id: generateTaskId(), title: 'Ecosistema — Analista', type: 'ecosistema_da', difficulty: 3, time: 30, week: ctx.week, day: ctx.day, priority: 'alta', category: 'bi', description: 'DAX integrado sobre el mart', emailSubject: 'Ecosistema Analista', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'analyst', countsAsCase: true }),
+  ecosistema_de: (ctx) => ({ id: generateTaskId(), title: 'Ecosistema — Ingeniero', type: 'ecosistema_de', difficulty: 3, time: 30, week: ctx.week, day: ctx.day, priority: 'alta', category: 'automation', description: 'n8n/LLM/agente sobre el pipeline', emailSubject: 'Ecosistema Ingeniero', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'de', countsAsCase: true }),
+  ecosistema_ds: (ctx) => ({ id: generateTaskId(), title: 'Ecosistema — Científico', type: 'ecosistema_ds', difficulty: 3, time: 30, week: ctx.week, day: ctx.day, priority: 'alta', category: 'forecast', description: 'EDA→modelo→pronóstico', emailSubject: 'Ecosistema Científico', emailFrom: 'Ing. Sandra Mora', phase: ctx.phase || 'ds', countsAsCase: true }),
 };
 
 // ─── Trampas por especialidad ─────────────────────────────────
@@ -340,6 +357,20 @@ const ADVANCED_WEEKS: Record<string, Record<number, WeekSpec>> = {
   science: { 4: { theme: 'Motores avanzados — Ciencia (Prompt)', tasks: [{ type: 'prompt_engineering', count: 2, difficulty: 2, phase: 'ds' }] } },
 };
 
+// Capa 0 — Fundamentos por herramienta (no countsAsCase). Se inserta antes del ecosistema.
+const FUNDAMENTALS_WEEKS: Record<string, Record<number, WeekSpec>> = {
+  analyst: { 2: { theme: 'Capa 0 — Fundamentos Analista (Excel→SQL→Catalog→BI)', tasks: [{ type: 'excel_basico', count: 1, difficulty: 1, phase: 'analyst' }, { type: 'sql_basico', count: 1, difficulty: 1, phase: 'analyst' }, { type: 'catalog_basico', count: 1, difficulty: 1, phase: 'analyst' }, { type: 'bi_basico', count: 1, difficulty: 1, phase: 'analyst' }] } },
+  engineering: { 2: { theme: 'Capa 0 — Fundamentos Ingeniería (Python→Foundry→Airflow→Git→Monitor)', tasks: [{ type: 'python_basico', count: 1, difficulty: 1, phase: 'de' }, { type: 'foundry_basico', count: 1, difficulty: 1, phase: 'de' }, { type: 'airflow_basico', count: 1, difficulty: 1, phase: 'de' }, { type: 'git_basico', count: 1, difficulty: 1, phase: 'de' }, { type: 'monitor_basico', count: 1, difficulty: 1, phase: 'de' }] } },
+  science: { 3: { theme: 'Capa 0 — Fundamentos Ciencia (Stats→ML→Métricas)', tasks: [{ type: 'stats_basico', count: 1, difficulty: 1, phase: 'ds' }, { type: 'ml_basico', count: 1, difficulty: 1, phase: 'ds' }, { type: 'metricas_basico', count: 1, difficulty: 1, phase: 'ds' }] } },
+};
+
+// Capa 1 — Ecosistema (countsAsCase): práctica integrada del rol.
+const ECOSYSTEM_WEEKS: Record<string, Record<number, WeekSpec>> = {
+  analyst: { 3: { theme: 'Capa 1 — Ecosistema Analista (Power Pivot/DAX + UNIQUE/FILTER + forecast)', tasks: [{ type: 'ecosistema_da', count: 1, difficulty: 3, phase: 'analyst', countsAsCase: true }, { type: 'powerbi_dax', count: 1, difficulty: 3, phase: 'analyst' }, { type: 'forecast_sales', count: 1, difficulty: 2, phase: 'analyst' }] } },
+  engineering: { 3: { theme: 'Capa 1 — Ecosistema Ingeniería (n8n + LLM + Agente sobre lno_sales_pipeline)', tasks: [{ type: 'ecosistema_de', count: 1, difficulty: 3, phase: 'de', countsAsCase: true }, { type: 'automation_etl', count: 1, difficulty: 3, phase: 'de' }, { type: 'llm_integration', count: 1, difficulty: 3, phase: 'de' }] } },
+  science: { 4: { theme: 'Capa 1 — Ecosistema Ciencia (EDA→modelo→pronóstico→prompt)', tasks: [{ type: 'ecosistema_ds', count: 1, difficulty: 3, phase: 'ds', countsAsCase: true }, { type: 'prompt_engineering', count: 1, difficulty: 2, phase: 'ds' }, { type: 'forecast_sales', count: 1, difficulty: 2, phase: 'ds' }] } },
+};
+
 // ─── Generador principal ─────────────────────────────────────
 
 export function generateMonthPlan(month: number, year: number, specialtyId: string = 'accounting', route?: 'analyst' | 'de' | 'ds'): MonthPlan {
@@ -351,9 +382,23 @@ export function generateMonthPlan(month: number, year: number, specialtyId: stri
   //  - ruta ciencia: semanas 3-4 (DS)
   let weeks = isDE ? DE_WEEKS : specialtyId === 'practicas' ? PRACTICAS_WEEKS : ACCOUNTING_WEEKS;
   if (isDE) {
-    if (route === 'ds') weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...DS_WEEKS, ...ADVANCED_WEEKS.science };
-    else if (route === 'de') weeks = { ...DE_WEEKS, ...ADVANCED_WEEKS.engineering };
-    else weeks = { 1: DE_WEEKS[1], 2: DE_WEEKS[2], ...ADVANCED_WEEKS.analyst }; // analista: base + motores avanzados
+    // Capa 0 (fundamentos) → Capa 1 (ecosistema + motores avanzados), por rama.
+    // Fusiona semanas que coinciden (misma clave de semana) en vez de sobrescribir.
+    const merge = (...sets: (Record<number, WeekSpec> | undefined)[]) => {
+      const out: Record<number, WeekSpec> = {};
+      for (const set of sets) {
+        if (!set) continue;
+        for (const [k, spec] of Object.entries(set)) {
+          const week = Number(k);
+          if (out[week]) out[week] = { theme: out[week].theme + ' + ' + spec.theme, tasks: [...out[week].tasks, ...spec.tasks] };
+          else out[week] = spec;
+        }
+      }
+      return out;
+    };
+    if (route === 'ds') weeks = merge({ 1: DE_WEEKS[1] }, DS_WEEKS, FUNDAMENTALS_WEEKS.science, ECOSYSTEM_WEEKS.science, ADVANCED_WEEKS.science);
+    else if (route === 'de') weeks = merge({ 1: DE_WEEKS[1], 4: DE_WEEKS[4] }, FUNDAMENTALS_WEEKS.engineering, ECOSYSTEM_WEEKS.engineering, ADVANCED_WEEKS.engineering);
+    else weeks = merge({ 1: DE_WEEKS[1] }, FUNDAMENTALS_WEEKS.analyst, ECOSYSTEM_WEEKS.analyst, ADVANCED_WEEKS.analyst); // analista: fundamentos → ecosistema
   }
   const templates = isDE ? DE_TASK_TEMPLATES : ACCOUNTING_TASK_TEMPLATES;
   const traps = isDE ? DE_TRAPS : ACCOUNTING_TRAPS;
