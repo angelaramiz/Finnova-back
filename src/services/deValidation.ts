@@ -3,7 +3,7 @@
 // código/query/decisión que escribió el estudiante y devuelven feedback
 // técnico, como lo haría un lead revisando el trabajo.
 
-export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review' | 'incident' | 'bi' | 'basic_read';
+export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review' | 'incident' | 'bi' | 'basic_read' | 'concept';
 
 export interface DEValidationResult {
   passed: boolean;
@@ -171,6 +171,36 @@ function ruleField(answers: Record<string, any>): any {
   return key ? answers[key] : undefined;
 }
 
+// Validadores de concepto (Capa 0, fundamentos por herramienta).
+// Lee el campo REAL del formulario (rule.field) y exige mencionar el
+// concepto clave de la herramienta — evita auto-aprueba en vacío.
+const TOOL_KEYWORDS: Record<string, RegExp> = {
+  excel: /tabla|tipo|power ?query|limpi|columna/i,
+  sql: /select|where|join|group ?by|query|consulta/i,
+  catalog: /linaje|lineage|catálogo|catalogo|raw|stg|mrt|dataset/i,
+  bi: /visual|gráfico|grafico|barras|dashboard|tablero|kpi/i,
+  python: /pandas|limpi|fillna|dropna|imputar|drop_duplicates/i,
+  foundry: /transform|foundry|transformar|lectura/i,
+  airflow: /dag|dependencia|airflow|schedule|trigger/i,
+  git: /pr|pull request|select \*|review|rechazar|diff/i,
+  monitor: /sla|estado|pipeline|falló|fallo|05-jul|alert/i,
+  stats: /describe|nulos|distribución|distribucion|media|mediana|correlaci/i,
+  ml: /split|train|test|target|churn|objetivo|baseline/i,
+  metricas: /rmse|accuracy|métrica|metrica|precisi/i,
+  default: /.+/i,
+};
+
+export function validateConcept(rule: any, answers: Record<string, any>): DEValidationResult {
+  const field = String(rule.field || '');
+  const raw = answers[field];
+  const value = String(raw ?? '').trim();
+  if (!value) return { passed: false, feedback: 'Responde con el concepto de la herramienta; el campo no puede quedar vacío.' };
+  const tool = String(rule.concept || 'default').toLowerCase();
+  const re = TOOL_KEYWORDS[tool] || TOOL_KEYWORDS.default;
+  if (!re.test(value)) return { passed: false, feedback: `Tu respuesta no menciona el concepto clave de ${tool} (revisa la guía).` };
+  return { passed: true, feedback: `Concepto de ${tool} identificado correctamente.` };
+}
+
 export function runDEValidator(rule: any, answers: Record<string, any>): DEValidationResult {
   switch (rule.validator) {
     case 'sql': return validateSQL(answers, rule.trap);
@@ -180,6 +210,7 @@ export function runDEValidator(rule: any, answers: Record<string, any>): DEValid
     case 'incident': return validateIncident(answers);
     case 'bi': return validateBI(answers);
     case 'basic_read': return validateBasicRead(answers);
+    case 'concept': return validateConcept(rule, answers);
     default: return { passed: false, feedback: `Validador desconocido: ${rule.validator}` };
   }
 }
