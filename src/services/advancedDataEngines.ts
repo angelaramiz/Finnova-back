@@ -49,10 +49,10 @@ export function mape(actual: number, forecast: number): number {
 
 export function validateExcel(answers: Record<string, any>): AdvancedValidationResult {
   const formula = norm(answers['row_Fórmula avanzada que usarías']);
-  const ok = has(formula, [/xlookup/, /sumifs/, /countifs/, /pivot/i]);
-  if (!formula) return { passed: false, feedback: 'Escribe la fórmula avanzada (XLOOKUP, SUMIFS/COUNTIFS o pivot) que resolvería el reporte.' };
-  if (!ok) return { passed: false, feedback: 'Usa una función avanzada (XLOOKUP/SUMIFS/COUNTIFS) o una tabla dinámica; SUM/IF base no basta.' };
-  return { passed: true, feedback: 'Excel avanzado correcto: elegiste XLOOKUP/SUMIFS/COUNTIFS o pivot para resolver el reporte.' };
+  const ok = has(formula, [/xlookup/, /buscarx/, /sumifs/, /sumar\.si\.conjunto/, /countifs/, /contar\.si\.conjunto/, /unique/, /unico/, /filter/, /filtrar/, /pivot/i]);
+  if (!formula) return { passed: false, feedback: 'Escribe la fórmula avanzada (XLOOKUP/BUSCARX, SUMIFS, UNIQUE/FILTER o pivot) que resolvería el reporte.' };
+  if (!ok) return { passed: false, feedback: 'Usa una función avanzada (XLOOKUP/BUSCARX, SUMIFS, UNIQUE/FILTER) o una tabla dinámica; SUM/IF base no basta. Bloque 6 (VBA) fue sustituido por Modelo de Datos / Matriz Dinámica.' };
+  return { passed: true, feedback: 'Excel avanzado correcto: elegiste XLOOKUP/SUMIFS/UNIQUE/FILTER o pivot para resolver el reporte.' };
 }
 
 export function validateDAX(answers: Record<string, any>): AdvancedValidationResult {

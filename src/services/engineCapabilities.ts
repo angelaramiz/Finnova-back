@@ -55,9 +55,9 @@ export const ENGINE_CAPABILITIES: EngineCapability[] = [
   { id: 'contabilidad', skill: 'Contabilidad', status: 'exists', label: 'Contable', icon: '📊', tool: 'accounting', taskTypes: ['journal_entry', 'financial_statements', 'depreciation'], engineModule: 'AccountingSystem / autoEntries' },
 
   // ─── Extender (el motor existe parcial, falta función) ───────
-  { id: 'excel_advanced', skill: 'Excel', status: 'exists', label: 'Excel avanzado', icon: '📈', tool: 'spreadsheet', taskTypes: ['excel_advanced'], validator: 'excel', engineModule: 'advancedDataEngines.validateExcel',
-    gap: 'Faltan XLOOKUP, SUMIFS/COUNTIFS, tablas dinámicas y Power Query; hoy solo hay fórmulas base (SUM/IF/VLOOKUP/INDEX/MATCH).',
-    buildPlan: ['Añadir XLOOKUP y SUMIFS/COUNTIFS al motor evaluateFormula', 'Motor de tablas dinámicas (pivot) sobre rangos', 'Extender BiSim/Excel para gráficos dinámicos'] },
+  { id: 'excel_advanced', skill: 'Excel', status: 'exists', label: 'Excel avanzado', icon: '📈', tool: 'spreadsheet', taskTypes: ['excel_advanced'], validator: 'excel', engineModule: 'SpreadsheetSim (XLOOKUP/BUSCARX, SUMIFS, COUNTIFS, UNIQUE, FILTER + pivots) + Power Pivot/DAX (bloque 6 VBA sustituido por Modelo de Datos)',
+    gap: 'Bloque 6 VBA eliminado (obsoleto para IA/SQL). Cierre por criterio v2.',
+    buildPlan: ['Modelo de Datos con Power Pivot / DAX básico (relaciones, medidas) como bloque 6', 'Funciones de Matriz Dinámica UNIQUE/FILTER (Sustituto de VBA para automatización)', 'SIMULAB v2 con densidad por criterio (p1 0.4 PQ, p2 0.2 pivot, p3 0.15 fórmulas, p4 0.15 dashboard, p5 0.1 oral)'] },
   { id: 'power_bi', skill: 'Power BI', status: 'exists', label: 'Power BI / DAX', icon: '📊', tool: 'bi', taskTypes: ['powerbi_dax'], validator: 'dax', engineModule: 'advancedDataEngines.validateDAX (CALCULATE/SUMX sobre MART_TOTAL=128350)' },
   { id: 'forecast', skill: 'Pronóstico', status: 'exists', label: 'Pronóstico', icon: '🔮', taskTypes: ['forecast_sales'], validator: 'forecast', engineModule: 'advancedDataEngines (media móvil, MAPE sobre serie del mart)' },
   { id: 'n8n', skill: 'Automatización', status: 'exists', label: 'n8n / Power Automate', icon: '⚙️', aliases: ['n8n', 'power automate', 'make', 'automatizacion', 'workflow automation'], taskTypes: ['automation_etl'], validator: 'automation', engineModule: 'advancedDataEngines.validateAutomation' },
