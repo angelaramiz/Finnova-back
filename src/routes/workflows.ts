@@ -49,7 +49,7 @@ workflowRouter.post('/validate', requireSupabaseAuth, async (req: AuthenticatedR
   }
 
   const stored = typeof workflowId === 'string' ? getStoredWorkflow(userId, workflowId) : undefined;
-  const workflow = stored ?? (dsTypes.includes(taskType) ? getDSWorkflow(taskType) : deTypes.includes(taskType) ? getDEWorkflow(taskType) : generateWorkflow(taskType, userId, typeof trap === 'string' ? trap : undefined));
+  const workflow = stored ?? (advancedTypes.includes(taskType) ? getAdvancedWorkflow(taskType) : dsTypes.includes(taskType) ? getDSWorkflow(taskType) : deTypes.includes(taskType) ? getDEWorkflow(taskType) : generateWorkflow(taskType, userId, typeof trap === 'string' ? trap : undefined));
   const results: any[] = [];
   let totalScore = 0;
   let maxPossible = 0;
