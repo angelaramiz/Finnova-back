@@ -59,8 +59,21 @@ function eco(type: string, validator: 'dax' | 'automation' | 'forecast', toolApp
 }
 
 export const FUNDAMENTALS_WORKFLOWS: Record<string, () => FundWorkflow> = {
-  // ── DA (Analista): Capa 0 ──
-  excel_basico: () => fund('excel_basico', 'excel', 'excel', [{ key: 'row_Concepto de Excel', label: 'Concepto de Excel (tabla, tipos o Power Query) que aplicarías', type: 'textarea' }]),
+  // ── DA (Analista): Capa 0 — Excel con 3 tareas concretas (carga→XLOOKUP→SUMIFS) para que no sea lienzo en blanco
+  excel_basico: () => {
+    const w = fund('excel_basico', 'excel', 'excel', [
+      { key: 'row_Power Query que harías', label: '1) ¿Qué harías en Power Query? (quitar nulos, tipos)', type: 'textarea' },
+      { key: 'row_Fórmula XLOOKUP', label: '2) Fórmula XLOOKUP/BUSCARX que usarías', type: 'textarea' },
+      { key: 'row_Fórmula SUMIFS', label: '3) Fórmula SUMIFS/SUMAR.SI.CONJUNTO que usarías', type: 'textarea' },
+    ]);
+    // Sobrescribe validación para que las 3 se evalúen (concept por campo, lee rule.field real)
+    w.validation = [
+      { stepId: 'form', field: 'row_Power Query que harías', validator: 'concept', concept: 'excel', type: 'de', label: 'Power Query', points: 4, feedback: { pass: 'Power Query correcto', fail: 'Menciona Power Query, quitar nulos y tipos' } },
+      { stepId: 'form', field: 'row_Fórmula XLOOKUP', validator: 'concept', concept: 'excel', type: 'de', label: 'XLOOKUP', points: 3, feedback: { pass: 'XLOOKUP correcto', fail: 'Usa XLOOKUP/BUSCARX para cruzar el precio' } },
+      { stepId: 'form', field: 'row_Fórmula SUMIFS', validator: 'concept', concept: 'excel', type: 'de', label: 'SUMIFS', points: 3, feedback: { pass: 'SUMIFS correcto', fail: 'Usa SUMIFS/SUMAR.SI.CONJUNTO para el total por categoría' } },
+    ];
+    return w;
+  },
   sql_basico: () => fund('sql_basico', 'sql', 'sql', [{ key: 'row_Concepto de SQL', label: 'Consulta SQL básica (SELECT/WHERE/JOIN) que harías', type: 'textarea' }]),
   catalog_basico: () => fund('catalog_basico', 'catalog', 'catalog', [{ key: 'row_Concepto de catálogo', label: 'Linaje raw→stg→mrt que localizaste en el catálogo', type: 'textarea' }]),
   bi_basico: () => fund('bi_basico', 'bi', 'bi', [
