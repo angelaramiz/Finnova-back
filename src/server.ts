@@ -245,7 +245,7 @@ if (isProduction) {
     // Si no está el build de alumnos, retornar un mensaje simple de API
     app.get('*', (req: Request, res: Response) => {
       res.status(200).json({
-        message: 'AuraFi Academy API is running.',
+        message: 'FinNova Academy API is running.',
         docs: 'Use API clients to communicate with available resources.'
       });
     });
@@ -277,7 +277,7 @@ app.listen(PORT, () => {
     JSON.stringify({
       level: 'info',
       time: new Date().toISOString(),
-      msg: `AuraFi Academy backend escuchando en puerto ${PORT}`,
+      msg: `FinNova Academy backend escuchando en puerto ${PORT}`,
       env: {
         NODE_ENV: process.env.NODE_ENV,
         RENDER: !!process.env.RENDER,

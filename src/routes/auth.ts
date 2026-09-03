@@ -975,7 +975,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
   const portalName = request.role === 'instructor' ? 'Personal/Docente' : 'Alumnos';
   const textContent = `¡Hola ${request.fullName}!
 
-Tu cuenta para ingresar a AuraFi Academy ha sido creada.
+Tu cuenta para ingresar a FinNova Academy ha sido creada.
 Usa las siguientes credenciales para acceder a la plataforma:
 
   - Portal: ${portalName}
@@ -989,7 +989,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
 
   const htmlContent = `
     <h2>¡Hola ${request.fullName}!</h2>
-    <p>Tu cuenta para ingresar a <strong>AuraFi Academy</strong> ha sido creada.</p>
+    <p>Tu cuenta para ingresar a <strong>FinNova Academy</strong> ha sido creada.</p>
     <p>Usa las siguientes credenciales para acceder a la plataforma:</p>
     <ul>
       <li><strong>Portal:</strong> ${portalName}</li>
@@ -1002,7 +1002,7 @@ Además, cada inicio de sesión requerirá verificación OTP vía correo.
 
   EmailProvider.sendEmail({
     to: request.email,
-    subject: 'Tu cuenta en AuraFi Academy ha sido creada',
+    subject: 'Tu cuenta en FinNova Academy ha sido creada',
     html: htmlContent,
     text: textContent,
     type: 'credentials'
@@ -1613,14 +1613,14 @@ authRouter.post('/request-password-reset', async (req: any, res: Response): Prom
         return;
       }
 
-      const textContent = `Has solicitado restablecer tu contraseña en AuraFi Academy.
+      const textContent = `Has solicitado restablecer tu contraseña en FinNova Academy.
 Tu código OTP de restablecimiento es: ${otpCode}
 
 Este código expira en 10 minutos. No lo compartas con nadie.`;
 
       const htmlContent = `
         <h3>Restablecimiento de Contraseña</h3>
-        <p>Has solicitado restablecer tu contraseña en AuraFi Academy. Tu código OTP de un solo uso es:</p>
+        <p>Has solicitado restablecer tu contraseña en FinNova Academy. Tu código OTP de un solo uso es:</p>
         <div style="font-size: 24px; font-weight: bold; letter-spacing: 4px; padding: 10px; background-color: #f3f4f6; text-align: center; border-radius: 8px; margin: 15px 0; font-family: monospace;">
           ${otpCode}
         </div>

@@ -17,7 +17,7 @@ export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
   global: {
     headers: {
       // Fuerza el uso del service role para bypasear RLS en operaciones de admin
-      'X-Client-Info': 'aura-fi-backend/1.0'
+      'X-Client-Info': 'finnova-backend/1.0'
     }
   }
 });
