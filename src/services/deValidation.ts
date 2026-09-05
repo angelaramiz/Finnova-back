@@ -3,7 +3,8 @@
 // código/query/decisión que escribió el estudiante y devuelven feedback
 // técnico, como lo haría un lead revisando el trabajo.
 
-export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review' | 'incident' | 'bi' | 'basic_read' | 'concept';
+export type DEValidatorId = 'sql' | 'etl_clean' | 'quality_decision' | 'review'
+  | 'incident' | 'bi' | 'basic_read' | 'concept' | 'estructural';
 
 export interface DEValidationResult {
   passed: boolean;
@@ -211,6 +212,47 @@ export function runDEValidator(rule: any, answers: Record<string, any>): DEValid
     case 'bi': return validateBI(answers);
     case 'basic_read': return validateBasicRead(answers);
     case 'concept': return validateConcept(rule, answers);
+    case 'estructural': return validateEstructural(rule, answers);
     default: return { passed: false, feedback: `Validador desconocido: ${rule.validator}` };
   }
+}
+
+// Validador estructural (bucle AND Data Analyst, congelado 2026-09-03).
+// Variable 1 de la compuerta AND: la respuesta PASA los tests de calificacion
+// de resultados (la variable 2 - autoconfianza del alumno - es nivel UI, no validator).
+// Chequeos deterministas por seed (misma entrada -> mismo veredicto, sin azar):
+//   a) limpieza sin-enie: SQL/codigo no maneja la enie; el alumno debe limpiar
+//      (anio/ano). Si el campo trae n/enie, falla con feedback pedagogico.
+//   b) requireAll: elementos estructurales obligatorios (substrings case-insensitive).
+//   c) forbid: patrones prohibidos (p. ej. SELECT * en contexto curado).
+export interface EstructuralRule {
+  validator: 'estructural';
+  field: string;
+  requireAll?: string[];
+  forbid?: string[];
+  seed?: string | number;
+}
+
+export function validateEstructural(rule: EstructuralRule, answers: Record<string, any>): DEValidationResult {
+  const value = String(answers[rule.field] ?? '').trim();
+  if (!value) return { passed: false, feedback: 'Campo vacio: la validacion estructural no auto-aprueba.' };
+  if (/[ñÑ]/.test(value)) {
+    return {
+      passed: false,
+      feedback: 'Tu respuesta trae "ñ" y SQL no la maneja: limpia el dato sin enie (p. ej. columna "anio", no "año").',
+    };
+  }
+  const lower = value.toLowerCase();
+  for (const req of rule.requireAll || []) {
+    if (!lower.includes(req.toLowerCase())) {
+      return { passed: false, feedback: `Falta el elemento estructural obligatorio: "${req}".` };
+    }
+  }
+  for (const bad of rule.forbid || []) {
+    if (lower.includes(bad.toLowerCase())) {
+      return { passed: false, feedback: `Patron prohibido en este ejercicio: "${bad}".` };
+    }
+  }
+  const seed = rule.seed !== undefined ? ` (seed ${rule.seed})` : '';
+  return { passed: true, feedback: `Estructura valida${seed}: sin enie y con todos los elementos obligatorios.` };
 }
