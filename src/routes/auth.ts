@@ -1125,13 +1125,16 @@ authRouter.post('/login-credentials', async (req: any, res: Response): Promise<v
         return;
       }
 
-      // Validar contraseña (soporta texto plano heredado o bcrypt)
+      // Solo bcrypt (P0 Seguridad): los hashes heredados en texto plano se
+      // rechazan y fuerzan reset — nunca se comparan en claro.
       let isMatch = false;
       if (profile.passwordHash) {
         if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
           isMatch = await bcrypt.compare(password, profile.passwordHash);
         } else {
-          isMatch = profile.passwordHash === password;
+          await supabaseAdmin.from('profiles').update({ mustChangePassword: true }).eq('id', profile.id);
+          res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas. Tu cuenta requiere restablecer contraseña.' });
+          return;
         }
       }
 
@@ -1204,13 +1207,16 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
     return;
   }
 
-  // Validar contraseña localmente con bcrypt
+  // Solo bcrypt en memoria local (P0 Seguridad): texto plano heredado se
+  // rechaza y fuerza reset — nunca se compara en claro.
   let isMatch = false;
   if (profile.passwordHash) {
     if (profile.passwordHash.startsWith('$2a$') || profile.passwordHash.startsWith('$2b$')) {
       isMatch = bcrypt.compareSync(password, profile.passwordHash);
     } else {
-      isMatch = profile.passwordHash === password;
+      profile.mustChangePassword = true;
+      res.status(401).json({ error: 'Unauthorized', message: 'Credenciales inválidas. Tu cuenta requiere restablecer contraseña.' });
+      return;
     }
   }
 
