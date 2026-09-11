@@ -30,7 +30,11 @@ function signMockJWT(userId: string, email: string, role: string, fullName: stri
   const headerB64 = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
   const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   const message = `${headerB64}.${payloadB64}`;
-  const jwtSecret = process.env.SUPABASE_JWT_SECRET || 'your-default-local-supabase-jwt-secret-for-signing';
+  const jwtSecret = process.env.SUPABASE_JWT_SECRET;
+  if (!jwtSecret) {
+    // Fail-closed (P0 Seguridad): sin secreto no se firma nada (fuera fallback por defecto).
+    throw new Error('SUPABASE_JWT_SECRET no configurado en el entorno');
+  }
   const signature = crypto.createHmac('sha256', jwtSecret).update(message).digest('base64url');
   return `${message}.${signature}`;
 }
@@ -426,7 +430,13 @@ authRouter.post('/login-simulated', async (req: any, res: Response): Promise<voi
   }
 
   // Sign mock JWT token using the HS256 algorithm defined in auth middleware
-  const token = signMockJWT(userId, normalizedEmail, allowed.role, allowed.fullName);
+  let token: string;
+  try {
+    token = signMockJWT(userId, normalizedEmail, allowed.role, allowed.fullName);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Server Misconfiguration', message: 'SUPABASE_JWT_SECRET no configurado.' });
+    return;
+  }
 
   res.status(200).json({
     token,
@@ -1226,7 +1236,13 @@ Este código expira en 5 minutos. No lo compartas con nadie.`;
   }
 
   if (process.env.DISABLE_OTP === 'true') {
-    const token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+    let token: string;
+    try {
+      token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+    } catch (err: any) {
+      res.status(500).json({ error: 'Server Misconfiguration', message: 'SUPABASE_JWT_SECRET no configurado.' });
+      return;
+    }
     res.status(200).json({ token, profile });
     return;
   }
@@ -1499,7 +1515,13 @@ authRouter.post('/verify-otp', async (req: any, res: Response): Promise<void> =>
   }
 
   // Sign mock JWT token using the HS256 algorithm defined in auth middleware
-  const token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+  let token: string;
+  try {
+    token = signMockJWT(profile.id, normalizedEmail, profile.role, profile.fullName);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Server Misconfiguration', message: 'SUPABASE_JWT_SECRET no configurado.' });
+    return;
+  }
 
   res.status(200).json({
     token,
