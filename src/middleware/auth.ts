@@ -9,6 +9,23 @@ export interface AuthenticatedRequest extends Request {
   };
 }
 
+// Mock fail-closed (P0 Seguridad): el mock SOLO se activa con opt-in
+// explícito (`ALLOW_MOCK_AUTH === 'true'`) Y entorno no-producción.
+// Sin opt-in, o en producción, no existe ningún usuario mock.
+export function isMockAuthEnabled(): boolean {
+  const optIn = (process.env.ALLOW_MOCK_AUTH || '').trim().toLowerCase().replace(/['"]/g, '') === 'true';
+  const isProduction = process.env.NODE_ENV === 'production' || !!process.env.RENDER;
+  return optIn && !isProduction;
+}
+
+// Fixture fijo del lado servidor: id, email y ROL nunca salen de headers
+// del cliente (antes `x-mock-user-id` permitía elegirse rol admin).
+const MOCK_USER = {
+  id: '22222222-2222-2222-2222-222222222222',
+  email: 'student_tester@gmail.com',
+  role: 'student' as const,
+};
+
 /**
  * Decodes and cryptographically validates HS256 JWT tokens.
  */
@@ -52,25 +69,16 @@ function verifySupabaseJWT(token: string): any {
 
 /**
  * Express middleware to verify Supabase JWT tokens.
- * Supports elegant sandbox fall-backs if Supabase secrets are pending setup.
+ * Mock fail-closed (P0 Seguridad): el actor mock SOLO existe en dev local
+ * con opt-in explícito (`ALLOW_MOCK_AUTH === 'true'`) y entorno no-producción.
  */
 export function requireSupabaseAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  const mockUserId = req.headers['x-mock-user-id'] as string || '22222222-2222-2222-2222-222222222222';
-  
-  const rawMockFlag = process.env.ENABLE_DOCKER_MOCKS || 'false';
-  const isMockAllowed = rawMockFlag.trim().toLowerCase().replace(/['"]/g, '') === 'true';
-
-  console.log(`[Auth Debug] Path: ${req.originalUrl} | ENABLE_DOCKER_MOCKS: "${rawMockFlag}" | isMockAllowed: ${isMockAllowed} | authHeader: ${!!authHeader}`);
 
   if (!authHeader) {
-    if (isMockAllowed) {
-      // Inject mock student actor for iframe preview flows
-      req.user = {
-        id: mockUserId,
-        email: mockUserId.endsWith('3333') ? 'admin@finnova.academy' : mockUserId.endsWith('1111') ? 'profesor.senior@finanzas.edu' : 'student_tester@gmail.com',
-        role: mockUserId.endsWith('3333') ? 'admin' : mockUserId.endsWith('1111') ? 'instructor' : 'student',
-      };
+    if (isMockAuthEnabled()) {
+      // Fixture fijo del servidor para flujos de preview local
+      req.user = { ...MOCK_USER };
       return next();
     }
     res.status(401).json({
@@ -98,13 +106,9 @@ export function requireSupabaseAuth(req: AuthenticatedRequest, res: Response, ne
     };
     next();
   } catch (err: any) {
-    if (isMockAllowed) {
-      // Fallback securely in local dev sandbox
-      req.user = {
-        id: mockUserId,
-        email: mockUserId.endsWith('3333') ? 'admin@finnova.academy' : mockUserId.endsWith('1111') ? 'profesor.senior@finanzas.edu' : 'student_tester@gmail.com',
-        role: mockUserId.endsWith('3333') ? 'admin' : mockUserId.endsWith('1111') ? 'instructor' : 'student',
-      };
+    if (isMockAuthEnabled()) {
+      // Fallback solo en sandbox local con opt-in
+      req.user = { ...MOCK_USER };
       return next();
     }
     
@@ -122,18 +126,10 @@ export function requireSupabaseAuth(req: AuthenticatedRequest, res: Response, ne
  */
 export function optionalSupabaseAuth(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
-  
-  const rawMockFlag = process.env.ENABLE_DOCKER_MOCKS || '';
-  const isMockAllowed = rawMockFlag.trim().toLowerCase().replace(/['"]/g, '') !== 'false' && process.env.REQUIRE_REAL_AUTH !== 'true';
 
   if (!authHeader) {
-    if (isMockAllowed) {
-      const mockUserId = req.headers['x-mock-user-id'] as string || '22222222-2222-2222-2222-222222222222';
-      req.user = {
-        id: mockUserId,
-        email: mockUserId.endsWith('3333') ? 'admin@finnova.academy' : mockUserId.endsWith('1111') ? 'profesor.senior@finanzas.edu' : 'student_tester@gmail.com',
-        role: mockUserId.endsWith('3333') ? 'admin' : mockUserId.endsWith('1111') ? 'instructor' : 'student',
-      };
+    if (isMockAuthEnabled()) {
+      req.user = { ...MOCK_USER };
     }
     return next();
   }
@@ -151,14 +147,9 @@ export function optionalSupabaseAuth(req: AuthenticatedRequest, res: Response, n
       role: payload.user_metadata?.role || 'student',
     };
   } catch (err) {
-    // In dev sandbox, inject mock as fallback
-    if (isMockAllowed) {
-      const mockUserId = req.headers['x-mock-user-id'] as string || '22222222-2222-2222-2222-222222222222';
-      req.user = {
-        id: mockUserId,
-        email: mockUserId.endsWith('3333') ? 'admin@finnova.academy' : mockUserId.endsWith('1111') ? 'profesor.senior@finanzas.edu' : 'student_tester@gmail.com',
-        role: mockUserId.endsWith('3333') ? 'admin' : mockUserId.endsWith('1111') ? 'instructor' : 'student',
-      };
+    // En sandbox local con opt-in, fixture fijo como fallback
+    if (isMockAuthEnabled()) {
+      req.user = { ...MOCK_USER };
     }
   }
   next();
