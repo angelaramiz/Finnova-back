@@ -38,8 +38,13 @@ function fund(type: string, concept: string, toolApp: string, fields: { key: str
       { id: 'form', type: 'form', title: 'Respuesta', description: 'Completa el campo', data: { fields } },
       { id: 'result', type: 'result', title: 'Completado', description: 'Fundamento listo', data: { type } },
     ],
-    // validator 'concept' lee el campo REAL del formulario (rule.field) y exige el keyword de la herramienta.
-    validation: [{ stepId: 'form', field: fields[0].key, validator: 'concept', concept, type: 'de', label: `Fundamento ${type}`, points: 10, feedback: { pass: 'Concepto identificado', fail: 'Revisa tu respuesta' } }],
+    // P1-1 (bucle AND): 'concept' convive como pre-filtro con 0 puntos donde hay
+    // 'estructural' (10 pts: sin-enie + no-vacio; requireAll/forbid por
+    // herramienta pendientes de definicion TPM en PROP-2).
+    validation: [
+      { stepId: 'form', field: fields[0].key, validator: 'concept', concept, type: 'de', label: `Fundamento ${type} (pre-filtro)`, points: 0, feedback: { pass: 'Concepto identificado', fail: 'Revisa tu respuesta' } },
+      { stepId: 'form', field: fields[0].key, validator: 'estructural', type: 'de', label: `Estructura ${type}`, seed: type, requireAll: [], forbid: [], points: 10, feedback: { pass: 'Estructura valida: sin enie y completa.', fail: 'Revisa la estructura (sin enie).' } },
+    ],
   };
 }
 

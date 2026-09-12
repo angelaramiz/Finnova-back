@@ -104,14 +104,17 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   if (origin && ALLOWED_ORIGINS.includes(origin)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
+    // Credenciales SOLO para orígenes de la allow-list explícita.
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
   } else if (!isProduction) {
-    // En desarrollo local sin origin definido, permitir cualquiera
-    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    // En desarrollo local sin origin listado: abierto pero SIN credenciales
+    // (nunca reflejar Origin arbitrario con credentials).
+    res.setHeader('Access-Control-Allow-Origin', '*');
   }
 
-  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-view-mode, x-mock-user-id');
+  // P0 Seguridad: `x-mock-user-id` fuera de headers permitidos (rol no clientable).
+  res.setHeader('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, x-view-mode');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   // Strict HTTP Security headers
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
@@ -272,6 +275,22 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 
 // Arrancar el servidor — siempre en Render, opcional en modo local
 const PORT = process.env.PORT || 3001;
+
+// P0 Seguridad: guard de arranque — abortar si el mock está ON en producción.
+if (
+  (process.env.ALLOW_MOCK_AUTH || '').trim().toLowerCase().replace(/['"]/g, '') === 'true' &&
+  (process.env.NODE_ENV === 'production' || !!process.env.RENDER)
+) {
+  console.error(
+    JSON.stringify({
+      level: 'fatal',
+      time: new Date().toISOString(),
+      msg: 'ALLOW_MOCK_AUTH=true en entorno de producción: arranque abortado (fail-closed).',
+    })
+  );
+  process.exit(1);
+}
+
 app.listen(PORT, () => {
   console.log(
     JSON.stringify({
