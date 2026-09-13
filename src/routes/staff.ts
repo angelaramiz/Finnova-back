@@ -11,6 +11,7 @@ import { supabaseAdmin, isSupabaseReady } from '../lib/supabaseClient';
 import { resetWorld, resetCareer } from '../services/simWorld';
 import { resetProgress } from '../services/progressTracker';
 import { getQualityDashboard, setTicketStatus } from '../services/learningAnalytics';
+import { listCohort, addToCohort, removeFromCohort } from '../services/pilotCohort';
 
 export const staffRouter = Router();
 
@@ -366,6 +367,63 @@ staffRouter.delete('/users/:hash/data', requireSupabaseAuth, async (req: Authent
   try {
     await supabaseAdmin.from('quality_events').delete().eq('user_hash', hash);
     await supabaseAdmin.from('outcome_tracking').delete().eq('user_hash', hash);
+    res.json({ ok: true });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ─── Puerta de piloto Contalink (TASK-2-1, staff-gestionada) ───
+// GET /api/staff/pilot — cohorte actual (con email si hay supabase)
+staffRouter.get('/pilot', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  try {
+    const cohort = await listCohort();
+    if (!isSupabaseReady() || cohort.length === 0) { res.json({ cohort }); return; }
+    const { data: profiles } = await supabaseAdmin
+      .from('profiles')
+      .select('id,email,full_name')
+      .in('id', cohort.map((c) => c.user_id));
+    const byId = new Map((profiles || []).map((p: any) => [p.id, p]));
+    res.json({ cohort: cohort.map((c) => ({ ...c, ...(byId.get(c.user_id) || {}) })) });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// GET /api/staff/pilot/search?email= — resuelve email a user_id
+staffRouter.get('/pilot/search', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const email = String(req.query.email || '').trim().toLowerCase();
+  if (!email) { res.status(400).json({ error: 'email requerido' }); return; }
+  if (!isSupabaseReady()) { res.status(404).json({ error: 'sin supabase: usa user_id directo' }); return; }
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('profiles')
+      .select('id,email,full_name')
+      .ilike('email', email)
+      .limit(5);
+    if (error) throw error;
+    res.json({ results: data || [] });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/staff/pilot {user_id} — agregar a la cohorte
+staffRouter.post('/pilot', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = String(req.body?.user_id || '').trim();
+  if (!userId) { res.status(400).json({ error: 'user_id requerido' }); return; }
+  try {
+    const row = await addToCohort(userId, req.user?.id || 'staff');
+    res.json({ ok: true, row });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// DELETE /api/staff/pilot/:userId — quitar de la cohorte
+staffRouter.delete('/pilot/:userId', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    await removeFromCohort(req.params.userId);
     res.json({ ok: true });
   } catch (e: any) {
     res.status(500).json({ error: e.message });

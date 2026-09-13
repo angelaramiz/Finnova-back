@@ -13,6 +13,7 @@ import { getCompany, getClients, getSuppliers, getProducts, getTransactions } fr
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { TRAP_SCENARIOS } from '../services/workflowEngine';
 import { getPracticasModules, getPracticasModule, getPracticasCursos, getPracticaCurso, evaluatePracticaPrueba, buildPracticasTracker } from '../services/practicasModules';
+import { isPilot } from '../services/pilotCohort';
 import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '../services/simWorld';
 import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
@@ -1288,4 +1289,9 @@ simEngineRouter.post('/practicas/prueba/:id', requireSupabaseAuth, async (req: A
   } catch (e: any) {
     res.status(404).json({ error: e.message || 'Prueba no encontrada' });
   }
+});
+
+// Puerta de piloto Contalink (TASK-2-1): el alumno consulta si entra
+simEngineRouter.get('/pilot/me', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  res.json({ piloto: await isPilot(req.user?.id) });
 });
