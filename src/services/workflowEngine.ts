@@ -1549,6 +1549,132 @@ Directora Fiscal`,
   };
 }
 
+// mod-nomina — Webinar nómina: salario 318.19×7, mínimo→0, Infonavit 300,
+// asimilada 10000 (solo ISR con tarifa R-14), periodos, filtro 3 de 6,
+// Camila/Emilio, finiquito exento/gravable, prima 5 días (excedió exento),
+// cuentas asignadas y pago contra caja = neto exacto. Goldens del input;
+// el split del finiquito (8000/4000 sobre total 12000 del caso) es dato del
+// caso, no del video. PROHIBIDO el 15% fijo: siempre isrProgresivo (R-14).
+
+export function generateNominaPracticaWorkflow(): Workflow {
+  const diario = 318.19;
+  const semanal = Math.round(diario * 7 * 100) / 100;
+  const isrAsimilada = isrProgresivo(10000);
+  const netoAsimilada = 10000 - isrAsimilada;
+  const primaMonto = Math.round(diario * 5 * 100) / 100;
+  return {
+    taskId: `wf-nom-prac-${r(1000, 9999)}`, taskTitle: 'Nómina semanal (webinar)', taskType: 'nomina_practica', difficulty: 3, estimatedMinutes: 30,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Datos de nómina semanal', description: 'Calcula la nómina con tarifa progresiva',
+        guides: [
+          { id: 'g-tarifa', title: 'Tarifa progresiva, NUNCA 15% fijo', body: 'El ISR se calcula con la tabla progresiva (isrProgresivo R-14): hasta 6000 → 0; 6000–30000 → 115.20 + 6.4% del excedente. El 15% fijo es la trampa #4 y puede costarte una demanda laboral.', position: 'top' },
+          { id: 'g-filtro', title: 'Quién entra en la semanal', body: 'Son 6 empleados pero SOLO 3 son semanales y entran en esta nómina. Los quincenales (16–31 y 1–15) van en otra. Filtrar por periodicidad es el primer paso.', position: 'top' },
+        ],
+        data: {
+          from: 'Recursos Humanos', to: 'auxiliar@logistica.com',
+          subject: 'Nómina semanal: salario 318.19, asimilada 10000, incidencias',
+          body: `Buenos días,
+
+Datos para la nómina semanal (periodos semanales **20–26** y **27jul–2ago**; quincenales **16–31** y **1–15**, quincena = **15 vs 15.2** días):
+
+**Base:** salario diario **318.19** (×7 días). Con salario mínimo, ISR e IMSS van en **0**.
+**Infonavit:** **300/semana**.
+**Asimilada:** **10000 → solo ISR** (con tarifa, PROHIBIDO el 15% fijo).
+**Plantilla:** 6 empleados, solo **3 semanales** entran.
+**Incidencias:** Camila, **3 días** vacaciones; Emilio, **2 HE + 1 festivo**.
+**Finiquito del caso:** total 12000 → exento 8000 + gravable 4000.
+**Prima:** a **5** días (excedió exento).
+**Cierre:** toda cuenta contable asignada; pago contra caja = neto exacto.
+
+Saludos,
+Recursos Humanos`,
+          urgency: 'alta',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja — Cálculo de nómina', description: 'Calcula percepciones, ISR por tarifa e incidencias',
+        guides: [
+          { id: 'g-semanal', title: 'Sueldo semanal', body: 'Sueldo = 318.19 × 7 = 2227.33. Todo lo semanal sale de aquí.', anchor: '[data-guide="Sueldo semanal 7 días"]', position: 'right' },
+          { id: 'g-asi', title: 'Asimilada solo ISR', body: 'Asimilada 10000 → ISR = 115.20 + 6.4% × 4000 = 371 (tarifa tramo 2). Neto = 10000 − 371 = 9629. Sin IMSS: es asimilada, no asalariada.', anchor: '[data-guide="ISR asimilada"]', position: 'right' },
+          { id: 'g-prima', title: 'Prima 5 días', body: 'Prima = 318.19 × 5 = 1590.95 y EXCEDIÓ el exento: el excedente grava ISR.', anchor: '[data-guide="Prima 5 días"]', position: 'right' },
+        ],
+        data: {
+          rows: [
+            { label: 'Salario diario', cell_B: diario, editable: true },
+            { label: 'Sueldo semanal 7 días', cell_B: semanal, editable: true },
+            { label: 'ISR con mínimo', cell_B: 0, editable: true },
+            { label: 'Infonavit semanal', cell_B: 300, editable: true },
+            { label: 'Asimilada', cell_B: 10000, editable: true },
+            { label: 'ISR asimilada', cell_B: isrAsimilada, editable: true },
+            { label: 'Neto asimilada', cell_B: netoAsimilada, editable: true },
+            { label: 'Empleados totales', cell_B: 6, editable: true },
+            { label: 'Semanales que entran', cell_B: 3, editable: true },
+            { label: 'Periodo semanal 1', cell_B: '20-26', editable: true },
+            { label: 'Periodo semanal 2', cell_B: '27jul-2ago', editable: true },
+            { label: 'Periodo quincenal 1', cell_B: '16-31', editable: true },
+            { label: 'Periodo quincenal 2', cell_B: '1-15', editable: true },
+            { label: 'Días quincena', cell_B: 15.2, editable: true },
+            { label: 'Vacaciones Camila', cell_B: 3, editable: true },
+            { label: 'HE Emilio', cell_B: 2, editable: true },
+            { label: 'Festivo Emilio', cell_B: 1, editable: true },
+            { label: 'Finiquito exento', cell_B: 8000, editable: true },
+            { label: 'Finiquito gravable', cell_B: 4000, editable: true },
+            { label: 'Prima días', cell_B: 5, editable: true },
+            { label: 'Prima monto 5 días', cell_B: primaMonto, editable: true },
+          ],
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Decisión — Método, excedentes y cierre', description: 'Confirma tarifa, filtro y cierre',
+        data: {
+          fields: [
+            { key: 'metodo', label: 'Método ISR', type: 'choice', options: ['Tarifa progresiva R-14', '15% fijo', '10% fijo'], correct: 'Tarifa progresiva R-14', validation: { required: true } },
+            { key: 'filtro', label: 'Filtro periodicidad', type: 'choice', options: ['Solo 3 semanales', 'Los 6 empleados', 'Solo quincenales'], correct: 'Solo 3 semanales', validation: { required: true } },
+            { key: 'minimo', label: 'Mínimo SS/ISR', type: 'choice', options: ['Ambos en 0', 'Solo ISR en 0', 'Se pagan normal'], correct: 'Ambos en 0', validation: { required: true } },
+            { key: 'excede', label: 'Prima excede exento', type: 'choice', options: ['Sí, excedió exento', 'No, quedó exenta', 'No aplica prima'], correct: 'Sí, excedió exento', validation: { required: true } },
+            { key: 'cuentas', label: 'Cuentas contables', type: 'choice', options: ['Todas asignadas', 'Falta una cuenta', 'Sin cuentas'], correct: 'Todas asignadas', validation: { required: true } },
+            { key: 'caja', label: 'Pago contra caja', type: 'choice', options: ['Neto exacto (sin redondeo)', 'Neto redondeado', 'Bruto contra caja'], correct: 'Neto exacto (sin redondeo)', validation: { required: true } },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Nómina calculada', description: 'Nómina semanal con tarifa progresiva',
+        data: { semanales: 3, isrAsimilada, netoAsimilada },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Salario diario', label: 'Salario diario', type: 'exact', expected: 318.19, points: 1, feedback: { pass: 'Salario correcto', fail: 'El salario diario es 318.19.' } },
+      { stepId: 'spreadsheet', field: 'row_Sueldo semanal 7 días', label: 'Sueldo semanal 7 días', type: 'calculated', expected: 2227.33, tolerance: 0.01, points: 3, feedback: { pass: 'Sueldo semanal correcto', fail: 'Sueldo = 318.19 × 7 = 2227.33' } },
+      { stepId: 'spreadsheet', field: 'row_ISR con mínimo', label: 'ISR con mínimo', type: 'exact', expected: 0, points: 2, feedback: { pass: 'Mínimo correcto', fail: 'Con mínimo, ISR e IMSS van en 0.' } },
+      { stepId: 'spreadsheet', field: 'row_Infonavit semanal', label: 'Infonavit semanal', type: 'exact', expected: 300, points: 1, feedback: { pass: 'Infonavit correcto', fail: 'Infonavit 300/semana.' } },
+      { stepId: 'spreadsheet', field: 'row_Asimilada', label: 'Asimilada', type: 'exact', expected: 10000, points: 1, feedback: { pass: 'Asimilada correcta', fail: 'La asimilada es 10000.' } },
+      { stepId: 'spreadsheet', field: 'row_ISR asimilada', label: 'ISR asimilada', type: 'calculated', expected: 371, tolerance: 1, points: 4, feedback: { pass: 'ISR por tarifa correcto', fail: 'ISR = 115.20 + 6.4% × 4000 = 371 (tramo 2, nunca 15% fijo).' } },
+      { stepId: 'spreadsheet', field: 'row_Neto asimilada', label: 'Neto asimilada', type: 'calculated', expected: 9629, tolerance: 1, points: 3, feedback: { pass: 'Neto correcto', fail: 'Neto = 10000 − 371 = 9629 (solo ISR, sin IMSS).' } },
+      { stepId: 'spreadsheet', field: 'row_Empleados totales', label: 'Empleados totales', type: 'exact', expected: 6, points: 1, feedback: { pass: 'Plantilla correcta', fail: 'Son 6 empleados en total.' } },
+      { stepId: 'spreadsheet', field: 'row_Semanales que entran', label: 'Semanales que entran', type: 'exact', expected: 3, points: 2, feedback: { pass: 'Filtro correcto', fail: 'Solo 3 semanales entran en esta nómina.' } },
+      { stepId: 'spreadsheet', field: 'row_Periodo semanal 1', label: 'Periodo semanal 1', type: 'exact', expected: '20-26', points: 1, feedback: { pass: 'Periodo correcto', fail: 'El periodo semanal 1 es 20-26.' } },
+      { stepId: 'spreadsheet', field: 'row_Periodo semanal 2', label: 'Periodo semanal 2', type: 'exact', expected: '27jul-2ago', points: 1, feedback: { pass: 'Periodo correcto', fail: 'El periodo semanal 2 es 27jul-2ago.' } },
+      { stepId: 'spreadsheet', field: 'row_Periodo quincenal 1', label: 'Periodo quincenal 1', type: 'exact', expected: '16-31', points: 1, feedback: { pass: 'Periodo correcto', fail: 'El periodo quincenal 1 es 16-31.' } },
+      { stepId: 'spreadsheet', field: 'row_Periodo quincenal 2', label: 'Periodo quincenal 2', type: 'exact', expected: '1-15', points: 1, feedback: { pass: 'Periodo correcto', fail: 'El periodo quincenal 2 es 1-15.' } },
+      { stepId: 'spreadsheet', field: 'row_Días quincena', label: 'Días quincena', type: 'exact', expected: 15.2, points: 1, feedback: { pass: 'Días correctos', fail: 'La quincena promedia 15.2 días (no 15).' } },
+      { stepId: 'spreadsheet', field: 'row_Vacaciones Camila', label: 'Vacaciones Camila', type: 'exact', expected: 3, points: 1, feedback: { pass: 'Vacaciones correctas', fail: 'Camila: 3 días de vacaciones.' } },
+      { stepId: 'spreadsheet', field: 'row_HE Emilio', label: 'HE Emilio', type: 'exact', expected: 2, points: 1, feedback: { pass: 'HE correctas', fail: 'Emilio: 2 horas extra.' } },
+      { stepId: 'spreadsheet', field: 'row_Festivo Emilio', label: 'Festivo Emilio', type: 'exact', expected: 1, points: 1, feedback: { pass: 'Festivo correcto', fail: 'Emilio: 1 festivo.' } },
+      { stepId: 'spreadsheet', field: 'row_Finiquito exento', label: 'Finiquito exento', type: 'exact', expected: 8000, points: 1, feedback: { pass: 'Exento correcto', fail: 'Finiquito exento del caso: 8000.' } },
+      { stepId: 'spreadsheet', field: 'row_Finiquito gravable', label: 'Finiquito gravable', type: 'exact', expected: 4000, points: 1, feedback: { pass: 'Gravable correcto', fail: 'Finiquito gravable del caso: 4000.' } },
+      { stepId: 'spreadsheet', field: 'row_Prima días', label: 'Prima días', type: 'exact', expected: 5, points: 1, feedback: { pass: 'Prima correcta', fail: 'La prima es a 5 días.' } },
+      { stepId: 'spreadsheet', field: 'row_Prima monto 5 días', label: 'Prima monto', type: 'calculated', expected: 1590.95, tolerance: 0.01, points: 3, feedback: { pass: 'Monto correcto', fail: 'Prima = 318.19 × 5 = 1590.95 (excedió exento).' } },
+      { stepId: 'form', field: 'metodo', label: 'Método ISR', type: 'choice', expected: 'Tarifa progresiva R-14', points: 4, feedback: { pass: 'Método correcto', fail: 'Siempre tarifa progresiva R-14. El 15% fijo es la trampa #4.' } },
+      { stepId: 'form', field: 'filtro', label: 'Filtro periodicidad', type: 'choice', expected: 'Solo 3 semanales', points: 2, feedback: { pass: 'Filtro correcto', fail: 'Esta nómina es solo de los 3 semanales.' } },
+      { stepId: 'form', field: 'minimo', label: 'Mínimo SS/ISR', type: 'choice', expected: 'Ambos en 0', points: 2, feedback: { pass: 'Mínimo correcto', fail: 'Con mínimo, SS e ISR van en 0.' } },
+      { stepId: 'form', field: 'excede', label: 'Prima excede exento', type: 'choice', expected: 'Sí, excedió exento', points: 2, feedback: { pass: 'Excedente correcto', fail: 'La prima a 5 excedió el exento.' } },
+      { stepId: 'form', field: 'cuentas', label: 'Cuentas contables', type: 'choice', expected: 'Todas asignadas', points: 2, feedback: { pass: 'Cuentas correctas', fail: 'Toda cuenta contable debe quedar asignada.' } },
+      { stepId: 'form', field: 'caja', label: 'Pago contra caja', type: 'choice', expected: 'Neto exacto (sin redondeo)', points: 2, feedback: { pass: 'Cierre correcto', fail: 'El pago contra caja es el neto exacto.' } },
+    ],
+  };
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
 export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
@@ -1569,6 +1695,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'cash_cut': wf = generateCashCutWorkflow(); break;
     case 'conciliacion_practica': wf = generateConciliacionPracticaWorkflow(); break;
     case 'auditoria_practica': wf = generateAuditoriaPracticaWorkflow(); break;
+    case 'nomina_practica': wf = generateNominaPracticaWorkflow(); break;
     case 'depreciation': wf = generateDepreciationWorkflow(); break;
     case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
     default: wf = generateGenericWorkflow(taskType);
