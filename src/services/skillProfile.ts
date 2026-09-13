@@ -52,6 +52,10 @@ const SKILL_MAP: Record<string, { dim: string; label: string }> = {
   cfdi_reception: { dim: 'fiscal', label: 'Fiscal / CFDI' },
   financial_statements: { dim: 'reportes', label: 'Reportes financieros' },
   depreciation: { dim: 'activos', label: 'Activos fijos' },
+  conciliacion_practica: { dim: 'conciliacion', label: 'Conciliación (webinar)' },
+  auditoria_practica: { dim: 'fiscal', label: 'Auditoría e impuestos' },
+  nomina_practica: { dim: 'nomina', label: 'Nómina (webinar)' },
+  reporte_practica: { dim: 'fiscal', label: 'DIOT online' },
 };
 
 function levelFor(score: number): 'Básico' | 'Intermedio' | 'Avanzado' {

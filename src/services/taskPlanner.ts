@@ -85,6 +85,30 @@ const ACCOUNTING_TASK_TEMPLATES: Record<string, (ctx: any) => PlannedTask> = {
     category: 'gastos', description: 'Registrar gasto por comida de trabajo con IVA acreditable y deducibilidad 65%',
     emailSubject: 'Reembolso de gasto por comida', emailFrom: 'Lic. Gómez',
   }),
+  conciliacion_practica: (ctx) => ({
+    id: generateTaskId(), title: 'Conciliación BBVA (webinar Pedro Castillo)', type: 'conciliacion_practica',
+    difficulty: 2, time: 25, week: ctx.week, day: ctx.day, priority: 'alta',
+    category: 'banco', description: 'Conciliar extracto BBVA: parciales, 1-vs-2, N-vs-1, USD, traspaso y cierre',
+    emailSubject: 'Conciliación BBVA 102-01-001 — Pedro Castillo', emailFrom: 'Pedro Castillo',
+  }),
+  auditoria_practica: (ctx) => ({
+    id: generateTaskId(), title: 'Auditoría e impuestos (webinar)', type: 'auditoria_practica',
+    difficulty: 3, time: 30, week: ctx.week, day: ctx.day, priority: 'alta',
+    category: 'fiscal', description: 'Auditar M1/M2/M3, DIOT 4606 e IVA a cargo 194.67',
+    emailSubject: 'Auditoría mensual — Directora Fiscal', emailFrom: 'Directora Fiscal',
+  }),
+  nomina_practica: (ctx) => ({
+    id: generateTaskId(), title: 'Nómina semanal (webinar)', type: 'nomina_practica',
+    difficulty: 3, time: 30, week: ctx.week, day: ctx.day, priority: 'alta',
+    category: 'nomina', description: 'Calcular nómina semanal con tarifa ISR progresiva R-14',
+    emailSubject: 'Nómina semanal — Recursos Humanos', emailFrom: 'Recursos Humanos',
+  }),
+  reporte_practica: (ctx) => ({
+    id: generateTaskId(), title: 'DIOT online (video Diego Ramos)', type: 'reporte_practica',
+    difficulty: 2, time: 25, week: ctx.week, day: ctx.day, priority: 'alta',
+    category: 'fiscal', description: 'Clasificar operaciones, cuadrar y presentar la DIOT enero 2026 con acuse',
+    emailSubject: 'DIOT enero 2026 — Diego Ramos', emailFrom: 'Diego Ramos',
+  }),
   bank_reconciliation: (ctx) => ({
     id: generateTaskId(), title: 'Conciliación bancaria', type: 'bank_reconciliation',
     difficulty: 2, time: 20, week: ctx.week, day: ctx.day, priority: 'alta',
@@ -332,8 +356,8 @@ const ACCOUNTING_WEEKS: Record<number, WeekSpec> = {
 const PRACTICAS_WEEKS: Record<number, WeekSpec> = {
   1: { theme: 'Módulo 1 — Facturación electrónica (CFDI 4.0)', tasks: [{ type: 'invoice_emission', count: 3, difficulty: 1 }, { type: 'payment_registration', count: 1, difficulty: 1 }] },
   2: { theme: 'Módulo 2 — Gastos internos y comida empresarial', tasks: [{ type: 'business_expense', count: 2, difficulty: 2 }, { type: 'invoice_emission', count: 1, difficulty: 1 }, { type: 'supplier_invoice', count: 1, difficulty: 1 }] },
-  3: { theme: 'Módulo 3-4 — Cobranza y proveedores', tasks: [{ type: 'payment_registration', count: 2, difficulty: 1 }, { type: 'supplier_invoice', count: 2, difficulty: 1 }, { type: 'payment_scheduling', count: 1, difficulty: 1 }] },
-  4: { theme: 'Módulo 5-6 — Nómina, conciliación y cierre', tasks: [{ type: 'payroll', count: 1, difficulty: 2 }, { type: 'bank_reconciliation', count: 1, difficulty: 2 }, { type: 'cash_cut', count: 1, difficulty: 2 }, { type: 'journal_entry', count: 1, difficulty: 2 }] },
+  3: { theme: 'Módulo 3-4 — Cobranza y proveedores', tasks: [{ type: 'payment_registration', count: 2, difficulty: 1 }, { type: 'supplier_invoice', count: 2, difficulty: 1 }, { type: 'payment_scheduling', count: 1, difficulty: 1 }, { type: 'conciliacion_practica', count: 1, difficulty: 2 }, { type: 'auditoria_practica', count: 1, difficulty: 3 }] },
+  4: { theme: 'Módulo 5-6 — Nómina, conciliación y cierre', tasks: [{ type: 'payroll', count: 1, difficulty: 2 }, { type: 'bank_reconciliation', count: 1, difficulty: 2 }, { type: 'cash_cut', count: 1, difficulty: 2 }, { type: 'journal_entry', count: 1, difficulty: 2 }, { type: 'nomina_practica', count: 1, difficulty: 3 }, { type: 'reporte_practica', count: 1, difficulty: 2 }] },
 };
 
 const DE_WEEKS: Record<number, WeekSpec> = {

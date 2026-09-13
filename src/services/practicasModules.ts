@@ -307,6 +307,146 @@ const PRUEBA_CIERRE: PracticaPrueba = {
   ],
 };
 
+const PRUEBA_CONCILIACION: PracticaPrueba = {
+  titulo: 'Prueba de conciliación bancaria (webinar)',
+  aprobarMin: 80,
+  preguntas: [
+    {
+      q: 'Factura por 4419.60 y movimiento por 1219.60: ¿cuánto queda pendiente?',
+      opciones: ['4419.60', '3200.00', '1219.60', '5639.20'],
+      correcta: 1,
+      explicacion: 'Resto = factura − movimiento = 4419.60 − 1219.60 = 3200.00. Es un pago parcial: el resto sigue pendiente de cobro.',
+    },
+    {
+      q: 'Compra por 45 USD y el banco muestra 789. ¿Qué tipo de cambio usas?',
+      opciones: [
+        '17.53 (redondeado a 2 decimales)',
+        '789/45 con todos los decimales (17.5333...)',
+        'El del día que yo quiera',
+        'Ninguno, los dólares no se concilian',
+      ],
+      correcta: 1,
+      explicacion: 'El TC se calcula con todos los decimales (789/45). Redondearlo a 2 decimales es el error típico; el centavo de diferencia va a cuenta.',
+    },
+    {
+      q: 'Para mover dinero entre dos bancos de la empresa debes...',
+      opciones: [
+        'Registrarlo directo al otro banco',
+        'Pasarlo por la cuenta puente (Traspaso bancario 899 y 104)',
+        'Esperar a fin de mes',
+        'Pedir autorización al SAT',
+      ],
+      correcta: 1,
+      explicacion: 'Los traspasos entre bancos propios pasan por la cuenta puente 899/104. Registrarlo directo a otro banco descuadra la conciliación.',
+    },
+  ],
+};
+
+const PRUEBA_AUDITORIA: PracticaPrueba = {
+  titulo: 'Prueba de auditoría e impuestos (webinar)',
+  aprobarMin: 80,
+  preguntas: [
+    {
+      q: '¿Qué módulo bloquea la DIOT?',
+      opciones: ['M1', 'M2', 'M3', 'Ninguno'],
+      correcta: 0,
+      explicacion: 'M1 bloquea la DIOT: sin M1 cerrado no hay declaración, aunque M2 y M3 estén listos.',
+    },
+    {
+      q: 'IVA cobrado 1600 e IVA pagado 424.22: ¿cuál es el IVA a cargo del ejemplo?',
+      opciones: ['2024.22', '1175.78', '194.67', '1600'],
+      correcta: 2,
+      explicacion: 'El IVA a cargo del caso es 194.67 (cobrado menos pagado y ajustes de deducibilidad y retenciones).',
+    },
+    {
+      q: 'En la base DIOT al 16%, las operaciones al 0%...',
+      opciones: [
+        'Suman a la base igual que las demás',
+        'Solo se informan, no suman base',
+        'Se ignoran por completo',
+        'Se reportan al 16%',
+      ],
+      correcta: 1,
+      explicacion: 'La base DIOT 4606 es solo operaciones al 16%; las del 0% se informan pero no suman base.',
+    },
+  ],
+};
+
+const PRUEBA_NOMINA_WEB: PracticaPrueba = {
+  titulo: 'Prueba de nómina semanal (webinar)',
+  aprobarMin: 80,
+  preguntas: [
+    {
+      q: '¿Cómo se calcula el ISR de un sueldo?',
+      opciones: [
+        'Con 15% fijo para todos',
+        'Con la tarifa progresiva del SAT según el ingreso',
+        'Con 10% fijo',
+        'No se calcula, lo pone el banco',
+      ],
+      correcta: 1,
+      explicacion: 'El ISR usa la tarifa progresiva (a mayor ingreso, mayor tasa). El 15% fijo es la trampa #4 y puede generar demandas laborales.',
+    },
+    {
+      q: 'Una asimilada de 10000 lleva...',
+      opciones: [
+        'ISR + IMSS como asalariada',
+        'Solo ISR (sin IMSS)',
+        'Solo IMSS (sin ISR)',
+        'Ninguna retención',
+      ],
+      correcta: 1,
+      explicacion: 'La asimilada no es asalariada: solo lleva ISR (371 con tarifa tramo 2), sin IMSS. Neto = 9629.',
+    },
+    {
+      q: 'La prima a 5 días...',
+      opciones: [
+        'Quedó totalmente exenta',
+        'Excedió el exento y el excedente grava',
+        'No se paga en este caso',
+        'Se paga al doble',
+      ],
+      correcta: 1,
+      explicacion: 'La prima de 5 días (1590.95) excedió el exento: el excedente grava ISR.',
+    },
+  ],
+};
+
+const PRUEBA_REPORTE: PracticaPrueba = {
+  titulo: 'Prueba de DIOT online (video Diego Ramos)',
+  aprobarMin: 80,
+  preguntas: [
+    {
+      q: '¿Qué fecha manda para clasificar una operación en la DIOT?',
+      opciones: [
+        'La fecha de emisión de la factura',
+        'La fecha de pago/conciliación',
+        'La fecha que yo elija',
+        'La del cierre anual',
+      ],
+      correcta: 1,
+      explicacion: 'Manda el pago: Dic-emitida/Ene-pagada va a Ene; PPD + complemento de Ene va a Ene. Canceladas y pólizas manuales quedan fuera.',
+    },
+    {
+      q: 'Nov-2025 ya tiene una Normal en el SAT. ¿Qué presentas desde Contalink?',
+      opciones: ['Otra Normal', 'Complementaria', 'Nada, ya está', 'En ceros'],
+      correcta: 1,
+      explicacion: 'Si ya existe una Normal en el SAT, el envío debe ser Complementaria; una segunda Normal la rechaza el portal.',
+    },
+    {
+      q: 'El SAT está caído a mitad de tu envío. ¿Qué haces?',
+      opciones: [
+        'Reenvías de inmediato hasta que pase',
+        'Esperas 1-2h (máx 5 intentos/día) sin reenviar',
+        'Cancelas todo y empiezas de cero',
+        'Llamas al SAT por teléfono',
+      ],
+      correcta: 1,
+      explicacion: 'Con SAT caído se espera 1-2h con reintentos programados (máx 5/día). Reenviar de inmediato está prohibido.',
+    },
+  ],
+};
+
 const PRUEBAS: Record<string, PracticaPrueba> = {
   'mod-cfdi': PRUEBA_CFDI,
   'mod-gastos': PRUEBA_GASTOS,
@@ -314,6 +454,10 @@ const PRUEBAS: Record<string, PracticaPrueba> = {
   'mod-proveedores': PRUEBA_PROVEEDORES,
   'mod-nomina': PRUEBA_NOMINA,
   'mod-cierre': PRUEBA_CIERRE,
+  'mod-conciliacion': PRUEBA_CONCILIACION,
+  'mod-auditoria': PRUEBA_AUDITORIA,
+  'mod-nomina-web': PRUEBA_NOMINA_WEB,
+  'mod-reporte': PRUEBA_REPORTE,
 };
 
 // ─── Cursos teóricos con el NPC capacitador ────────────────────
@@ -465,6 +609,102 @@ const CURSOS: Record<string, PracticaCurso> = {
     ],
     cierre: 'Llegamos al final de tu capacitación. Ahora abre el estado de cuenta de julio, identifica las diferencias y concilia el banco. Yo te sigo acompañando con la 💡 Guía.',
   },
+  'mod-conciliacion': {
+    id: 'mod-conciliacion',
+    titulo: 'Curso básico: conciliación bancaria real',
+    npc: 'capacitador',
+    introduccion: 'Vamos a conciliar un extracto de verdad, con los casos que salen en la vida real: pagos parciales, dólares y traspasos. Te explico cada uno antes de que abras la hoja.',
+    secciones: [
+      {
+        titulo: 'Parciales y pagos agrupados',
+        texto: 'Un pago parcial deja resto pendiente (factura menos movimiento). Y varios pagos pueden ir a una sola factura (1-vs-2) o varios cobros a una referencia (N-vs-1). Lo importante es sumar bien y atar cada monto a su folio.',
+        puntos: ['Resto = factura − movimiento', '1-vs-2 y N-vs-1 se cuadran por suma'],
+      },
+      {
+        titulo: 'Dólares con todos los decimales',
+        texto: 'El tipo de cambio se calcula con todos los decimales (789/45). Si lo redondeas a 2 decimales, el centavo descuadra: ese centavo va a cuenta, nunca se ignora.',
+        puntos: ['TC = 789/45 completo', 'Diferencia 0.01 a cuenta'],
+      },
+      {
+        titulo: 'Traspasos por puente y cierre',
+        texto: 'Mover dinero entre bancos propios pasa por la cuenta puente 899/104, jamás directo. Y cada póliza lleva la fecha de su movimiento; al cerrar se marca la revaluación.',
+        puntos: ['Puente 899/104, no directo', 'Fecha póliza = fecha movimiento', 'Cierre con revaluación'],
+      },
+    ],
+    cierre: 'Quedó claro. Abre el correo de Pedro Castillo y concilia el extracto BBVA caso por caso. La 💡 Guía te acompaña en cada fila.',
+  },
+  'mod-auditoria': {
+    id: 'mod-auditoria',
+    titulo: 'Curso básico: auditoría, DIOT e IVA',
+    npc: 'capacitador',
+    introduccion: 'Auditar es verificar que lo cobrado, lo pagado y lo declarado cuadren entre sí. Te explico los módulos, la DIOT y el IVA a cargo con el ejemplo del webinar.',
+    secciones: [
+      {
+        titulo: 'M1, M2, M3 y el bloqueo',
+        texto: 'El sistema trabaja por módulos M1, M2 y M3. M1 bloquea la DIOT: sin M1 cerrado no hay declaración posible, aunque el resto esté listo.',
+        puntos: ['M1 bloquea la DIOT', 'Verifica estatus por módulo'],
+      },
+      {
+        titulo: 'Cobrado vs pagado y la DIOT',
+        texto: 'Compara lo cobrado (10000 con IVA 1600) contra egresos (2787.88 con IVA 424.22). La base DIOT al 16% es 4606; el 0% solo se informa. El parcial 2507 va al 60%.',
+        puntos: ['IVA a cargo del caso: 194.67', 'DIOT base 4606', 'Parcial 2507 al 60%'],
+      },
+      {
+        titulo: 'Cuadre, portal y casos',
+        texto: 'La balanza debe cuadrar en 0 (464 = 464) y la hoja contra el portal. Los casos a/b/c (72h, corte bancario, sin complemento) te dicen cómo proceder ante cada escenario.',
+        puntos: ['Balanza 464 = 464', 'Portal: compras 2714, IVA 434', 'Casos a/b/c'],
+      },
+    ],
+    cierre: 'Ya tienes el mapa. Abre el correo de la Directora Fiscal y cierra la auditoría: IVA 194.67 a cargo y DIOT liberada. Usa la 💡 Guía.',
+  },
+  'mod-nomina-web': {
+    id: 'mod-nomina-web',
+    titulo: 'Curso básico: nómina semanal real',
+    npc: 'capacitador',
+    introduccion: 'Calcular nómina es aplicar la tarifa correcta a cada caso: semanales, asimiladas, incidencias y finiquitos. Nada de porcentajes fijos: tarifa progresiva siempre.',
+    secciones: [
+      {
+        titulo: 'Sueldo semanal y tarifa',
+        texto: 'El sueldo semanal sale del diario por 7 (318.19 × 7 = 2227.33). El ISR se calcula con la tarifa del SAT por tramos. Con salario mínimo, ISR e IMSS van en 0.',
+        puntos: ['Semanal = diario × 7', 'Tarifa progresiva, nunca 15% fijo', 'Mínimo → 0'],
+      },
+      {
+        titulo: 'Asimiladas e incidencias',
+        texto: 'La asimilada de 10000 solo lleva ISR (371 con tarifa) y su neto es 9629. Las incidencias se registran tal cual: Camila 3 días de vacaciones, Emilio 2 horas extra + 1 festivo.',
+        puntos: ['Asimilada: solo ISR', 'Camila 3 vacaciones', 'Emilio 2 HE + 1 festivo'],
+      },
+      {
+        titulo: 'Finiquito, prima y cierre',
+        texto: 'El finiquito se separa en exento y gravable. La prima a 5 días excedió el exento y el excedente grava. Al cerrar: todas las cuentas asignadas y el pago contra caja por el neto exacto.',
+        puntos: ['Exento vs gravable', 'Prima 5 días excedió exento', 'Caja = neto exacto'],
+      },
+    ],
+    cierre: 'A calcular. Abre el correo de Recursos Humanos y arma la nómina semanal con tarifa. Si dudas entre bruto y neto, la 💡 Guía te ubica.',
+  },
+  'mod-reporte': {
+    id: 'mod-reporte',
+    titulo: 'Curso básico: DIOT online y acuse',
+    npc: 'capacitador',
+    introduccion: 'Presentar la DIOT sin entrar al SAT: clasificas por fecha de pago, cuadras contra la hoja, envías y descargas tu acuse. Te explico el flujo completo.',
+    secciones: [
+      {
+        titulo: 'Ruta y columnas',
+        texto: 'En Contalink vas a Contabilidad > Reportes > DIOT y eliges enero 2026. El TXT trae 23 columnas para ejercicios pre-2025 y 54 para 2025 en adelante, automático según el ejercicio.',
+        puntos: ['Ruta: Contabilidad > Reportes > DIOT', '23 vs 54 columnas', 'Periodo enero 2026'],
+      },
+      {
+        titulo: 'Clasificar por fecha de pago',
+        texto: 'Manda el pago, no la emisión: Dic-emitida/Ene-pagada va a Ene, PPD + complemento de Ene va a Ene. Canceladas y pólizas manuales quedan fuera. El cuadre admite ±1 por redondeo.',
+        puntos: ['Fecha DIOT = fecha de pago', 'Canceladas y manual fuera', 'Cuadre ±1'],
+      },
+      {
+        titulo: 'Tipos, espera y acuse',
+        texto: 'Eliges Normal/Complementaria + Previa/Definitiva + Con datos/En ceros. Ojo: si nov-2025 ya tiene Normal en el SAT, va Complementaria. Con SAT caído esperas 1-2h (máx 5/día) y cierras con folio de acuse + TXT idéntico.',
+        puntos: ['Nov-2025 → Complementaria', 'Espera 1-2h, no reenviar', 'Folio + TXT idéntico'],
+      },
+    ],
+    cierre: 'Listo para declarar. Abre el correo de Diego Ramos, clasifica las 6 operaciones y presenta enero 2026. La 💡 Guía te marca cada decisión.',
+  },
 };
 
 // ─── Tracker semanal (mecanización) ────────────────────────────
@@ -483,6 +723,10 @@ const REPETICION_POR_TIPO: Record<string, { titulo: string; explicacion: string 
   journal_entry: { titulo: 'Registrar póliza', explicacion: 'Repites las pólizas de diario para afianzar el registro de ajustes contables y el equilibrio débito-crédito.' },
   payment_scheduling: { titulo: 'Programar pago a proveedor', explicacion: 'Repites la programación de pagos para priorizar proveedores y no romper el flujo de efectivo de la empresa.' },
   cfdi_reception: { titulo: 'Recepción de CFDI', explicacion: 'Repites la recepción de comprobantes para mantener al día el buzón fiscal y detectar timbres pendientes.' },
+  conciliacion_practica: { titulo: 'Conciliar extracto BBVA', explicacion: 'Repites la conciliación real del webinar para mecanizar parciales, pagos agrupados, dólares con TC completo y traspasos por puente.' },
+  auditoria_practica: { titulo: 'Auditar mes e impuestos', explicacion: 'Repites la auditoría para fijar el flujo M1/M2/M3, la DIOT 4606 y el IVA a cargo 194.67 sin dudar.' },
+  nomina_practica: { titulo: 'Calcular nómina semanal', explicacion: 'Repites la nómina real para dominar la tarifa progresiva, el filtro por periodicidad y las incidencias.' },
+  reporte_practica: { titulo: 'Presentar DIOT online', explicacion: 'Repites la presentación DIOT para clasificar por fecha de pago y cerrar siempre con acuse.' },
 };
 
 const SEMANA_MODULO: Record<number, string> = {
@@ -648,6 +892,70 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
       { id: 'p1', tipo: 'guia', titulo: '¿Por qué el banco no cuadra?', descripcion: 'Las diferencias más comunes: cheques emitidos que aún no se cobran, comisiones bancarias no registradas y depósitos en tránsito. Debes identificarlas una por una.', datos: ['Saldo según banco', 'Saldo según libros', 'Cheques sin cobrar', 'Comisiones', 'Depósitos en tránsito'] },
       { id: 'p2', tipo: 'tarea', taskType: 'bank_reconciliation', titulo: 'Concilia el banco de julio', descripcion: 'Abre el estado de cuenta y concilia contra los registros. Usa la 💡 Guía.', datos: ['Detecta el cheque sin cobrar de $3,500'] },
       { id: 'p3', tipo: 'guia', titulo: 'Después de conciliar', descripcion: 'Con la conciliación cuadrada puedes preparar la balanza de comprobación y el estado de resultados del mes. El cierre es la base de la declaración mensual.', datos: ['Balanza de comprobación', 'Estado de resultados', 'Declaración mensual'] },
+    ],
+  },
+  {
+    id: 'mod-conciliacion',
+    titulo: 'Conciliación bancaria real (webinar)',
+    icono: '🏦',
+    descripcion: 'Conciliar el extracto BBVA con parciales, pagos agrupados, dólares y traspasos.',
+    objetivo: 'Que el alumno concilie casos reales (parcial, 1-vs-2, N-vs-1, USD, traspaso, rebote, reembolso) y cierre con revaluación.',
+    semanas: 'Contalink x4',
+    skill: 'conciliacion',
+    prueba: PRUEBA_CONCILIACION,
+    curso: CURSOS['mod-conciliacion'],
+    pasos: [
+      { id: 'p1', tipo: 'guia', titulo: 'Los 6 casos del extracto', descripcion: 'Parcial, 1-vs-2, N-vs-1, USD con TC completo, traspaso por puente, rebote y reembolso. Cada uno se cuadra distinto.', datos: ['Factura vs movimiento', 'Sumas y restos', 'TC con decimales', 'Cuenta puente'] },
+      { id: 'p2', tipo: 'tarea', taskType: 'conciliacion_practica', titulo: 'Concilia el extracto BBVA', descripcion: 'Abre el correo de Pedro Castillo y calcula cada caso. Usa la 💡 Guía.', datos: ['Resto 3200.00', 'TC 789/45 completo', 'Puente 899/104', 'Fecha póliza = fecha movimiento'] },
+      { id: 'p3', tipo: 'asiento', titulo: 'El asiento de la cobranza', descripcion: 'La cobranza conciliada se registra contra clientes.', asiento: { cargo: '1-02 Bancos', abono: '1-03 Clientes', cuentas: '1-02 / 1-03', concepto: 'Cobranza conciliada contra extracto BBVA 102-01-001' } },
+    ],
+  },
+  {
+    id: 'mod-auditoria',
+    titulo: 'Auditoría e impuestos (webinar)',
+    icono: '🔍',
+    descripcion: 'Auditar M1/M2/M3, validar la DIOT y determinar el IVA a cargo.',
+    objetivo: 'Que el alumno verifique módulos, audite cobrado vs pagado y cierre con DIOT liberada e IVA 194.67 a cargo.',
+    semanas: 'Contalink x4',
+    skill: 'fiscal',
+    prueba: PRUEBA_AUDITORIA,
+    curso: CURSOS['mod-auditoria'],
+    pasos: [
+      { id: 'p1', tipo: 'guia', titulo: 'M1 bloquea la DIOT', descripcion: 'Sin M1 cerrado no hay declaración. Verifica el estatus de M1, M2 y M3 antes de auditar números.', datos: ['M1', 'M2', 'M3'] },
+      { id: 'p2', tipo: 'tarea', taskType: 'auditoria_practica', titulo: 'Cierra la auditoría del mes', descripcion: 'Abre el correo de la Directora Fiscal y valida cobrado, pagado, DIOT y casos. Usa la 💡 Guía.', datos: ['IVA a cargo 194.67', 'DIOT base 4606', 'Balanza 0', 'Casos a/b/c'] },
+      { id: 'p3', tipo: 'asiento', titulo: 'La póliza de cierre', descripcion: 'El IVA a cargo se liquida contra bancos.', asiento: { cargo: '2-03 IVA por pagar', abono: '1-02 Bancos', cuentas: '2-03 / 1-02', concepto: 'Póliza de cierre: IVA a cargo 194.67' } },
+    ],
+  },
+  {
+    id: 'mod-nomina-web',
+    titulo: 'Nómina semanal real (webinar)',
+    icono: '👥',
+    descripcion: 'Calcular la nómina semanal con tarifa ISR progresiva e incidencias.',
+    objetivo: 'Que el alumno aplique la tarifa progresiva (nunca 15% fijo), filtre por periodicidad y trate asimiladas, finiquitos y primas.',
+    semanas: 'Contalink x4',
+    skill: 'nomina',
+    prueba: PRUEBA_NOMINA_WEB,
+    curso: CURSOS['mod-nomina-web'],
+    pasos: [
+      { id: 'p1', tipo: 'guia', titulo: 'Tarifa, no porcentaje fijo', descripcion: 'El ISR sale de la tabla progresiva por tramos. El 15% fijo es la trampa #4. Las asimiladas solo llevan ISR.', datos: ['Tarifa progresiva', 'Asimilada solo ISR', 'Filtro 3 de 6'] },
+      { id: 'p2', tipo: 'tarea', taskType: 'nomina_practica', titulo: 'Calcula la nómina semanal', descripcion: 'Abre el correo de Recursos Humanos y calcula percepciones, ISR e incidencias. Usa la 💡 Guía.', datos: ['Semanal 2227.33', 'ISR asimilada 371', 'Camila/Emilio', 'Prima 5 días'] },
+      { id: 'p3', tipo: 'asiento', titulo: 'El asiento de nómina', descripcion: 'Cargo a gasto de nómina, retenciones por pagar y pago contra caja por el neto exacto.', asiento: { cargo: '5-04 Gastos de nómina', abono: '2-04 ISR + 1-02 Bancos', cuentas: '5-04 / 2-04 / 1-02', concepto: 'Nómina semanal con tarifa progresiva' } },
+    ],
+  },
+  {
+    id: 'mod-reporte',
+    titulo: 'DIOT online y acuse (video)',
+    icono: '📤',
+    descripcion: 'Clasificar operaciones, cuadrar y presentar la DIOT de enero 2026.',
+    objetivo: 'Que el alumno clasifique por fecha de pago, elija los tipos correctos y cierre con folio de acuse.',
+    semanas: 'Contalink x4',
+    skill: 'fiscal',
+    prueba: PRUEBA_REPORTE,
+    curso: CURSOS['mod-reporte'],
+    pasos: [
+      { id: 'p1', tipo: 'guia', titulo: 'Fecha de pago manda', descripcion: 'Dic-emitida/Ene-pagada va a Ene; PPD + complemento de Ene va a Ene. Canceladas y pólizas manuales quedan fuera.', datos: ['Fecha DIOT = fecha de pago', 'Canceladas fuera', 'Manual fuera'] },
+      { id: 'p2', tipo: 'tarea', taskType: 'reporte_practica', titulo: 'Presenta la DIOT enero 2026', descripcion: 'Abre el correo de Diego Ramos, clasifica las 6 operaciones y envía. Usa la 💡 Guía.', datos: ['23/54 columnas', 'Nov-2025 Complementaria', 'No reenviar', 'Folio + TXT idéntico'] },
+      { id: 'p3', tipo: 'guia', titulo: 'El cierre con acuse', descripcion: 'Con estado Éxito descargas el acuse del SAT y archivas el TXT idéntico al enviado. Ese par es tu comprobante de presentación.', datos: ['Folio de acuse', 'TXT idéntico', 'Estado Éxito'] },
     ],
   },
 ];
