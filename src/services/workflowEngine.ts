@@ -1675,6 +1675,119 @@ Recursos Humanos`,
   };
 }
 
+// mod-reporte — Video Diego Ramos (DIOT online): ruta Contabilidad >
+// Reportes > DIOT, TXT 23/54 columnas por ejercicio, periodo enero 2026,
+// fecha DIOT = fecha pago/conciliación, cuadre vs Hoja, tipos Normal /
+// Complementaria + Previa / Definitiva + Con datos / En ceros (nov-2025 con
+// Normal en SAT → Complementaria), estados con espera 1-2h (máx 5/día, no
+// reenviar) y cierre con folio de acuse + TXT idéntico. Goldens del input;
+// el folio del acuse es dato del caso. PROHIBIDO reenviar de inmediato.
+
+export function generateReportePracticaWorkflow(): Workflow {
+  const FOLIO = 'ACU-2026-0117';
+  return {
+    taskId: `wf-rep-prac-${r(1000, 9999)}`, taskTitle: 'DIOT online y acuse (video Diego Ramos)', taskType: 'reporte_practica', difficulty: 2, estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Presenta la DIOT de enero 2026', description: 'Clasifica, cuadra, envía y cierra con acuse',
+        guides: [
+          { id: 'g-ruta', title: 'La ruta en Contalink', body: 'Contabilidad > Reportes > DIOT. Ahí generas el reporte del periodo enero 2026, lo revisas y lo envías sin entrar al SAT.', position: 'top' },
+          { id: 'g-fecha', title: 'Fecha DIOT = fecha de pago', body: 'Manda la fecha de emisión: lo que cuenta es cuándo se pagó/concilió. Dic-emitida/Ene-pagada → Ene. PPD + complemento de Ene → Ene. Canceladas y pólizas manuales quedan FUERA.', position: 'top' },
+        ],
+        data: {
+          from: 'Diego Ramos', to: 'auxiliar@logistica.com',
+          subject: 'DIOT enero 2026: clasifica 6 operaciones y presenta online',
+          body: `Buenos días,
+
+Presenta la DIOT del periodo **enero 2026** por la ruta **Contabilidad > Reportes > DIOT**.
+
+**Archivo TXT:** **23** columnas pre-2025, **54** columnas en 2025+ (automático por ejercicio).
+
+**Clasifica estas 6 operaciones** (fecha DIOT = fecha de pago/conciliación):
+1. Ene normal → Ene | 2. Dic-emitida/Ene-pagada → Ene | 3. PPD + complemento Ene → Ene
+4. Cancelada → Fuera | 5. Póliza manual → Fuera | 6. Ene normal → Ene
+
+**Cuadre vs Hoja:** diferencia 0 (o eliminados exactos; ±1 por redondeo).
+
+**Envío:** Normal/Complementaria + Previa/Definitiva + Con datos/En ceros.
+OJO con **nov-2025**: como ya hay una Normal en el SAT, presenta **Complementaria**.
+
+**Si el SAT está caído:** espera **1-2h**, máximo **5** intentos/día, NO reenvíes de inmediato.
+
+**Cierre:** folio de acuse **${FOLIO}** + TXT idéntico al enviado.
+
+Saludos,
+Diego Ramos`,
+          urgency: 'alta',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja — Columnas, clasificación y cuadre', description: 'Clasifica las 6 operaciones y cuadra',
+        guides: [
+          { id: 'g-cols', title: '23 vs 54 columnas', body: 'El TXT trae 23 columnas para ejercicios pre-2025 y 54 para 2025 en adelante. El sistema lo arma solo según el ejercicio: tú solo verifica el periodo.', anchor: '[data-guide="Columnas 2025+"]', position: 'right' },
+          { id: 'g-clas', title: 'Clasificar por fecha de pago', body: 'Op2 y Op3 van a Ene aunque una se emitió en Dic: lo que manda es el pago. Op4 y Op5 van Fuera (cancelada y manual no declaran).', anchor: '[data-guide="Op Dic-emitida/Ene-pagada"]', position: 'right' },
+          { id: 'g-cuadre', title: 'Cuadre con tolerancia ±1', body: 'Diferencia 0 es lo ideal; si hay eliminados deben ser exactos; ±1 por redondeo se acepta. Más que eso: revisa clasificación.', anchor: '[data-guide="Diferencia cuadre"]', position: 'right' },
+        ],
+        data: {
+          rows: [
+            { label: 'Columnas pre-2025', cell_B: 23, editable: true },
+            { label: 'Columnas 2025+', cell_B: 54, editable: true },
+            { label: 'Periodo', cell_B: 'enero 2026', editable: true },
+            { label: 'Op Ene normal 1', cell_B: 'Ene', editable: true },
+            { label: 'Op Dic-emitida/Ene-pagada', cell_B: 'Ene', editable: true },
+            { label: 'Op PPD + complemento', cell_B: 'Ene', editable: true },
+            { label: 'Op cancelada', cell_B: 'Fuera', editable: true },
+            { label: 'Op póliza manual', cell_B: 'Fuera', editable: true },
+            { label: 'Op Ene normal 2', cell_B: 'Ene', editable: true },
+            { label: 'Diferencia cuadre', cell_B: 0, editable: true },
+            { label: 'Folio acuse', cell_B: FOLIO, editable: true },
+          ],
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Decisión — Envío, estados y cierre', description: 'Elige tipos, espera lo correcto y cierra',
+        data: {
+          fields: [
+            { key: 'tipoDec', label: 'Tipo declaración enero', type: 'choice', options: ['Normal', 'Complementaria'], correct: 'Normal', validation: { required: true } },
+            { key: 'tipoEnv', label: 'Tipo envío', type: 'choice', options: ['Previa', 'Definitiva'], correct: 'Previa', validation: { required: true } },
+            { key: 'tipoDato', label: 'Tipo dato', type: 'choice', options: ['Con datos', 'En ceros'], correct: 'Con datos', validation: { required: true } },
+            { key: 'nov2025', label: 'Tipo caso nov-2025', type: 'choice', options: ['Normal', 'Complementaria'], correct: 'Complementaria', validation: { required: true } },
+            { key: 'espera', label: 'Espera SAT caído', type: 'choice', options: ['Esperar 1-2h', 'Reenviar ya', 'Intentar mañana'], correct: 'Esperar 1-2h', validation: { required: true } },
+            { key: 'maxDia', label: 'Reenvíos por día', type: 'choice', options: ['5', '10', 'Sin límite'], correct: '5', validation: { required: true } },
+            { key: 'reenvio', label: 'Reenviar inmediato', type: 'choice', options: ['No', 'Sí'], correct: 'No', validation: { required: true } },
+            { key: 'txt', label: 'TXT idéntico', type: 'choice', options: ['Sí, idéntico al enviado', 'No, regenerado distinto'], correct: 'Sí, idéntico al enviado', validation: { required: true } },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'DIOT presentada', description: 'Acuse descargado y TXT archivado',
+        data: { periodo: 'enero 2026', folio: FOLIO, estado: 'Éxito' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Columnas pre-2025', label: 'Columnas pre-2025', type: 'exact', expected: 23, points: 1, feedback: { pass: 'Columnas correctas', fail: 'Pre-2025: 23 columnas.' } },
+      { stepId: 'spreadsheet', field: 'row_Columnas 2025+', label: 'Columnas 2025+', type: 'exact', expected: 54, points: 1, feedback: { pass: 'Columnas correctas', fail: '2025+: 54 columnas.' } },
+      { stepId: 'spreadsheet', field: 'row_Periodo', label: 'Periodo', type: 'exact', expected: 'enero 2026', points: 1, feedback: { pass: 'Periodo correcto', fail: 'El periodo es enero 2026.' } },
+      { stepId: 'spreadsheet', field: 'row_Op Ene normal 1', label: 'Op Ene normal 1', type: 'exact', expected: 'Ene', points: 1, feedback: { pass: 'Clasificación correcta', fail: 'Op1 Ene normal → Ene.' } },
+      { stepId: 'spreadsheet', field: 'row_Op Dic-emitida/Ene-pagada', label: 'Op Dic-emitida/Ene-pagada', type: 'exact', expected: 'Ene', points: 2, feedback: { pass: 'Clasificación correcta', fail: 'Dic-emitida/Ene-pagada → Ene (manda el pago).' } },
+      { stepId: 'spreadsheet', field: 'row_Op PPD + complemento', label: 'Op PPD + complemento', type: 'exact', expected: 'Ene', points: 2, feedback: { pass: 'Clasificación correcta', fail: 'PPD + complemento de Ene → Ene.' } },
+      { stepId: 'spreadsheet', field: 'row_Op cancelada', label: 'Op cancelada', type: 'exact', expected: 'Fuera', points: 2, feedback: { pass: 'Clasificación correcta', fail: 'La cancelada queda Fuera.' } },
+      { stepId: 'spreadsheet', field: 'row_Op póliza manual', label: 'Op póliza manual', type: 'exact', expected: 'Fuera', points: 2, feedback: { pass: 'Clasificación correcta', fail: 'La póliza manual queda Fuera.' } },
+      { stepId: 'spreadsheet', field: 'row_Op Ene normal 2', label: 'Op Ene normal 2', type: 'exact', expected: 'Ene', points: 1, feedback: { pass: 'Clasificación correcta', fail: 'Op6 Ene normal → Ene.' } },
+      { stepId: 'spreadsheet', field: 'row_Diferencia cuadre', label: 'Diferencia cuadre', type: 'calculated', expected: 0, tolerance: 1, points: 3, feedback: { pass: 'Cuadre correcto', fail: 'Diferencia 0 (±1 por redondeo).' } },
+      { stepId: 'spreadsheet', field: 'row_Folio acuse', label: 'Folio acuse', type: 'exact', expected: FOLIO, points: 2, feedback: { pass: 'Folio correcto', fail: `El folio del acuse es ${FOLIO}.` } },
+      { stepId: 'form', field: 'tipoDec', label: 'Tipo declaración enero', type: 'choice', expected: 'Normal', points: 2, feedback: { pass: 'Tipo correcto', fail: 'Enero se presenta en Normal.' } },
+      { stepId: 'form', field: 'tipoEnv', label: 'Tipo envío', type: 'choice', expected: 'Previa', points: 2, feedback: { pass: 'Envío correcto', fail: 'Primero Previa (revisión), luego Definitiva.' } },
+      { stepId: 'form', field: 'tipoDato', label: 'Tipo dato', type: 'choice', expected: 'Con datos', points: 2, feedback: { pass: 'Dato correcto', fail: 'La declaración lleva datos.' } },
+      { stepId: 'form', field: 'nov2025', label: 'Tipo caso nov-2025', type: 'choice', expected: 'Complementaria', points: 4, feedback: { pass: 'Caso correcto', fail: 'Nov-2025 ya tiene Normal en el SAT: va Complementaria.' } },
+      { stepId: 'form', field: 'espera', label: 'Espera SAT caído', type: 'choice', expected: 'Esperar 1-2h', points: 3, feedback: { pass: 'Espera correcta', fail: 'Con SAT caído se espera 1-2h.' } },
+      { stepId: 'form', field: 'maxDia', label: 'Reenvíos por día', type: 'choice', expected: '5', points: 2, feedback: { pass: 'Límite correcto', fail: 'Máximo 5 intentos por día.' } },
+      { stepId: 'form', field: 'reenvio', label: 'Reenviar inmediato', type: 'choice', expected: 'No', points: 3, feedback: { pass: 'Correcto: no reenviar', fail: 'PROHIBIDO reenviar de inmediato.' } },
+      { stepId: 'form', field: 'txt', label: 'TXT idéntico', type: 'choice', expected: 'Sí, idéntico al enviado', points: 2, feedback: { pass: 'Cierre correcto', fail: 'El TXT archivado debe ser idéntico al enviado.' } },
+    ],
+  };
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
 export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
@@ -1696,6 +1809,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'conciliacion_practica': wf = generateConciliacionPracticaWorkflow(); break;
     case 'auditoria_practica': wf = generateAuditoriaPracticaWorkflow(); break;
     case 'nomina_practica': wf = generateNominaPracticaWorkflow(); break;
+    case 'reporte_practica': wf = generateReportePracticaWorkflow(); break;
     case 'depreciation': wf = generateDepreciationWorkflow(); break;
     case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
     default: wf = generateGenericWorkflow(taskType);
