@@ -1415,6 +1415,140 @@ Pedro Castillo`,
   };
 }
 
+// mod-auditoria — Webinar (directora + Pedro): M1/M2/M3 con M1 bloqueando
+// DIOT, auditoría cobrado/pagado, deducibilidad, DIOT 4606, hoja de trabajo,
+// IVA a cargo 194.67, cuadre, portal, póliza de cierre y casos a/b/c.
+// Goldens FIJOS del input (NO random).
+
+export function generateAuditoriaPracticaWorkflow(): Workflow {
+  return {
+    taskId: `wf-aud-prac-${r(1000, 9999)}`, taskTitle: 'Auditoría e impuestos (webinar)', taskType: 'auditoria_practica', difficulty: 3, estimatedMinutes: 30,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Módulos y números a auditar', description: 'Valida M1/M2/M3 y audita cobrado vs pagado',
+        guides: [
+          { id: 'g-m123', title: 'M1, M2 y M3', body: 'El sistema trabaja por módulos: M1, M2 y M3. OJO: M1 BLOQUEA la DIOT — sin M1 cerrado no hay declaración. Verifica el estatus de cada módulo antes de seguir.', position: 'top' },
+          { id: 'g-cobrado', title: 'Cobrado vs pagado', body: 'Audita lo cobrado (10000 con IVA 1600) contra lo pagado/egresos (2787.88 con IVA pagado 424.22). La diferencia entre IVA cobrado e IVA pagado es tu IVA a cargo: 194.67.', position: 'top' },
+        ],
+        data: {
+          from: 'Directora Fiscal', to: 'auxiliar@logistica.com',
+          subject: 'Auditoría mensual: M1/M2/M3, DIOT e IVA a cargo 194.67',
+          body: `Buenos días,
+
+Cierra la auditoría del mes con estos números (todos verificados):
+
+**Módulos:** M1, M2 y M3. Recuerda: **M1 bloquea la DIOT**.
+
+**Cobrado:** 10000 con IVA 1600.
+**Egresos:** 2787.88 con IVA pagado 424.22.
+**IVA a cargo:** 194.67.
+
+**DIOT:** base 16% = 4606 (incluye operaciones 0% solo informativas).
+**Parcial:** 2507 al 60%. **Coeficiente:** 0.32 mensual. **Prorrateo:** 50%.
+**Retenciones:** ISR 1000 / IVA 1066.67.
+**Neto:** 99.11 (132 con recargos).
+**Balanza:** 464 = 464, diferencia 0. IVA trasladado: 1600.
+**Portal:** compras 2714, IVA 434.
+**Conteos:** 1 PUE ingresos / 7 PPD ingresos / 7 PUE compras − 3 no deducibles.
+
+**Casos:** a) 72h, b) corte bancario, c) sin complemento.
+
+Saludos,
+Directora Fiscal`,
+          urgency: 'alta',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja — Auditoría y DIOT', description: 'Registra los importes auditados',
+        guides: [
+          { id: 'g-iva', title: 'IVA a cargo 194.67', body: 'IVA cobrado 1600 − IVA pagado y ajustes = 194.67 a cargo. Si te da otro número, revisa deducibilidad y retenciones.', anchor: '[data-guide="IVA a cargo"]', position: 'right' },
+          { id: 'g-diot', title: 'DIOT base 4606', body: 'Base al 16% = 4606. Las operaciones al 0% se informan pero no suman base. El parcial 2507 va al 60% = 1504.20.', anchor: '[data-guide="DIOT base 16%"]', position: 'right' },
+          { id: 'g-balanza', title: 'Balanza que cuadra en 0', body: 'Debe 464 = Haber 464, diferencia 0. Si no cuadra, falta una póliza (revisa el cierre).', anchor: '[data-guide="Diferencia balanza"]', position: 'right' },
+        ],
+        data: {
+          rows: [
+            { label: 'Cobrado', cell_B: 10000, editable: true },
+            { label: 'IVA cobrado', cell_B: 1600, editable: true },
+            { label: 'Egresos', cell_B: 2787.88, editable: true },
+            { label: 'IVA pagado', cell_B: 424.22, editable: true },
+            { label: 'IVA a cargo', cell_B: 194.67, editable: true },
+            { label: 'DIOT base 16%', cell_B: 4606, editable: true },
+            { label: 'Parcial', cell_B: 2507, editable: true },
+            { label: 'Parcial al 60%', cell_B: 1504.20, editable: true },
+            { label: 'Coeficiente mensual', cell_B: 0.32, editable: true },
+            { label: 'Prorrateo %', cell_B: 50, editable: true },
+            { label: 'Retención ISR', cell_B: 1000, editable: true },
+            { label: 'Retención IVA', cell_B: 1066.67, editable: true },
+            { label: 'Neto', cell_B: 99.11, editable: true },
+            { label: 'Neto con recargos', cell_B: 132, editable: true },
+            { label: 'Balanza debe', cell_B: 464, editable: true },
+            { label: 'Balanza haber', cell_B: 464, editable: true },
+            { label: 'Diferencia balanza', cell_B: 0, editable: true },
+            { label: 'IVA trasladado', cell_B: 1600, editable: true },
+            { label: 'Portal compras', cell_B: 2714, editable: true },
+            { label: 'Portal IVA', cell_B: 434, editable: true },
+            { label: 'Conteo PUE ingresos', cell_B: 1, editable: true },
+            { label: 'Conteo PPD ingresos', cell_B: 7, editable: true },
+            { label: 'Conteo PUE compras', cell_B: 7, editable: true },
+            { label: 'No deducibles', cell_B: 3, editable: true },
+          ],
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Decisión — Módulos, deducibilidad y casos', description: 'Confirma bloqueos, cuadre y casos',
+        data: {
+          fields: [
+            { key: 'bloqueo', label: 'Módulo que bloquea DIOT', type: 'choice', options: ['M1', 'M2', 'M3'], correct: 'M1', validation: { required: true } },
+            { key: 'deducibilidad', label: 'Deducibilidad', type: 'choice', options: ['3 no deducibles fuera de base', 'Todo deducible', 'Solo M1 deducible'], correct: '3 no deducibles fuera de base', validation: { required: true } },
+            { key: 'cuadre', label: 'Cuadre hoja vs portal', type: 'choice', options: ['Cuadra (dif 0)', 'Dif 464 pendiente', 'Dif 132 con recargos'], correct: 'Cuadra (dif 0)', validation: { required: true } },
+            { key: 'poliza', label: 'Póliza de cierre', type: 'choice', options: ['Cierre con IVA 194.67 a cargo', 'Cierre en ceros', 'Sin póliza de cierre'], correct: 'Cierre con IVA 194.67 a cargo', validation: { required: true } },
+            { key: 'casoA', label: 'Caso a', type: 'choice', options: ['72h', 'Corte bancario', 'Sin complemento'], correct: '72h', validation: { required: true } },
+            { key: 'casoB', label: 'Caso b', type: 'choice', options: ['72h', 'Corte bancario', 'Sin complemento'], correct: 'Corte bancario', validation: { required: true } },
+            { key: 'casoC', label: 'Caso c', type: 'choice', options: ['72h', 'Corte bancario', 'Sin complemento'], correct: 'Sin complemento', validation: { required: true } },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Auditoría cerrada', description: 'DIOT liberada e IVA a cargo determinado',
+        data: { ivaACargo: 194.67, diotBase: 4606, balanza: 0 },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Cobrado', label: 'Cobrado', type: 'exact', expected: 10000, points: 1, feedback: { pass: 'Cobrado correcto', fail: 'Lo cobrado es 10000.' } },
+      { stepId: 'spreadsheet', field: 'row_IVA cobrado', label: 'IVA cobrado', type: 'exact', expected: 1600, points: 1, feedback: { pass: 'IVA cobrado correcto', fail: 'El IVA cobrado es 1600.' } },
+      { stepId: 'spreadsheet', field: 'row_Egresos', label: 'Egresos', type: 'exact', expected: 2787.88, points: 1, feedback: { pass: 'Egresos correctos', fail: 'Los egresos son 2787.88.' } },
+      { stepId: 'spreadsheet', field: 'row_IVA pagado', label: 'IVA pagado', type: 'exact', expected: 424.22, points: 1, feedback: { pass: 'IVA pagado correcto', fail: 'El IVA pagado es 424.22.' } },
+      { stepId: 'spreadsheet', field: 'row_IVA a cargo', label: 'IVA a cargo', type: 'calculated', expected: 194.67, tolerance: 0.01, points: 5, feedback: { pass: 'IVA a cargo correcto', fail: 'El IVA a cargo es 194.67.' } },
+      { stepId: 'spreadsheet', field: 'row_DIOT base 16%', label: 'DIOT base 16%', type: 'calculated', expected: 4606, tolerance: 0.01, points: 4, feedback: { pass: 'Base DIOT correcta', fail: 'La base DIOT al 16% es 4606 (el 0% solo informa).' } },
+      { stepId: 'spreadsheet', field: 'row_Parcial', label: 'Parcial', type: 'exact', expected: 2507, points: 1, feedback: { pass: 'Parcial correcto', fail: 'El parcial es 2507.' } },
+      { stepId: 'spreadsheet', field: 'row_Parcial al 60%', label: 'Parcial al 60%', type: 'calculated', expected: 1504.20, tolerance: 0.01, points: 3, feedback: { pass: 'Parcial al 60% correcto', fail: 'Parcial = 2507 × 60% = 1504.20' } },
+      { stepId: 'spreadsheet', field: 'row_Coeficiente mensual', label: 'Coeficiente mensual', type: 'exact', expected: 0.32, points: 1, feedback: { pass: 'Coeficiente correcto', fail: 'El coeficiente mensual es 0.32.' } },
+      { stepId: 'spreadsheet', field: 'row_Prorrateo %', label: 'Prorrateo', type: 'exact', expected: 50, points: 1, feedback: { pass: 'Prorrateo correcto', fail: 'El prorrateo es 50%.' } },
+      { stepId: 'spreadsheet', field: 'row_Retención ISR', label: 'Retención ISR', type: 'exact', expected: 1000, points: 1, feedback: { pass: 'Retención ISR correcta', fail: 'La retención ISR es 1000.' } },
+      { stepId: 'spreadsheet', field: 'row_Retención IVA', label: 'Retención IVA', type: 'exact', expected: 1066.67, points: 1, feedback: { pass: 'Retención IVA correcta', fail: 'La retención IVA es 1066.67.' } },
+      { stepId: 'spreadsheet', field: 'row_Neto', label: 'Neto', type: 'exact', expected: 99.11, points: 2, feedback: { pass: 'Neto correcto', fail: 'El neto es 99.11.' } },
+      { stepId: 'spreadsheet', field: 'row_Neto con recargos', label: 'Neto con recargos', type: 'exact', expected: 132, points: 2, feedback: { pass: 'Neto con recargos correcto', fail: 'Con recargos el neto es 132.' } },
+      { stepId: 'spreadsheet', field: 'row_Balanza debe', label: 'Balanza debe', type: 'exact', expected: 464, points: 1, feedback: { pass: 'Debe correcto', fail: 'La balanza debe 464.' } },
+      { stepId: 'spreadsheet', field: 'row_Balanza haber', label: 'Balanza haber', type: 'exact', expected: 464, points: 1, feedback: { pass: 'Haber correcto', fail: 'La balanza haber 464.' } },
+      { stepId: 'spreadsheet', field: 'row_Diferencia balanza', label: 'Diferencia balanza', type: 'calculated', expected: 0, tolerance: 0.01, points: 3, feedback: { pass: 'Balanza cuadra en 0', fail: 'Diferencia = 464 − 464 = 0.' } },
+      { stepId: 'spreadsheet', field: 'row_IVA trasladado', label: 'IVA trasladado', type: 'exact', expected: 1600, points: 1, feedback: { pass: 'Trasladado correcto', fail: 'El IVA trasladado es 1600.' } },
+      { stepId: 'spreadsheet', field: 'row_Portal compras', label: 'Portal compras', type: 'exact', expected: 2714, points: 1, feedback: { pass: 'Portal compras correcto', fail: 'El portal muestra compras 2714.' } },
+      { stepId: 'spreadsheet', field: 'row_Portal IVA', label: 'Portal IVA', type: 'exact', expected: 434, points: 1, feedback: { pass: 'Portal IVA correcto', fail: 'El portal muestra IVA 434.' } },
+      { stepId: 'spreadsheet', field: 'row_Conteo PUE ingresos', label: 'Conteo PUE ingresos', type: 'exact', expected: 1, points: 1, feedback: { pass: 'Conteo correcto', fail: '1 PUE en ingresos.' } },
+      { stepId: 'spreadsheet', field: 'row_Conteo PPD ingresos', label: 'Conteo PPD ingresos', type: 'exact', expected: 7, points: 1, feedback: { pass: 'Conteo correcto', fail: '7 PPD en ingresos.' } },
+      { stepId: 'spreadsheet', field: 'row_Conteo PUE compras', label: 'Conteo PUE compras', type: 'exact', expected: 7, points: 1, feedback: { pass: 'Conteo correcto', fail: '7 PUE en compras.' } },
+      { stepId: 'spreadsheet', field: 'row_No deducibles', label: 'No deducibles', type: 'exact', expected: 3, points: 1, feedback: { pass: 'No deducibles correctos', fail: '3 no deducibles fuera de base.' } },
+      { stepId: 'form', field: 'bloqueo', label: 'Módulo que bloquea DIOT', type: 'choice', expected: 'M1', points: 4, feedback: { pass: 'M1 bloquea, correcto', fail: 'Sin M1 cerrado no hay DIOT.' } },
+      { stepId: 'form', field: 'deducibilidad', label: 'Deducibilidad', type: 'choice', expected: '3 no deducibles fuera de base', points: 3, feedback: { pass: 'Deducibilidad correcta', fail: 'Los 3 no deducibles van fuera de la base.' } },
+      { stepId: 'form', field: 'cuadre', label: 'Cuadre hoja vs portal', type: 'choice', expected: 'Cuadra (dif 0)', points: 3, feedback: { pass: 'Cuadre correcto', fail: 'La hoja cuadra con el portal (dif 0).' } },
+      { stepId: 'form', field: 'poliza', label: 'Póliza de cierre', type: 'choice', expected: 'Cierre con IVA 194.67 a cargo', points: 3, feedback: { pass: 'Póliza correcta', fail: 'La póliza de cierre lleva el IVA 194.67 a cargo.' } },
+      { stepId: 'form', field: 'casoA', label: 'Caso a', type: 'choice', expected: '72h', points: 2, feedback: { pass: 'Caso a correcto', fail: 'El caso a es 72h.' } },
+      { stepId: 'form', field: 'casoB', label: 'Caso b', type: 'choice', expected: 'Corte bancario', points: 2, feedback: { pass: 'Caso b correcto', fail: 'El caso b es corte bancario.' } },
+      { stepId: 'form', field: 'casoC', label: 'Caso c', type: 'choice', expected: 'Sin complemento', points: 2, feedback: { pass: 'Caso c correcto', fail: 'El caso c es sin complemento.' } },
+    ],
+  };
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
 export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
@@ -1434,6 +1568,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'credit_note': wf = generateCreditNoteWorkflow(userId); break;
     case 'cash_cut': wf = generateCashCutWorkflow(); break;
     case 'conciliacion_practica': wf = generateConciliacionPracticaWorkflow(); break;
+    case 'auditoria_practica': wf = generateAuditoriaPracticaWorkflow(); break;
     case 'depreciation': wf = generateDepreciationWorkflow(); break;
     case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
     default: wf = generateGenericWorkflow(taskType);
