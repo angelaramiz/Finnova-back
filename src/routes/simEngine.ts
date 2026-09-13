@@ -1034,7 +1034,7 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
       }).select('id').maybeSingle();
 
     // Persistir la especialidad elegida en el perfil del alumno
-    const finalSpecialty = specialty === 'data_engineering' ? 'data_engineering' : 'accounting';
+    const finalSpecialty = ['data_engineering', 'practicas'].includes(specialty) ? specialty : 'accounting';
     await supabaseAdmin.from('profiles').upsert(
       { id: userId, specialty: finalSpecialty },
       { onConflict: 'id' }
@@ -1055,7 +1055,7 @@ simEngineRouter.post('/onboarding', requireSupabaseAuth, async (req: Authenticat
     onboardingCompleted: true,
     simulationProfile: simulationProfile || 'pyme',
     experienceLevel: experienceLevel || 'beginner',
-    specialty: specialty === 'data_engineering' ? 'data_engineering' : 'accounting',
+    specialty: ['data_engineering', 'practicas'].includes(specialty) ? specialty : 'accounting',
     assignedJob: MemoryDatabase.simJobs.find(j => j.id === assignedJobId) || MemoryDatabase.simJobs[0],
     assignedCompany: MemoryDatabase.simCompanies.find(c => c.id === assignedCompanyId) || MemoryDatabase.simCompanies[0],
   });
