@@ -18,6 +18,7 @@ import { workflowRouter } from './routes/workflows';
 import { staffRouter } from './routes/staff';
 import { stage1Router } from './routes/stage1';
 import { automatorRouter } from './routes/automator';
+import { moldesRouter } from './routes/moldes';
 import { vacanciesRouter } from './routes/vacancies';
 import { VERSION, BUILD_HASH } from './version';
 import { startEmailQueueWorker, getQueueStats } from './lib/emailQueue';
@@ -173,6 +174,7 @@ app.use('/api/staff', staffRouter);
 app.use('/api/stage1', stage1Router);
 app.use('/api/vacancies', vacanciesRouter);
 app.use('/api/automator', automatorRouter);
+app.use('/api/moldes', moldesRouter);
 
 // Health check endpoint with background pre-warming for database and n8n
 app.get('/api/health', async (req: Request, res: Response) => {
