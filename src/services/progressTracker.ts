@@ -26,6 +26,7 @@ export interface TaskCompletion {
   isTrap: boolean;
   trapDetected: boolean;
   feedback?: string;
+  moduleId?: string;    // quiz de prácticas: id del módulo evaluado
 }
 
 export interface RoleProgress {
@@ -113,6 +114,7 @@ export async function recordCompletion(userId: string, data: {
   trapDetected?: boolean;
   feedback?: string;
   countsAsCase?: boolean;
+  moduleId?: string;
 }): Promise<TaskCompletion> {
   const progress = await getUserProgress(userId, data.specialty);
   const completion: TaskCompletion = {
@@ -126,6 +128,33 @@ export async function recordCompletion(userId: string, data: {
   memorySet(userId, data.specialty, progress);
   await saveRemote(userId, data.specialty, progress);
   return completion;
+}
+
+// ─── Avance de quizzes de prácticas (TASK-1-2 Contalink a producción) ─
+// Completar práctica + quiz escribe en sim_progress bajo specialty
+// 'practicas'. Staff lo ve por progressBySpec y reanudar lee este mismo
+// estado vía getRoleProgress(userId, 'practicas'). Sin migración: la tabla
+// ya guarda data JSONB por especialidad.
+export async function registrarAvanceQuiz(
+  userId: string,
+  moduleId: string,
+  resultado: { titulo: string; scorePct: number; aprobado: boolean },
+): Promise<TaskCompletion> {
+  return recordCompletion(userId, {
+    taskId: `prueba-${moduleId}`,
+    taskType: 'prueba_modulo',
+    title: `Quiz ${resultado.titulo}`,
+    category: 'practicas-quiz',
+    specialty: 'practicas',
+    difficulty: 1,
+    score: resultado.scorePct,
+    maxScore: 100,
+    passed: resultado.aprobado,
+    week: 0,
+    day: 0,
+    timeSpent: 0,
+    moduleId,
+  });
 }
 
 // ─── Obtener progreso por especialidad ───────────────────────

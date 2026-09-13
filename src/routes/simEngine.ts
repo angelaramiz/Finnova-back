@@ -16,7 +16,7 @@ import { getPracticasModules, getPracticasModule, getPracticasCursos, getPractic
 import { getWorld, addAction, resetWorld, getCareerPath, saveCareerPath } from '../services/simWorld';
 import { applyProgress, chooseBranch, applyDemoOverride, PracticeBreakdown, careerAppSet } from '../services/careerPath';
 import { ALL_EXERCISES, getExerciseById, getExercisesByType, getExercisesByDifficulty } from '../services/excelExercises';
-import { recordCompletion, getRoleProgress, getQuickStats, computePracticeBreakdown } from '../services/progressTracker';
+import { recordCompletion, getRoleProgress, getQuickStats, computePracticeBreakdown, registrarAvanceQuiz } from '../services/progressTracker';
 import { buildSkillProfile, buildDemoSkillProfile } from '../services/skillProfile';
 import { getCvExtra, saveCvExtra, generateCvLatex, CvProfileData, CvExtraData } from '../services/cvProfile';
 import { generateCvPdf } from '../services/cvPdf';
@@ -1274,7 +1274,17 @@ simEngineRouter.post('/practicas/prueba/:id', requireSupabaseAuth, async (req: A
   }
   try {
     const result = evaluatePracticaPrueba(req.params.id, answers);
-    res.json({ ...result });
+    const userId = req.user?.id;
+    let persistido = false;
+    if (userId) {
+      try {
+        await registrarAvanceQuiz(userId, req.params.id, result);
+        persistido = true;
+      } catch {
+        persistido = false;
+      }
+    }
+    res.json({ ...result, persistido });
   } catch (e: any) {
     res.status(404).json({ error: e.message || 'Prueba no encontrada' });
   }
