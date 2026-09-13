@@ -1297,6 +1297,124 @@ export function getStoredWorkflow(userId: string | undefined, workflowId: string
   return entry.wf;
 }
 
+// ─── PRÁCTICAS CONTALINK x4 (goldens fijos de los videos, NO random) ───
+// mod-conciliacion — Webinar Pedro Castillo: conciliación bancaria real
+// (parcial, 1-vs-2, N-vs-1, USD con TC completo, traspaso vía puente,
+// rebote, reembolso, fecha póliza = fecha movimiento, cierre con revaluación).
+
+export function generateConciliacionPracticaWorkflow(): Workflow {
+  const MOV_FECHA = '2025-06-10';
+  return {
+    taskId: `wf-conc-prac-${r(1000, 9999)}`, taskTitle: 'Conciliación bancaria (webinar Pedro Castillo)', taskType: 'conciliacion_practica', difficulty: 2, estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo — Extracto y casos a conciliar', description: 'Concilia el extracto BBVA contra los registros',
+        guides: [
+          { id: 'g-que', title: '¿Qué es conciliar?', body: 'Comparar cada movimiento del banco contra tu registro interno hasta que ambos cuadren. Todo lo que no cuadra se investiga: parciales, pagos agrupados, dólares, traspasos, rebotes y reembolsos.', position: 'top' },
+          { id: 'g-casos', title: 'Los 6 casos del extracto', body: 'Parcial (factura 4419.60 vs movimiento 1219.60), 1-vs-2 (89.50 + 65.98, resto 626.20), N-vs-1 (4062 + 4000 vs folio 51010), USD 45 (TC con todos los decimales), traspaso vía puente 899/104, rebote 150/150 y reembolso al socio 2018.40.', position: 'top' },
+        ],
+        data: {
+          from: 'Pedro Castillo', to: 'auxiliar@logistica.com',
+          subject: 'Conciliación BBVA 102-01-001 — periodo 13-may al 13-jun-2025',
+          body: `Buenos días,
+
+Te paso el extracto de la cuenta **102-01 / 102-01-001 (BBVA débito)** del periodo **13-may al 13-jun-2025**. Saldo inicial: **$50000**.
+
+**Casos a conciliar:**
+1. **Parcial:** factura por **4419.60**, movimiento por **1219.60** (calcula el resto).
+2. **1-vs-2:** dos pagos **89.50 + 65.98** contra una factura; resto **626.20**.
+3. **N-vs-1:** cobros **4062 + 4000** aplicados al folio **51010**.
+4. **USD:** compra por **45 USD**; el banco muestra **789** y **789.01**. TC = 789/45 con TODOS los decimales; el centavo va a cuenta.
+5. **Traspaso:** se movió dinero entre bancos vía cuenta puente **Traspaso bancario 899 y 104**. OJO: nunca directo a otro banco.
+6. **Rebote:** cargo y abono por **150/150**.
+7. **Reembolso al socio:** **2018.40**.
+
+**Reglas de cierre:** la fecha de cada póliza = fecha del movimiento (movimiento de referencia: ${MOV_FECHA}); la contrapartida NUNCA es la cuenta del banco; cierra marcando la casilla de revaluación.
+
+Saludos,
+Pedro Castillo`,
+          urgency: 'alta',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja — Conciliación del extracto', description: 'Calcula cada caso con los montos exactos',
+        guides: [
+          { id: 'g-parcial', title: 'Resto parcial', body: 'Resto = Factura − Movimiento = 4419.60 − 1219.60 = 3200.00. El resto queda pendiente de cobro.', anchor: '[data-guide="Resto parcial"]', position: 'right' },
+          { id: 'g-1v2', title: 'Suma y resto 1-vs-2', body: 'Suma = 89.50 + 65.98 = 155.48. Resto = 626.20 (dato del extracto). Dos pagos, una factura.', anchor: '[data-guide="Suma 1-vs-2"]', position: 'right' },
+          { id: 'g-nv1', title: 'Suma N-vs-1', body: 'Suma = 4062 + 4000 = 8062 aplicados al folio 51010. Varios cobros, una referencia.', anchor: '[data-guide="Suma N-vs-1"]', position: 'right' },
+          { id: 'g-tc', title: 'TC con todos los decimales', body: 'TC = 789/45 = 17.5333... NO lo redondees a 2 decimales: ese redondeo es el error típico. El centavo de diferencia (0.01) va a cuenta, no se ignora.', anchor: '[data-guide="TC aplicado"]', position: 'right' },
+          { id: 'g-puente', title: 'Cuenta puente, no directo', body: 'El traspaso entre bancos pasa por la cuenta puente (Traspaso bancario 899 y 104). Registrarlo directo a otro banco descuadra la conciliación.', anchor: '[data-guide="Contrapartida traspaso"]', position: 'right' },
+        ],
+        data: {
+          rows: [
+            { label: 'Saldo inicial', cell_B: 50000, editable: true },
+            { label: 'Factura parcial', cell_B: 4419.60, editable: true },
+            { label: 'Movimiento parcial', cell_B: 1219.60, editable: true },
+            { label: 'Resto parcial', cell_B: 3200.00, editable: true },
+            { label: 'Pago 1 (1-vs-2)', cell_B: 89.50, editable: true },
+            { label: 'Pago 2 (1-vs-2)', cell_B: 65.98, editable: true },
+            { label: 'Suma 1-vs-2', cell_B: 155.48, editable: true },
+            { label: 'Resto 1-vs-2', cell_B: 626.20, editable: true },
+            { label: 'Cobro A (N-vs-1)', cell_B: 4062, editable: true },
+            { label: 'Cobro B (N-vs-1)', cell_B: 4000, editable: true },
+            { label: 'Suma N-vs-1', cell_B: 8062, editable: true },
+            { label: 'Folio referencia N-vs-1', cell_B: '51010', editable: true },
+            { label: 'Compra USD', cell_B: 45, editable: true },
+            { label: 'Monto referencia MXN', cell_B: 789, editable: true },
+            { label: 'TC aplicado', cell_B: Math.round((789 / 45) * 10000) / 10000, editable: true },
+            { label: 'Monto convertido MXN', cell_B: 789.01, editable: true },
+            { label: 'Diferencia centavo', cell_B: 0.01, editable: true },
+            { label: 'Rebote (cargo y abono)', cell_B: 150, editable: true },
+            { label: 'Reembolso al socio', cell_B: 2018.40, editable: true },
+          ],
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Decisión — Banco, periodo y cierre', description: 'Confirma banco, contrapartida, periodo y cierre',
+        data: {
+          fields: [
+            { key: 'banco', label: 'Banco correcto', type: 'choice', options: ['BBVA débito 102-01-001', 'Santander crédito 102-02-001', 'Banorte débito 102-03-001'], correct: 'BBVA débito 102-01-001', validation: { required: true } },
+            { key: 'contrapartida', label: 'Contrapartida traspaso', type: 'choice', options: ['102-01-001 (directo a otro banco)', 'Traspaso bancario 899 y 104 (puente)', '2018.40 reembolso al socio'], correct: 'Traspaso bancario 899 y 104 (puente)', validation: { required: true } },
+            { key: 'periodo', label: 'Periodo', type: 'choice', options: ['13-may al 13-jun-2025', '01 al 30-jun-2025', '13-may al 13-jul-2025'], correct: '13-may al 13-jun-2025', validation: { required: true } },
+            { key: 'fechaPoliza', label: 'Fecha póliza', type: 'choice', options: [MOV_FECHA, '2025-06-30', '2025-05-13'], correct: MOV_FECHA, validation: { required: true } },
+            { key: 'revaluacion', label: 'Cierre con revaluación', type: 'choice', options: ['Sí', 'No'], correct: 'Sí', validation: { required: true } },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Conciliación cerrada', description: 'Extracto conciliado con el periodo y la revaluación',
+        data: { cuenta: '102-01-001', periodo: '13-may al 13-jun-2025', casos: 7, revaluacion: true },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Saldo inicial', label: 'Saldo inicial', type: 'exact', expected: 50000, points: 1, feedback: { pass: 'Saldo correcto', fail: 'El saldo inicial es $50000 (dato del extracto).' } },
+      { stepId: 'spreadsheet', field: 'row_Factura parcial', label: 'Factura parcial', type: 'exact', expected: 4419.60, points: 1, feedback: { pass: 'Factura correcta', fail: 'La factura parcial es 4419.60.' } },
+      { stepId: 'spreadsheet', field: 'row_Movimiento parcial', label: 'Movimiento parcial', type: 'exact', expected: 1219.60, points: 1, feedback: { pass: 'Movimiento correcto', fail: 'El movimiento parcial es 1219.60.' } },
+      { stepId: 'spreadsheet', field: 'row_Resto parcial', label: 'Resto parcial', type: 'calculated', expected: 3200.00, tolerance: 0.01, points: 3, feedback: { pass: 'Resto parcial correcto', fail: 'Resto = 4419.60 − 1219.60 = 3200.00' } },
+      { stepId: 'spreadsheet', field: 'row_Pago 1 (1-vs-2)', label: 'Pago 1', type: 'exact', expected: 89.50, points: 1, feedback: { pass: 'Pago 1 correcto', fail: 'El pago 1 es 89.50.' } },
+      { stepId: 'spreadsheet', field: 'row_Pago 2 (1-vs-2)', label: 'Pago 2', type: 'exact', expected: 65.98, points: 1, feedback: { pass: 'Pago 2 correcto', fail: 'El pago 2 es 65.98.' } },
+      { stepId: 'spreadsheet', field: 'row_Suma 1-vs-2', label: 'Suma 1-vs-2', type: 'calculated', expected: 155.48, tolerance: 0.01, points: 3, feedback: { pass: 'Suma correcta', fail: 'Suma = 89.50 + 65.98 = 155.48' } },
+      { stepId: 'spreadsheet', field: 'row_Resto 1-vs-2', label: 'Resto 1-vs-2', type: 'calculated', expected: 626.20, tolerance: 0.01, points: 2, feedback: { pass: 'Resto correcto', fail: 'El resto 1-vs-2 es 626.20 (dato del extracto).' } },
+      { stepId: 'spreadsheet', field: 'row_Cobro A (N-vs-1)', label: 'Cobro A', type: 'exact', expected: 4062, points: 1, feedback: { pass: 'Cobro A correcto', fail: 'El cobro A es 4062.' } },
+      { stepId: 'spreadsheet', field: 'row_Cobro B (N-vs-1)', label: 'Cobro B', type: 'exact', expected: 4000, points: 1, feedback: { pass: 'Cobro B correcto', fail: 'El cobro B es 4000.' } },
+      { stepId: 'spreadsheet', field: 'row_Folio referencia N-vs-1', label: 'Folio referencia', type: 'exact', expected: '51010', points: 1, feedback: { pass: 'Folio correcto', fail: 'El folio de referencia es 51010.' } },
+      { stepId: 'spreadsheet', field: 'row_Suma N-vs-1', label: 'Suma N-vs-1', type: 'calculated', expected: 8062, tolerance: 0.01, points: 3, feedback: { pass: 'Suma correcta', fail: 'Suma = 4062 + 4000 = 8062 contra el folio 51010.' } },
+      { stepId: 'spreadsheet', field: 'row_Compra USD', label: 'Compra USD', type: 'exact', expected: 45, points: 1, feedback: { pass: 'Monto USD correcto', fail: 'La compra es 45 USD.' } },
+      { stepId: 'spreadsheet', field: 'row_Monto referencia MXN', label: 'Monto referencia MXN', type: 'exact', expected: 789, points: 1, feedback: { pass: 'Referencia correcta', fail: 'El banco muestra 789.' } },
+      { stepId: 'spreadsheet', field: 'row_Monto convertido MXN', label: 'Monto convertido MXN', type: 'exact', expected: 789.01, points: 1, feedback: { pass: 'Convertido correcto', fail: 'El convertido es 789.01.' } },
+      { stepId: 'spreadsheet', field: 'row_TC aplicado', label: 'TC aplicado', type: 'calculated', expected: Math.round((789 / 45) * 10000) / 10000, tolerance: 0.001, points: 4, feedback: { pass: 'TC correcto con todos los decimales', fail: 'TC = 789/45 = 17.5333... (todos los decimales, no 17.53).' } },
+      { stepId: 'spreadsheet', field: 'row_Diferencia centavo', label: 'Diferencia centavo', type: 'calculated', expected: 0.01, tolerance: 0.005, points: 3, feedback: { pass: 'Centavo a cuenta, correcto', fail: 'La diferencia de 0.01 va a cuenta, no se ignora.' } },
+      { stepId: 'spreadsheet', field: 'row_Rebote (cargo y abono)', label: 'Rebote', type: 'calculated', expected: 150, tolerance: 0.01, points: 2, feedback: { pass: 'Rebote correcto', fail: 'Rebote: cargo y abono por 150/150.' } },
+      { stepId: 'spreadsheet', field: 'row_Reembolso al socio', label: 'Reembolso al socio', type: 'calculated', expected: 2018.40, tolerance: 0.01, points: 2, feedback: { pass: 'Reembolso correcto', fail: 'Reembolso al socio: 2018.40.' } },
+      { stepId: 'form', field: 'banco', label: 'Banco correcto', type: 'choice', expected: 'BBVA débito 102-01-001', points: 3, feedback: { pass: 'Banco correcto', fail: 'La cuenta es BBVA débito 102-01-001.' } },
+      { stepId: 'form', field: 'contrapartida', label: 'Contrapartida traspaso', type: 'choice', expected: 'Traspaso bancario 899 y 104 (puente)', points: 4, feedback: { pass: 'Puente correcto', fail: 'El traspaso va por la cuenta puente 899/104, nunca directo a otro banco.' } },
+      { stepId: 'form', field: 'periodo', label: 'Periodo', type: 'choice', expected: '13-may al 13-jun-2025', points: 2, feedback: { pass: 'Periodo correcto', fail: 'El periodo es 13-may al 13-jun-2025.' } },
+      { stepId: 'form', field: 'fechaPoliza', label: 'Fecha póliza', type: 'choice', expected: MOV_FECHA, points: 3, feedback: { pass: 'Fecha correcta', fail: `La fecha de la póliza = fecha del movimiento (${MOV_FECHA}).` } },
+      { stepId: 'form', field: 'revaluacion', label: 'Cierre con revaluación', type: 'choice', expected: 'Sí', points: 2, feedback: { pass: 'Cierre correcto', fail: 'El cierre lleva la casilla de revaluación marcada.' } },
+    ],
+  };
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
 export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
@@ -1315,6 +1433,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'cfdi_reception': wf = generateCFDIWorkflow(); break;
     case 'credit_note': wf = generateCreditNoteWorkflow(userId); break;
     case 'cash_cut': wf = generateCashCutWorkflow(); break;
+    case 'conciliacion_practica': wf = generateConciliacionPracticaWorkflow(); break;
     case 'depreciation': wf = generateDepreciationWorkflow(); break;
     case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
     default: wf = generateGenericWorkflow(taskType);
