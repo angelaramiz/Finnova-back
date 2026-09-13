@@ -70,10 +70,29 @@ export interface PracticaModulo {
   descripcion: string;
   objetivo: string;
   semanas: string;          // rango de semanas del plan de prácticas
+  plataforma: string;       // plataforma principal: 'contabilidad' | 'contalink' | (futuro: 'odoo'...)
   pasos: PracticaPaso[];
   skill: string;            // dimensión de habilidad (skillProfile)
   prueba: PracticaPrueba;   // prueba de conocimiento/comprensión del tema
   curso: PracticaCurso;     // curso básico teórico con el NPC capacitador
+}
+
+// Catálogo de plataformas principales: la especialidad `practicas` es un
+// catálogo; cada módulo pertenece a una plataforma (hoy Contalink, mañana Odoo...).
+export interface PlataformaModulo {
+  id: string;
+  nombre: string;
+  icono: string;
+  descripcion: string;
+}
+
+export const PLATAFORMAS_MODULOS: PlataformaModulo[] = [
+  { id: 'contabilidad', nombre: 'Contabilidad general', icono: '📒', descripcion: 'CFDI, gastos, cobranza, proveedores, nómina y cierre. Práctica contable base.' },
+  { id: 'contalink', nombre: 'Contalink', icono: '🔗', descripcion: 'Flujos reales del sistema Contalink: conciliación, auditoría, nómina y DIOT (webinars).' },
+];
+
+export function getPlataformasModulos(): PlataformaModulo[] {
+  return PLATAFORMAS_MODULOS;
 }
 
 // ─── Pruebas de conocimiento por módulo (contenido pedagógico) ──
@@ -798,6 +817,7 @@ export function evaluatePracticaPrueba(moduleId: string, answers: number[]): { m
 export const PRACTICAS_MODULES: PracticaModulo[] = [
   {
     id: 'mod-cfdi',
+    plataforma: 'contabilidad',
     titulo: 'Facturación electrónica (CFDI 4.0)',
     icono: '🧾',
     descripcion: 'Emitir facturas electrónicas como se hace en el portal del SAT y en Odoo.',
@@ -815,6 +835,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-gastos',
+    plataforma: 'contabilidad',
     titulo: 'Gastos internos: comida empresarial',
     icono: '🍽️',
     descripcion: 'Registrar un gasto por comida de trabajo leyendo el ticket del restaurante.',
@@ -832,6 +853,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-cobranza',
+    plataforma: 'contabilidad',
     titulo: 'Cobranza y registro de pagos',
     icono: '💳',
     descripcion: 'Aplicar pagos de clientes a facturas y controlar saldos.',
@@ -848,6 +870,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-proveedores',
+    plataforma: 'contabilidad',
     titulo: 'Proveedores y CFDI de gastos',
     icono: '🚚',
     descripcion: 'Registrar facturas recibidas de proveedores y validar su IVA acreditable.',
@@ -864,6 +887,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-nomina',
+    plataforma: 'contabilidad',
     titulo: 'Nómina: sueldos, ISR e IMSS',
     icono: '👥',
     descripcion: 'Calcular la nómina mensual: sueldo bruto, ISR por tabla, IMSS, PTU y neto.',
@@ -880,6 +904,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-cierre',
+    plataforma: 'contabilidad',
     titulo: 'Conciliación bancaria y cierre',
     icono: '🏦',
     descripcion: 'Conciliar el banco contra los registros y preparar el cierre del mes.',
@@ -896,6 +921,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-conciliacion',
+    plataforma: 'contalink',
     titulo: 'Conciliación bancaria real (webinar)',
     icono: '🏦',
     descripcion: 'Conciliar el extracto BBVA con parciales, pagos agrupados, dólares y traspasos.',
@@ -912,6 +938,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-auditoria',
+    plataforma: 'contalink',
     titulo: 'Auditoría e impuestos (webinar)',
     icono: '🔍',
     descripcion: 'Auditar M1/M2/M3, validar la DIOT y determinar el IVA a cargo.',
@@ -928,6 +955,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-nomina-web',
+    plataforma: 'contalink',
     titulo: 'Nómina semanal real (webinar)',
     icono: '👥',
     descripcion: 'Calcular la nómina semanal con tarifa ISR progresiva e incidencias.',
@@ -944,6 +972,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
   },
   {
     id: 'mod-reporte',
+    plataforma: 'contalink',
     titulo: 'DIOT online y acuse (video)',
     icono: '📤',
     descripcion: 'Clasificar operaciones, cuadrar y presentar la DIOT de enero 2026.',
@@ -974,6 +1003,9 @@ export function getPracticasModule(id: string): PracticaModulo | undefined {
 export function auditPracticasModules(validTaskTypes: string[]): { module: string; paso: string; ok: boolean; error?: string }[] {
   const issues: { module: string; paso: string; ok: boolean; error?: string }[] = [];
   for (const m of PRACTICAS_MODULES) {
+    if (!PLATAFORMAS_MODULOS.some(p => p.id === (m as PracticaModulo).plataforma)) {
+      issues.push({ module: m.id, paso: 'plataforma', ok: false, error: `plataforma '${(m as PracticaModulo).plataforma}' no está en el catálogo` });
+    }
     for (const p of m.pasos) {
       if (p.tipo === 'tarea' && p.taskType && !validTaskTypes.includes(p.taskType)) {
         issues.push({ module: m.id, paso: p.id, ok: false, error: `taskType '${p.taskType}' no existe en el motor` });
