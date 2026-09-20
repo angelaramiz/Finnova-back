@@ -28,6 +28,8 @@ import { getDEWorkflow, DE_WORKFLOWS } from '../services/dataEngineeringWorkflow
 import { SQL_EXERCISES, PYTHON_EXERCISES, getSQLExercise, getPythonExercise } from '../services/dataExercises';
 import { getStoryState, getActiveCase, completeScene, resetStory } from '../services/storyState';
 import { getChronicle } from '../services/chronicle';
+// EXP finanzas (rama experimental): motor financiero mínimo.
+import { interesCompuesto } from '../services/finanzas';
 import { getArcsForRoute, type RouteId } from '../data/storyArcs';
 import { ingestEvents } from '../services/learningAnalytics';
 
@@ -1234,6 +1236,13 @@ simEngineRouter.post('/telemetry', requireSupabaseAuth, async (req: Authenticate
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
+});
+
+// ─── EXP finanzas: caso demo determinista (público, solo lectura) ───
+// $10,000 al 12% anual capitalizable mensual, 1 año. Sin auth a propósito:
+// es el mismo caso para todo el grupo (el instructor lo proyecta en clase).
+simEngineRouter.get('/finanzas/demo', (_req, res: Response) => {
+  res.json(interesCompuesto(10000, 0.12, 12, 1));
 });
 
 // ─── Prácticas profesionales (R-13) ─────────────────────────────
