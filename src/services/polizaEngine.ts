@@ -5,7 +5,7 @@
 // Regla de oro R-09: montos y validaciones salen de MOTORES o del Anexo 24;
 // cada error trae lección 📚 (P1 pedagogía practicantes). Cero LLM.
 
-import { getSatCuenta, resolverAgrupador, clasificarProducto, METODOS_PAGO_SAT } from './satCatalog';
+import { getSatCuenta, resolverAgrupador, clasificarProducto, desambiguarArrendamiento, METODOS_PAGO_SAT } from './satCatalog';
 
 // ─── Etapa 1: ingesta ──────────────────────────────────────────────
 export interface CfdiRow {
@@ -87,22 +87,59 @@ export function conciliarPago(cfdi: CfdiRow, edoCta: EdoCtaRow[]): Conciliacion 
   };
 }
 
+// ─── Validadores fiscales (Anexo 24 + LISR + LIVA) ─────────────────
+const UUID_CFDI = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+const RFC_PF = /^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/;
+const RFC_PM = /^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/;
+
+export function validarUuid(uuid: string): Leccion | null {
+  if (!UUID_CFDI.test((uuid || '').trim())) {
+    return leccion('UUID_INVALIDO',
+      `El UUID "${uuid}" no tiene formato de folio fiscal (8-4-4-4-12 hexadecimal).`,
+      '📚 El UUID es la llave que amarra la póliza con su CFDI (Anexo 24 C). Un folio mal formado no existe en el SAT: se corrige el documento, no se contabiliza.');
+  }
+  return null;
+}
+
+export function validarRfc(rfc: string): Leccion | null {
+  const limpio = (rfc || '').trim().toUpperCase();
+  if (!RFC_PF.test(limpio) && !RFC_PM.test(limpio)) {
+    return leccion('RFC_INVALIDO',
+      `El RFC "${rfc}" no tiene formato válido (PF 13 o PM 12 caracteres).`,
+      '📚 El RFC del tercero identifica al emisor ante el SAT. Además define PF vs PM: de eso depende la cuenta (601.45 vs 601.46) y si hay retención del 10%.');
+  }
+  return null;
+}
+
 // ─── Etapa 3: clasificación ────────────────────────────────────────
 export interface Clasificacion {
   agrupador: string | null;
   nota: string;
+  aviso?: string;
   leccion?: Leccion;
 }
 
 export function clasificar(cfdi: CfdiRow): Clasificacion {
   const hit = clasificarProducto(cfdi.producto);
-  if (hit) return { agrupador: hit.agrupador, nota: hit.nota };
-  return {
-    agrupador: null, nota: 'sin clasificar',
-    leccion: leccion('SIN_CLASIFICAR',
-      `El producto "${cfdi.producto}" no tiene regla de clasificación.`,
-      '📚 El motor nunca adivina la cuenta: un concepto ambiguo (ej. "PIERNA" sin desglose) se deja sin clasificar y se pide aclaración al proveedor. Clasificar a ojo contamina la balanza electrónica.'),
-  };
+  if (!hit) {
+    return {
+      agrupador: null, nota: 'sin clasificar',
+      leccion: leccion('SIN_CLASIFICAR',
+        `El producto "${cfdi.producto}" no tiene regla de clasificación.`,
+        '📚 El motor nunca adivina la cuenta: un concepto ambiguo (ej. "PIERNA" sin desglose) se deja sin clasificar y se pide aclaración al proveedor. Clasificar a ojo contamina la balanza electrónica.'),
+    };
+  }
+  // Desambiguación PF/PM con el RFC (arrendamiento 601.45 vs 601.46)
+  if (hit.requiereDesambiguacion === 'PF_PM') {
+    const d = desambiguarArrendamiento(cfdi.rfc);
+    const sinRfc = !/^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$/i.test((cfdi.rfc || '').trim());
+    return {
+      agrupador: d.agrupador,
+      nota: `${hit.nota} → ${d.agrupador} (${d.como})`,
+      aviso: sinRfc ? 'Sin RFC válido no puedo distinguir PF/PM: se propone 601.45, confírmalo.' : undefined,
+    };
+  }
+  return { agrupador: hit.agrupador, nota: hit.nota };
 }
 
 // ─── Etapa 4: cálculo ──────────────────────────────────────────────
@@ -152,20 +189,37 @@ export function calcularLineas(cfdi: CfdiRow, clasif: Clasificacion, conc: Conci
       '📚 Solo se contabiliza con códigos del Anexo 24: si el agrupador no existe en el catálogo, la póliza no puede ir a la contabilidad electrónica.'));
     return { lineas: [], errores };
   }
+  // Gasto no deducible: el IVA forma parte del gasto, jamás se acredita
+  if (clasif.agrupador === '601.83' && (cfdi.iva16 > 0 || cfdi.iva8 > 0)) {
+    errores.push(leccion('IVA_NO_DEDUCIBLE',
+      `Gasto 601.83 con IVA ${cfdi.iva16}: sin requisitos fiscales no hay acreditamiento.`,
+      '📚 Sin requisitos fiscales no hay acreditamiento (Art. 28 LISR + Art. 5 LIVA): el IVA se vuelve costo y se suma al gasto en una sola línea. Llevarlo a 118.01 es pedir devolución de lo indebido (Art. 22 CFF).'));
+    return { lineas: [], errores };
+  }
 
   const ctaBanco = opts.cuentaBanco ?? '102-01-002';
   const lineas: LineaPoliza[] = [];
 
-  // Ruta ingreso/capital (naturaleza acreedora: el banco entra en DEBE)
+  // Ruta ingreso/capital (naturaleza acreedora: el cobro entra en DEBE)
   if (satGasto.naturaleza === 'H') {
     if (!conc.confirmado && cfdi.metodo === 'PUE') {
       if (conc.leccion) errores.push(conc.leccion);
       return { lineas: [], errores };
     }
-    lineas.push({ cuentaInterna: ctaBanco, agrupador: '102.01', descripcion: `Bancos nacionales${conc.banco ? ` (${conc.banco})` : ''}`, debe: cfdi.total, haber: 0 });
-    lineas.push({ cuentaInterna: clasif.agrupador.replace('.', '-'), agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
-    if (cfdi.iva16 > 0) {
-      lineas.push({ cuentaInterna: '208-01', agrupador: '208.01', descripcion: 'IVA trasladado cobrado', debe: 0, haber: cfdi.iva16 });
+    const esProvision = cfdi.metodo === 'PPD' || !conc.confirmado;
+    if (esProvision) {
+      // PPD no cobrado: clientes + IVA trasladado NO cobrado (209.01)
+      lineas.push({ cuentaInterna: '1-03', agrupador: '105.01', descripcion: 'Clientes nacionales', debe: cfdi.total, haber: 0 });
+      lineas.push({ cuentaInterna: clasif.agrupador.replace('.', '-'), agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
+      if (cfdi.iva16 > 0) {
+        lineas.push({ cuentaInterna: '209-01', agrupador: '209.01', descripcion: 'IVA trasladado no cobrado', debe: 0, haber: cfdi.iva16 });
+      }
+    } else {
+      lineas.push({ cuentaInterna: ctaBanco, agrupador: '102.01', descripcion: `Bancos nacionales${conc.banco ? ` (${conc.banco})` : ''}`, debe: cfdi.total, haber: 0 });
+      lineas.push({ cuentaInterna: clasif.agrupador.replace('.', '-'), agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
+      if (cfdi.iva16 > 0) {
+        lineas.push({ cuentaInterna: '208-01', agrupador: '208.01', descripcion: 'IVA trasladado cobrado', debe: 0, haber: cfdi.iva16 });
+      }
     }
     const debe = r(lineas.reduce((s, l) => s + l.debe, 0));
     const haber = r(lineas.reduce((s, l) => s + l.haber, 0));
@@ -296,25 +350,40 @@ export interface ResultadoPoliza {
   conciliacion: Conciliacion;
   clasificacion: Clasificacion;
   errores: Leccion[];
+  avisos: Leccion[];
 }
 
 export function generarPoliza(cfdi: CfdiRow, edoCta: EdoCtaRow[] = [], opts: OpcionesCalculo & { metodoPago?: string; cuentaOrigen?: string } = {}): ResultadoPoliza {
+  // BLOQUEA: el documento fuente debe ser válido antes de calcular
+  const docErrores: Leccion[] = [];
+  const eUuid = validarUuid(cfdi.uuid);
+  if (eUuid) docErrores.push(eUuid);
+  const eRfc = validarRfc(cfdi.rfc);
+  if (eRfc) docErrores.push(eRfc);
+  if (docErrores.length > 0) {
+    return { poliza: null, conciliacion: conciliarPago(cfdi, edoCta), clasificacion: clasificar(cfdi), errores: docErrores, avisos: [] };
+  }
   // El agrupador de cada línea debe existir en el catálogo (coherencia R-09)
   const conc = conciliarPago(cfdi, edoCta);
   const clasif = clasificar(cfdi);
   const calc = calcularLineas(cfdi, clasif, conc, opts);
   const errores = [...calc.errores];
+  const avisos: Leccion[] = [];
+  if (clasif.aviso) {
+    avisos.push(leccion('AVISO_CLASIFICACION', clasif.aviso,
+      '📚 Sin RFC válido el motor propone por preponderancia (601.45), pero la cuenta correcta depende de quién factura: PF 13 caracteres → 601.45, PM 12 → 601.46.'));
+  }
   if (!conc.confirmado && conc.leccion && cfdi.metodo === 'PUE') errores.push(conc.leccion);
-  if (calc.lineas.length === 0) return { poliza: null, conciliacion: conc, clasificacion: clasif, errores };
+  if (calc.lineas.length === 0) return { poliza: null, conciliacion: conc, clasificacion: clasif, errores, avisos };
   for (const l of calc.lineas) {
     if (!resolverAgrupador(l.cuentaInterna)) {
       errores.push(leccion('CUENTA_SIN_AGRUPADOR',
         `La cuenta ${l.cuentaInterna} no tiene código agrupador SAT.`,
         '📚 El Anexo 24 sección A obliga a asociar cada cuenta del contribuyente a un agrupador por naturaleza y preponderancia. Sin equivalencia, la cuenta no puede ir a la balanza electrónica.'));
-      return { poliza: null, conciliacion: conc, clasificacion: clasif, errores };
+      return { poliza: null, conciliacion: conc, clasificacion: clasif, errores, avisos };
     }
   }
-  return { poliza: armarPoliza(cfdi, conc, calc.lineas, opts), conciliacion: conc, clasificacion: clasif, errores };
+  return { poliza: armarPoliza(cfdi, conc, calc.lineas, opts), conciliacion: conc, clasificacion: clasif, errores, avisos };
 }
 
 // ─── Casos semilla del curso (goldens) ─────────────────────────────
@@ -331,14 +400,14 @@ export const EDO_MARCELO: EdoCtaRow[] = [
 
 export const CASO_PPD: CfdiRow = {
   rfc: 'PROV920101ABC', emisor: 'PROVEEDOR PPD', fecha: '05-01-2025',
-  uuid: 'AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE', metodo: 'PPD',
+  uuid: 'A1B2C3D4-E5F6-4A7B-8C9D-E0F1A2B3C4D5', metodo: 'PPD',
   producto: 'Arrendamiento de bodega enero 2025',
   moneda: 'MXN', subtotal: 1000, iva16: 160, iva8: 0, ivaRet: 0, isrRet: 0, total: 1160,
 };
 
 export const CASO_CAPITAL: CfdiRow = {
-  rfc: 'SOCIO800101AAA', emisor: 'SOCIO APORTANTE', fecha: '15-01-2025',
-  uuid: 'BBBBBBBB-2222-3333-4444-555555555555', metodo: 'PUE',
+  rfc: 'SOC800101AAA', emisor: 'SOCIO APORTANTE', fecha: '15-01-2025',
+  uuid: 'B2C3D4E5-F6A7-4B8C-9D0E-F1A2B3C4D5E6', metodo: 'PUE',
   producto: 'Aportación de capital fijo',
   moneda: 'MXN', subtotal: 50000, iva16: 0, iva8: 0, ivaRet: 0, isrRet: 0, total: 50000,
 };
@@ -348,8 +417,8 @@ export const EDO_CAPITAL: EdoCtaRow[] = [
 ];
 
 export const CASO_VENTAS: CfdiRow = {
-  rfc: 'CLIENTE750101XYZ', emisor: 'EMPRESA (propia)', fecha: '10-01-2025',
-  uuid: 'FFFFFFFF-1111-2222-3333-444444444444', metodo: 'PUE',
+  rfc: 'TLC750101ABC', emisor: 'EMPRESA (propia)', fecha: '10-01-2025',
+  uuid: 'C3D4E5F6-A7B8-4C9D-0E1F-A2B3C4D5E6F7', metodo: 'PUE',
   producto: 'Ventas y/o servicios gravados a la tasa general',
   moneda: 'MXN', subtotal: 23000, iva16: 3680, iva8: 0, ivaRet: 0, isrRet: 0, total: 26680,
 };

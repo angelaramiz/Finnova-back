@@ -17,6 +17,7 @@ export interface SatCuenta {
 export const SAT_CUENTAS: SatCuenta[] = [
   // — Activo: bancos e IVA —
   { agrupador: '102.01', nombre: 'Bancos nacionales', rubro: 'Bancos', tipo: 'Activo', naturaleza: 'D', nivel: 2 },
+  { agrupador: '102.02', nombre: 'Bancos extranjeros', rubro: 'Bancos', tipo: 'Activo', naturaleza: 'D', nivel: 2 },
   { agrupador: '105.01', nombre: 'Clientes nacionales', rubro: 'Clientes', tipo: 'Activo', naturaleza: 'D', nivel: 2 },
   { agrupador: '118.01', nombre: 'IVA acreditable pagado', rubro: 'Impuestos acreditables pagados', tipo: 'Activo', naturaleza: 'D', nivel: 2 },
   { agrupador: '119.01', nombre: 'IVA pendiente de pago', rubro: 'Impuestos acreditables por pagar', tipo: 'Activo', naturaleza: 'D', nivel: 2 },
@@ -42,6 +43,7 @@ export const SAT_CUENTAS: SatCuenta[] = [
   // — Costos y gastos del curso —
   { agrupador: '502.01', nombre: 'Compras nacionales', rubro: 'Compras', tipo: 'Costo', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.45', nombre: 'Arrendamiento a personas físicas residentes nacionales', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '601.34', nombre: 'Honorarios a personas físicas residentes nacionales', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.46', nombre: 'Arrendamiento a personas morales residentes nacionales', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.48', nombre: 'Combustibles y lubricantes', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.49', nombre: 'Viáticos y gastos de viaje', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
@@ -51,8 +53,16 @@ export const SAT_CUENTAS: SatCuenta[] = [
   { agrupador: '601.83', nombre: 'Gastos no deducibles (sin requisitos fiscales)', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.84', nombre: 'Otros gastos generales', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '601.01', nombre: 'Sueldos y salarios', rubro: 'Gastos generales', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '611.01', nombre: 'Impuesto Sobre la renta', rubro: 'Impuesto Sobre la renta', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '603.01', nombre: 'Sueldos y salarios', rubro: 'Gastos de administración', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '603.82', nombre: 'Otros gastos de administración', rubro: 'Gastos de administración', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '602.45', nombre: 'Arrendamiento a personas físicas residentes nacionales', rubro: 'Gastos de venta', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '602.46', nombre: 'Arrendamiento a personas morales residentes nacionales', rubro: 'Gastos de venta', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '603.45', nombre: 'Arrendamiento a personas físicas residentes nacionales', rubro: 'Gastos de administración', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '603.46', nombre: 'Arrendamiento a personas morales residentes nacionales', rubro: 'Gastos de administración', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '701.01', nombre: 'Pérdida cambiaria', rubro: 'Gastos financieros', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
+  { agrupador: '702.01', nombre: 'Utilidad cambiaria', rubro: 'Productos financieros', tipo: 'Ingreso', naturaleza: 'H', nivel: 2 },
+  { agrupador: '704.23', nombre: 'Otros productos', rubro: 'Otros productos', tipo: 'Ingreso', naturaleza: 'H', nivel: 2 },
   { agrupador: '701.10', nombre: 'Comisiones bancarias', rubro: 'Gastos financieros', tipo: 'Gasto', naturaleza: 'D', nivel: 2 },
   { agrupador: '899.01', nombre: 'Otras cuentas de orden', rubro: 'Otras cuentas de orden', tipo: 'Orden', naturaleza: 'D', nivel: 2 },
 ];
@@ -131,10 +141,17 @@ export const METODOS_PAGO_SAT: MetodoPagoSat[] = [
 ];
 
 // ─── Reglas producto → agrupador (del EDO DE CUENTA / CFDI del curso) ────
-export interface ReglaClasificacion { patron: RegExp; agrupador: string; nota: string; }
+export interface ReglaClasificacion {
+  patron: RegExp;
+  agrupador: string;
+  nota: string;
+  candidatos?: string[];
+  requiereDesambiguacion?: 'PF_PM' | 'FUNCION' | null;
+}
 export const REGLAS_CLASIFICACION: ReglaClasificacion[] = [
-  { patron: /arrendamiento/i, agrupador: '601.45', nota: 'Arrendamiento a PF (verificar emisor persona física)' },
+  { patron: /arrendamiento/i, agrupador: '601.45', nota: 'Arrendamiento: se desambigua PF/PM con el RFC', candidatos: ['601.45', '601.46'], requiereDesambiguacion: 'PF_PM' },
   { patron: /renta\s*local|bodega/i, agrupador: '601.46', nota: 'Arrendamiento a PM por preponderancia' },
+  { patron: /honorarios/i, agrupador: '601.34', nota: 'Honorarios a PF (verificar persona física)' },
   { patron: /gas\s*l\.?p\.?|combustible|litros\s*de\s*gas/i, agrupador: '601.48', nota: 'Combustibles y lubricantes' },
   { patron: /filtro|mantenimiento|cartucho/i, agrupador: '601.56', nota: 'Mantenimiento y conservación' },
   { patron: /papeler[ií]a|art[ií]culos?\s*de\s*oficina/i, agrupador: '601.55', nota: 'Papelería y artículos de oficina' },
@@ -164,11 +181,146 @@ export function resolverAgrupador(cuenta: string): string | null {
   return null;
 }
 
-export function clasificarProducto(producto: string): { agrupador: string; nota: string } | null {
+export interface HitClasificacion {
+  agrupador: string;
+  nota: string;
+  candidatos?: string[];
+  requiereDesambiguacion?: 'PF_PM' | 'FUNCION' | null;
+}
+
+export function clasificarProducto(producto: string): HitClasificacion | null {
   for (const r of REGLAS_CLASIFICACION) {
-    if (r.patron.test(producto)) return { agrupador: r.agrupador, nota: r.nota };
+    if (r.patron.test(producto)) {
+      return { agrupador: r.agrupador, nota: r.nota, candidatos: r.candidatos, requiereDesambiguacion: r.requiereDesambiguacion ?? null };
+    }
   }
   return null;
+}
+
+// ─── Búsqueda por nombre (el practicante sabe nombres, no códigos) ───
+// Normalización: minúsculas, sin diacríticos, stopwords fuera, s/z y b/v
+// unificadas para faltas típicas. Determinista, sin IA.
+const STOPWORDS = new Set(['de', 'la', 'las', 'los', 'el', 'del', 'al', 'y', 'o', 'a', 'en', 'por', 'para', 'con', 'sin', 'una', 'unos', 'unas', 'su', 'sus']);
+
+export function normalizarBusqueda(s: string): string {
+  return (s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9ñ.\s]/g, ' ')
+    .split(/\s+/)
+    .filter(t => t && !STOPWORDS.has(t))
+    .map(t => t.replace(/z/g, 's').replace(/v/g, 'b').replace(/ll/g, 'y').replace(/c([ei])/g, 's$1'))
+    .join(' ');
+}
+
+export interface SinonimoCuenta { patron: RegExp; agrupador: string; peso: number; }
+
+// Lo que escribe el alumno → agrupador. Peso base del sinónimo (el ranking
+// final combina código exacto > prefijo > token > sinónimo > rubro).
+export const SINONIMOS_CUENTA: SinonimoCuenta[] = [
+  { patron: /bancos?|transferencia|spei|hsbc|bbva|rito|banamex|banorte|santander|caja|efectivo en bancos?/i, agrupador: '102.01', peso: 60 },
+  { patron: /renta|arrendamiento|alquiler|local|bodega|residencias?/i, agrupador: '601.45', peso: 60 },
+  { patron: /renta|arrendamiento|alquiler|local|bodega/i, agrupador: '601.46', peso: 55 },
+  { patron: /isr retenido|retencion(es)? (de )?isr|lo que le retuve|retuve|diez por ciento/i, agrupador: '216.03', peso: 60 },
+  { patron: /honorarios/i, agrupador: '601.34', peso: 55 },
+  { patron: /iva que me cobraron|iva acreditable|iva a favor|iva por acreditar/i, agrupador: '118.01', peso: 60 },
+  { patron: /iva pendiente|iva por pagar|iva no pagado/i, agrupador: '119.01', peso: 60 },
+  { patron: /iva que cobre|iva trasladado|iva por trasladar/i, agrupador: '207.01', peso: 60 },
+  { patron: /iva cobrado/i, agrupador: '208.01', peso: 60 },
+  { patron: /iva no cobrado/i, agrupador: '209.01', peso: 60 },
+  { patron: /proveedor(es)?|lo que debo|por pagar|cuentas por pagar/i, agrupador: '201.01', peso: 60 },
+  { patron: /cliente(s)?|lo que me deben|por cobrar|cuentas por cobrar/i, agrupador: '105.01', peso: 60 },
+  { patron: /flete(s)?|acarreo(s)?|transporte (de )?carga/i, agrupador: '601.72', peso: 60 },
+  { patron: /gasolina|diesel|combustible|gas lp|litros de gas/i, agrupador: '601.48', peso: 60 },
+  { patron: /comida|propina|sin factura|no deducible(s)?|sin requisitos/i, agrupador: '601.83', peso: 60 },
+  { patron: /comision(es)? (bancaria(s)?)?|spei fee/i, agrupador: '701.10', peso: 60 },
+  { patron: /ventas?|ingreso(s)?|facture|facturado/i, agrupador: '401.01', peso: 60 },
+  { patron: /sueldos?|nomina|salario(s)?|raya/i, agrupador: '603.01', peso: 60 },
+  { patron: /sueldos? por pagar|salarios por pagar/i, agrupador: '210.01', peso: 60 },
+  { patron: /cheque(s)?|cheque en transito/i, agrupador: '102.01', peso: 55 },
+  { patron: /dolares?|usd|tipo de cambio|extranjero/i, agrupador: '102.02', peso: 60 },
+  { patron: /papeleria|articulos de oficina|oficina/i, agrupador: '601.55', peso: 60 },
+  { patron: /mantenimiento|conservacion|filtro|cartucho|reparacion/i, agrupador: '601.56', peso: 60 },
+  { patron: /viaticos?|viaje(s)?|hospedaje|hotel/i, agrupador: '601.49', peso: 60 },
+  { patron: /capital|aportacion|ampliacion de capital/i, agrupador: '301.01', peso: 60 },
+];
+
+export interface ResultadoBusqueda {
+  agrupador: string;
+  nombre: string;
+  rubro: string;
+  naturaleza: 'D' | 'H';
+  cuentaInternaSugerida: string;
+  score: number;
+  avisoColision?: string;
+}
+
+// Colisiones didácticas: el código parecido con significado opuesto.
+const COLISIONES: Record<string, string> = {
+  '601.83': '⚠ 601.83 = gasto NO deducible. Si buscas renta deducible es 601-83 → 601.45.',
+};
+
+/** Primera cuenta interna del mapeo para un agrupador (la preferente). */
+export function internaPreferente(agrupador: string): string {
+  const eq = EQUIVALENCIAS.find(e => e.agrupador === agrupador);
+  if (eq) return eq.cuentaInterna;
+  return agrupador.replace(/\./g, '-');
+}
+
+export function buscarCuentas(query: string, limite = 8): ResultadoBusqueda[] {
+  const q = normalizarBusqueda(query);
+  if (!q) return [];
+  const tokens = q.split(' ').filter(Boolean);
+  const codigoLimpio = query.trim().replace(/[-_\s]+/g, '.');
+  const scored = new Map<string, number>();
+  const push = (agr: string, s: number) => scored.set(agr, Math.max(scored.get(agr) ?? 0, s));
+
+  // 1. Código exacto (100) o prefijo (85)
+  for (const c of SAT_CUENTAS) {
+    if (c.agrupador === codigoLimpio) push(c.agrupador, 100);
+    else if (codigoLimpio && c.agrupador.startsWith(codigoLimpio) && codigoLimpio.length >= 2) push(c.agrupador, 85);
+  }
+  // 2. Tokens del nombre oficial (70 exacto, 40 parcial) + rubro (20)
+  for (const c of SAT_CUENTAS) {
+    const nombre = normalizarBusqueda(c.nombre);
+    const rubro = normalizarBusqueda(c.rubro);
+    for (const t of tokens) {
+      if (t.length < 3) continue;
+      if (nombre.split(' ').includes(t)) push(c.agrupador, 70);
+      else if (nombre.includes(t)) push(c.agrupador, 40);
+      else if (rubro.includes(t)) push(c.agrupador, 20);
+    }
+  }
+  // 3. Sinónimos (curaduría gana a coincidencia incidental: peso + 20)
+  for (const s of SINONIMOS_CUENTA) {
+    if (s.patron.test(query) || s.patron.test(q)) push(s.agrupador, Math.min(s.peso + 20, 84));
+  }
+
+  return [...scored.entries()]
+    .map(([agr, score]) => {
+      const c = getSatCuenta(agr)!;
+      return {
+        agrupador: agr, nombre: c.nombre, rubro: c.rubro, naturaleza: c.naturaleza,
+        cuentaInternaSugerida: internaPreferente(agr), score,
+        avisoColision: COLISIONES[agr],
+      };
+    })
+    .filter(r => getSatCuenta(r.agrupador))
+    .sort((a, b) => b.score - a.score || a.agrupador.localeCompare(b.agrupador))
+    .slice(0, limite);
+}
+
+/** RFC PF = 13 caracteres, PM = 12. Resuelve arrendamiento PF/PM. */
+export function desambiguarArrendamiento(rfc?: string): { agrupador: '601.45' | '601.46'; como: string } {
+  const limpio = (rfc || '').trim().toUpperCase();
+  if (/^[A-ZÑ&]{3}\d{6}[A-Z0-9]{3}$/.test(limpio)) {
+    return { agrupador: '601.46', como: 'RFC de 12 (persona moral)' };
+  }
+  if (/^[A-ZÑ&]{4}\d{6}[A-Z0-9]{3}$/.test(limpio)) {
+    return { agrupador: '601.45', como: 'RFC de 13 (persona física)' };
+  }
+  return { agrupador: '601.45', como: 'sin RFC: se propone PF, el alumno confirma' };
 }
 
 // ─── Auditoría del catálogo ──────────────────────────────────────────

@@ -117,4 +117,50 @@ describe('POST /api/sim/polizas/guardar', () => {
     const res = await request(app).post('/api/sim/polizas/guardar').send({ poliza: { ...base, lineas: [] } });
     expect(res.status).toBe(400);
   });
+
+  it('PPD con tipo EGRESOS se rechaza con 422', async () => {
+    const res = await request(app).post('/api/sim/polizas/guardar').send({
+      poliza: { ...base, tipo: 'EGRESOS', lineas: lineasOk },
+      fiscal: { uuid: 'D4E5F6A7-B8C9-4D0E-1F2A-B3C4D5E6F7A8', rfc: MARCELO.rfc, metodo: 'PPD', conciliado: false },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/PROVISI/);
+  });
+
+  it('PUE sin conciliar con tipo EGRESOS se rechaza con 422', async () => {
+    const res = await request(app).post('/api/sim/polizas/guardar').send({
+      poliza: { ...base, tipo: 'EGRESOS', lineas: lineasOk },
+      fiscal: { uuid: 'E5F6A7B8-C9D0-4E1F-2A3B-C4D5E6F7A8B9', rfc: MARCELO.rfc, metodo: 'PUE', conciliado: false },
+    });
+    expect(res.status).toBe(422);
+  });
+
+  it('RFC inválido se rechaza con 422', async () => {
+    const res = await request(app).post('/api/sim/polizas/guardar').send({
+      poliza: { ...base, lineas: lineasOk },
+      fiscal: { uuid: 'F6A7B8C9-D0E1-4F2A-3B4C-D5E6F7A8B9C0', rfc: 'X', metodo: 'PUE', conciliado: true },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/RFC/);
+  });
+
+  it('UUID duplicado se rechaza con 422 (ya guardado en memoria)', async () => {
+    const res = await request(app).post('/api/sim/polizas/guardar').send({
+      poliza: { ...base, lineas: lineasOk },
+      fiscal: { uuid: MARCELO.uuid, rfc: MARCELO.rfc, metodo: 'PUE', conciliado: true },
+    });
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/duplic/i);
+  });
+
+  it('601.83 conviviendo con 118.01 se rechaza con 422', async () => {
+    const mal = [
+      { cuentaInterna: '601-83', agrupador: '601.83', descripcion: 'No deducible', debe: 5800, haber: 0 },
+      { cuentaInterna: '118-01', agrupador: '118.01', descripcion: 'IVA', debe: 800, haber: 0 },
+      { cuentaInterna: '102-01-002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 6600 },
+    ];
+    const res = await request(app).post('/api/sim/polizas/guardar').send({ poliza: { ...base, lineas: mal } });
+    expect(res.status).toBe(422);
+    expect(res.body.error).toMatch(/601\.83/);
+  });
 });
