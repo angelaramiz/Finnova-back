@@ -1812,8 +1812,8 @@ Captura la póliza del CFDI de **MARCELO F** (arrendamiento de residencias, UUID
 **CFDI:** subtotal **70,900** + ISR retenido **7,090** = total **63,810** (MXN).
 **Estado de cuenta:** RITO FINANCIERA, 02-01-2025, **63,810** (casa exacto → EGRESOS).
 
-**Asiento esperado (ASIENTO 1):**
-DEBE 601.45 Arrendamiento a personas físicas 70,900 / HABER 216.03 ISR retenido 7,090 / HABER 102.01 Bancos 63,810.
+**Asiento esperado (ASIENTO 1, con naturaleza):**
+DEBE 601-83 → 601.45 Arrendamiento a PF 70,900 / HABER 216-03 → 216.03 ISR retenido 7,090 / HABER 102-01-002 → 102.01 Bancos 63,810.
 
 OJO: la retención es el **10%** del subtotal (Art. 116 LISR). Si el CFDI trajera otra cifra, se pide corrección.
 

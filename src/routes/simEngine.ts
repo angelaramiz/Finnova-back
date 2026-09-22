@@ -30,7 +30,7 @@ import { getStoryState, getActiveCase, completeScene, resetStory } from '../serv
 import { getChronicle } from '../services/chronicle';
 import { getArcsForRoute, type RouteId } from '../data/storyArcs';
 import { ingestEvents } from '../services/learningAnalytics';
-import { generarPoliza, type CfdiRow, type EdoCtaRow, type Poliza24 } from '../services/polizaEngine';
+import { generarPoliza, validarUuid, validarRfc, type CfdiRow, type EdoCtaRow, type Poliza24 } from '../services/polizaEngine';
 import { SAT_CUENTAS, EQUIVALENCIAS, BANCOS_SAT, MONEDAS_SAT, METODOS_PAGO_SAT, resolverAgrupador } from '../services/satCatalog';
 
 // In-memory store for generated journal entries per user
@@ -239,7 +239,7 @@ const polizasStore = new Map<string, Poliza24[]>();
 simEngineRouter.post('/polizas/guardar', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user?.id;
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
-  const { poliza } = req.body as { poliza: Poliza24 };
+  const { poliza, fiscal } = req.body as { poliza: Poliza24; fiscal?: { uuid?: string; rfc?: string; metodo?: 'PUE' | 'PPD'; conciliado?: boolean } };
   if (!poliza || !Array.isArray(poliza.lineas) || poliza.lineas.length === 0) {
     res.status(400).json({ error: 'Póliza sin líneas' }); return;
   }
@@ -250,6 +250,34 @@ simEngineRouter.post('/polizas/guardar', requireSupabaseAuth, async (req: Authen
   for (const l of poliza.lineas) {
     if (!resolverAgrupador(l.cuentaInterna || '') && !resolverAgrupador(l.agrupador || '')) {
       res.status(422).json({ error: `Línea sin código agrupador SAT: ${l.cuentaInterna}` }); return;
+    }
+    // 601.83 (no deducible) jamás convive con IVA acreditable/pendiente
+    if ((l.agrupador === '601.83' || resolverAgrupador(l.cuentaInterna || '') === '601.83')
+      && poliza.lineas.some(x => x.agrupador === '118.01' || x.agrupador === '119.01')) {
+      res.status(422).json({ error: '601.83 (no deducible) no admite IVA en 118.01/119.01: el IVA es parte del gasto' }); return;
+    }
+  }
+  // Coherencia fiscal del documento (cuando el Sim la envía)
+  if (fiscal) {
+    const eUuid = fiscal.uuid ? validarUuid(fiscal.uuid) : null;
+    if (eUuid) { res.status(422).json({ error: eUuid.mensaje }); return; }
+    const eRfc = fiscal.rfc ? validarRfc(fiscal.rfc) : null;
+    if (eRfc) { res.status(422).json({ error: eRfc.mensaje }); return; }
+    if (fiscal.metodo === 'PPD' && poliza.tipo !== 'PROVISION') {
+      res.status(422).json({ error: 'CFDI PPD sin pago solo admite póliza de PROVISIÓN (no EGRESOS)' }); return;
+    }
+    if (fiscal.metodo === 'PUE' && !fiscal.conciliado && poliza.tipo === 'EGRESOS') {
+      res.status(422).json({ error: 'PUE sin pago confirmado no admite póliza de EGRESOS' }); return;
+    }
+    if (fiscal.uuid) {
+      const enMemoria = (polizasStore.get(userId) || []).find(p => p.uuid === fiscal.uuid);
+      if (enMemoria) { res.status(422).json({ error: `UUID ya contabilizado: duplicarías el registro. Revisa tu póliza anterior.` }); return; }
+      if (isSupabaseReady()) {
+        try {
+          const { data } = await supabaseAdmin.from('sim_polizas').select('folio').eq('user_id', userId).eq('uuid_cfdi', fiscal.uuid).limit(1);
+          if (data && data.length > 0) { res.status(422).json({ error: `UUID ya contabilizado en folio ${(data[0] as { folio: string }).folio}: duplicarías el registro.` }); return; }
+        } catch { /* best-effort */ }
+      }
     }
   }
   const folio = `POL-${Date.now()}`;

@@ -503,6 +503,28 @@ const PRUEBA_POLIZA: PracticaPrueba = {
       correcta: 1,
       explicacion: 'El Anexo 24 sección A exige asociar cada cuenta del contribuyente (601-83) a su código agrupador (601.45) por naturaleza y preponderancia. La balanza electrónica se envía por agrupador.',
     },
+    {
+      q: 'El arrendador es persona moral (RFC de 12 caracteres). ¿Qué cuenta usas y qué pasa con la retención?',
+      opciones: [
+        '601.45, igual que siempre',
+        '601.46 arrendamiento a PM y sin retención del 10%',
+        '601.83 no deducible',
+        '102.01 bancos directo',
+      ],
+      correcta: 1,
+      explicacion: 'PM = 601.46, y a una moral NO le retienes el 10% de ISR (Art. 116 LISR solo aplica a personas físicas). Si el CFDI trae retención, está mal timbrado.',
+    },
+    {
+      q: 'Quieres registrar la renta deducible. ¿Qué escribes en la póliza?',
+      opciones: [
+        '601.83',
+        '601-83 (que viaja como 601.45)',
+        'Las dos son lo mismo',
+        'Ninguna, la renta no se registra',
+      ],
+      correcta: 1,
+      explicacion: '601.83 con punto = gasto NO deducible (sin requisitos fiscales). 601-83 con guion es tu cuenta interna que viaja como 601.45 deducible. Un carácter decide la deducción.',
+    },
   ],
 };
 
@@ -785,6 +807,11 @@ const CURSOS: Record<string, PracticaCurso> = {
         titulo: 'La retención del 10%',
         texto: 'El arrendamiento a persona física retiene 10% de ISR (Art. 116 LISR): 70,900 × 10% = 7,090 a la 216.03. Si el CFDI trae otra cifra, se pide corrección.',
         puntos: ['10% exacto', 'Cuenta 216.03', '70,900 = 7,090 + 63,810'],
+      },
+      {
+        titulo: 'PF vs PM y la trampa del guion',
+        texto: 'Si quien factura es moral (RFC de 12), la cuenta es 601.46 y NO hay retención del 10%. Y ojo con 601.83 con punto: es gasto no deducible; tu cuenta deducible es 601-83 con guion, que viaja como 601.45.',
+        puntos: ['PM = 601.46 sin retención', '601.83 punto = no deducible', '601-83 guion → 601.45'],
       },
     ],
     cierre: 'Ya tienes el mapa. Abre el Sim de Pólizas, carga el caso MARCELO F y guarda tu primera póliza. La 💡 Guía te acompaña línea por línea.',
