@@ -466,6 +466,46 @@ const PRUEBA_REPORTE: PracticaPrueba = {
   ],
 };
 
+const PRUEBA_POLIZA: PracticaPrueba = {
+  titulo: 'Prueba de pólizas y código agrupador (Anexo 24)',
+  aprobarMin: 80,
+  preguntas: [
+    {
+      q: 'Arrendamiento a persona física por 70,900 con ISR retenido de 7,090. ¿Cuál es el asiento correcto?',
+      opciones: [
+        'DEBE 601.45 70,900 / HABER 216.03 7,090 / HABER 102.01 63,810',
+        'DEBE 601.45 63,810 / HABER 102.01 63,810',
+        'DEBE 601.45 70,900 / HABER 102.01 70,900',
+        'DEBE 216.03 7,090 / HABER 601.45 7,090',
+      ],
+      correcta: 0,
+      explicacion: 'El gasto va completo al DEBE (70,900); la retención ISR 10% va al HABER en 216.03 y solo sale del banco el neto 63,810. 70,900 = 7,090 + 63,810.',
+    },
+    {
+      q: 'Un CFDI PPD por 1,000 + IVA 160. ¿Cómo se provisiona?',
+      opciones: [
+        'DEBE 601.45 1,000 / DEBE 118.01 160 / HABER 102.01 1,160',
+        'DEBE 601.45 1,000 / DEBE 119.01 160 / HABER 201.01 1,160',
+        'DEBE 201.01 1,160 / HABER 102.01 1,160',
+        'No se registra hasta que se pague',
+      ],
+      correcta: 1,
+      explicacion: 'PPD = provisión: gasto + IVA pendiente (119.01, no 118.01 acreditable) contra proveedores 201.01. El banco se toca hasta el pago.',
+    },
+    {
+      q: 'La póliza Contalink usa la cuenta 601-83 y tu Excel dice 601.45. ¿Qué significa?',
+      opciones: [
+        'Una de las dos está mal y hay que corregirla',
+        '601-83 es la cuenta interna y 601.45 su código agrupador SAT: es la equivalencia del Anexo 24',
+        'Son dos operaciones distintas',
+        'El SAT cambió el código y nadie avisó',
+      ],
+      correcta: 1,
+      explicacion: 'El Anexo 24 sección A exige asociar cada cuenta del contribuyente (601-83) a su código agrupador (601.45) por naturaleza y preponderancia. La balanza electrónica se envía por agrupador.',
+    },
+  ],
+};
+
 const PRUEBAS: Record<string, PracticaPrueba> = {
   'mod-cfdi': PRUEBA_CFDI,
   'mod-gastos': PRUEBA_GASTOS,
@@ -477,6 +517,7 @@ const PRUEBAS: Record<string, PracticaPrueba> = {
   'mod-auditoria': PRUEBA_AUDITORIA,
   'mod-nomina-web': PRUEBA_NOMINA_WEB,
   'mod-reporte': PRUEBA_REPORTE,
+  'mod-polizas': PRUEBA_POLIZA,
 };
 
 // ─── Cursos teóricos con el NPC capacitador ────────────────────
@@ -724,6 +765,30 @@ const CURSOS: Record<string, PracticaCurso> = {
     ],
     cierre: 'Listo para declarar. Abre el correo de Diego Ramos, clasifica las 6 operaciones y presenta enero 2026. La 💡 Guía te marca cada decisión.',
   },
+  'mod-polizas': {
+    id: 'mod-polizas',
+    titulo: 'Curso básico: pólizas y código agrupador',
+    npc: 'capacitador',
+    introduccion: 'Del CFDI al asiento: concilias contra el banco, clasificas al agrupador SAT y cuadras DEBE = HABER. Te explico las 5 etapas con el caso MARCELO F.',
+    secciones: [
+      {
+        titulo: 'PUE vs PPD',
+        texto: 'PUE pagado es egreso directo: gasto + retenciones + bancos. PPD es solo provisión: gasto + IVA pendiente 119.01 + proveedores 201.01. El IVA acreditable 118.01 nace hasta el pago.',
+        puntos: ['PUE = egreso', 'PPD = provisión', '118.01 solo al pagar'],
+      },
+      {
+        titulo: 'Cuenta interna vs agrupador',
+        texto: 'Tu póliza usa 601-83 pero el SAT recibe 601.45: esa equivalencia es la sección A del Anexo 24. Sin código agrupador la cuenta no entra a la balanza electrónica.',
+        puntos: ['601-83 → 601.45', 'Sección A obligatoria', 'Balanza por agrupador'],
+      },
+      {
+        titulo: 'La retención del 10%',
+        texto: 'El arrendamiento a persona física retiene 10% de ISR (Art. 116 LISR): 70,900 × 10% = 7,090 a la 216.03. Si el CFDI trae otra cifra, se pide corrección.',
+        puntos: ['10% exacto', 'Cuenta 216.03', '70,900 = 7,090 + 63,810'],
+      },
+    ],
+    cierre: 'Ya tienes el mapa. Abre el Sim de Pólizas, carga el caso MARCELO F y guarda tu primera póliza. La 💡 Guía te acompaña línea por línea.',
+  },
 };
 
 // ─── Tracker semanal (mecanización) ────────────────────────────
@@ -746,6 +811,7 @@ const REPETICION_POR_TIPO: Record<string, { titulo: string; explicacion: string 
   auditoria_practica: { titulo: 'Auditar mes e impuestos', explicacion: 'Repites la auditoría para fijar el flujo M1/M2/M3, la DIOT 4606 y el IVA a cargo 194.67 sin dudar.' },
   nomina_practica: { titulo: 'Calcular nómina semanal', explicacion: 'Repites la nómina real para dominar la tarifa progresiva, el filtro por periodicidad y las incidencias.' },
   reporte_practica: { titulo: 'Presentar DIOT online', explicacion: 'Repites la presentación DIOT para clasificar por fecha de pago y cerrar siempre con acuse.' },
+  poliza_practica: { titulo: 'Capturar póliza con agrupador', explicacion: 'Repites la póliza del CFDI al asiento para fijar PUE vs PPD, el 10% de ISR y el cuadre DEBE = HABER.' },
 };
 
 const SEMANA_MODULO: Record<number, string> = {
@@ -985,6 +1051,23 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
       { id: 'p1', tipo: 'guia', titulo: 'Fecha de pago manda', descripcion: 'Dic-emitida/Ene-pagada va a Ene; PPD + complemento de Ene va a Ene. Canceladas y pólizas manuales quedan fuera.', datos: ['Fecha DIOT = fecha de pago', 'Canceladas fuera', 'Manual fuera'] },
       { id: 'p2', tipo: 'tarea', taskType: 'reporte_practica', titulo: 'Presenta la DIOT enero 2026', descripcion: 'Abre el correo de Diego Ramos, clasifica las 6 operaciones y envía. Usa la 💡 Guía.', datos: ['23/54 columnas', 'Nov-2025 Complementaria', 'No reenviar', 'Folio + TXT idéntico'] },
       { id: 'p3', tipo: 'guia', titulo: 'El cierre con acuse', descripcion: 'Con estado Éxito descargas el acuse del SAT y archivas el TXT idéntico al enviado. Ese par es tu comprobante de presentación.', datos: ['Folio de acuse', 'TXT idéntico', 'Estado Éxito'] },
+    ],
+  },
+  {
+    id: 'mod-polizas',
+    plataforma: 'contalink',
+    titulo: 'Pólizas con código agrupador (Anexo 24)',
+    icono: '📝',
+    descripcion: 'Del CFDI al asiento: conciliar, clasificar al agrupador y cuadrar DEBE = HABER.',
+    objetivo: 'Que el alumno capture la póliza del caso MARCELO F (70,900/7,090/63,810), la provisión PPD y vea cómo alimentan la balanza.',
+    semanas: 'Contalink x4',
+    skill: 'polizas',
+    prueba: PRUEBA_POLIZA,
+    curso: CURSOS['mod-polizas'],
+    pasos: [
+      { id: 'p1', tipo: 'guia', titulo: 'Del CFDI al asiento en 5 etapas', descripcion: 'Ingesta del CFDI y el estado de cuenta, cotejo de montos, clasificación al agrupador, cálculo fiscal y póliza cuadrada.', datos: ['UUID manda', 'Cotejo exacto', '601-83 → 601.45'] },
+      { id: 'p2', tipo: 'tarea', taskType: 'poliza_practica', titulo: 'Captura la póliza del arrendamiento', descripcion: 'Abre el Sim de Pólizas, carga el caso MARCELO F y guarda la póliza de egresos. Usa la 💡 Guía.', datos: ['70,900/7,090/63,810', 'PUE = egreso', 'DEBE = HABER'] },
+      { id: 'p3', tipo: 'asiento', titulo: 'El asiento del arrendamiento', descripcion: 'El sistema genera el asiento al guardar la póliza.', asiento: { cargo: '601.45 Arrendamiento a personas físicas', abono: '216.03 ISR retenido + 102.01 Bancos', cuentas: '601.45 / 216.03 / 102.01', concepto: 'Póliza de egresos: arrendamiento MARCELO F UUID 1317D7E0' } },
     ],
   },
 ];

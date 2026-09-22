@@ -10,6 +10,8 @@ export interface JournalEntry {
   debit: number;
   credit: number;
   type: string;
+  agrupador?: string;  // código agrupador SAT (Anexo 24 A) cuando aplica
+  uuid?: string;       // UUID del CFDI que soporta la transacción (Anexo 24 C)
 }
 
 function fmt(n: number) { return n.toLocaleString('es-MX', { minimumFractionDigits: 2 }); }
