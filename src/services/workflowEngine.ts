@@ -1788,6 +1788,93 @@ Diego Ramos`,
   };
 }
 
+// ─── Póliza Contalink (caso MARCELO F): el paso tarea real abre el Sim
+// (SIM_POR_TAREA); este workflow es el andamiaje email→hoja con las reglas
+// de validación del ASIENTO 1 para que la tarea NUNCA auto-apruebe.
+export function generatePolizaPracticaWorkflow(): Workflow {
+  return {
+    taskId: `wf-pol-prac-${r(1000, 9999)}`, taskTitle: 'Póliza con código agrupador (caso MARCELO F)', taskType: 'poliza_practica', difficulty: 2, estimatedMinutes: 25,
+    steps: [
+      {
+        id: 'email', type: 'email', title: 'Correo - Captura la póliza del arrendamiento', description: 'Del CFDI al asiento con agrupador SAT',
+        guides: [
+          { id: 'g-cfdi', title: 'El CFDI manda', body: 'UUID 1317D7E0, subtotal 70,900, ISR retenido 7,090, total 63,810, PUE. Si el CFDI no cuadra solo, no se contabiliza.', position: 'top' },
+          { id: 'g-cotejo', title: 'Cotejo contra el banco', body: 'El estado de cuenta RITO FINANCIERA trae 63,810 el 02-01-2025: casa exacto con el total del CFDI, por eso es póliza de EGRESOS.', position: 'top' },
+          { id: 'g-agrup', title: '601-83 → 601.45', body: 'Tu cuenta interna 601-83 viaja al SAT como agrupador 601.45 (Anexo 24 A). Sin equivalencia no hay balanza electrónica.', position: 'top' },
+        ],
+        data: {
+          from: 'Lic. Gómez', to: 'auxiliar@logistica.com',
+          subject: 'Póliza del arrendamiento MARCELO F (UUID 1317D7E0)',
+          body: `Buenos días,
+
+Captura la póliza del CFDI de **MARCELO F** (arrendamiento de residencias, UUID 1317D7E0-38AC-489F-9082-E75019D8975E, **PUE**):
+
+**CFDI:** subtotal **70,900** + ISR retenido **7,090** = total **63,810** (MXN).
+**Estado de cuenta:** RITO FINANCIERA, 02-01-2025, **63,810** (casa exacto → EGRESOS).
+
+**Asiento esperado (ASIENTO 1, con naturaleza):**
+DEBE 601-83 → 601.45 Arrendamiento a PF 70,900 / HABER 216-03 → 216.03 ISR retenido 7,090 / HABER 102-01-002 → 102.01 Bancos 63,810.
+
+OJO: la retención es el **10%** del subtotal (Art. 116 LISR). Si el CFDI trajera otra cifra, se pide corrección.
+
+Saludos,
+Lic. Gómez`,
+          urgency: 'alta',
+        },
+      },
+      {
+        id: 'spreadsheet', type: 'spreadsheet', title: 'Hoja - Líneas de la póliza', description: 'Cuenta, agrupador y montos por línea',
+        guides: [
+          { id: 'g-debe', title: 'El gasto nace en el DEBE', body: '601.45 por 70,900 completos: el gasto siempre va íntegro al debe, la retención no lo reduce.', anchor: '[data-guide="Monto gasto"]', position: 'right' },
+          { id: 'g-ret', title: 'Retención al HABER', body: '216.03 por 7,090 exactos (10% de 70,900). Es pasivo retenido, no gasto.', anchor: '[data-guide="Monto retención"]', position: 'right' },
+          { id: 'g-banco', title: 'Del banco sale el neto', body: '102.01 por 63,810: del banco solo sale lo que se pagó, ya descontada la retención.', anchor: '[data-guide="Monto banco"]', position: 'right' },
+        ],
+        data: {
+          rows: [
+            { label: 'Cuenta gasto', cell_B: '601-83', editable: true },
+            { label: 'Agrupador gasto', cell_B: '601.45', editable: true },
+            { label: 'Monto gasto', cell_B: 70900, editable: true },
+            { label: 'Cuenta retención', cell_B: '216-03', editable: true },
+            { label: 'Monto retención', cell_B: 7090, editable: true },
+            { label: 'Cuenta banco', cell_B: '102-01-002', editable: true },
+            { label: 'Monto banco', cell_B: 63810, editable: true },
+            { label: 'Diferencia cuadre', cell_B: 0, editable: true },
+          ],
+        },
+      },
+      {
+        id: 'form', type: 'form', title: 'Decisión — PUE vs PPD y catálogos', description: 'Clasifica el documento antes de guardar',
+        data: {
+          fields: [
+            { key: 'tipoPol', label: 'Tipo de póliza', type: 'choice', options: ['EGRESOS', 'PROVISIÓN', 'DIARIO'], correct: 'EGRESOS', validation: { required: true } },
+            { key: 'ivaPPD', label: 'IVA de un PPD', type: 'choice', options: ['118.01 acreditable', '119.01 pendiente', '208.01 trasladado'], correct: '119.01 pendiente', validation: { required: true } },
+            { key: 'tasaRet', label: 'ISR arrendamiento PF', type: 'choice', options: ['10%', '16%', '30%'], correct: '10%', validation: { required: true } },
+            { key: 'metodo', label: 'Método de pago (cat. H)', type: 'choice', options: ['03 Transferencia', '01 Efectivo', '99 Otros'], correct: '03 Transferencia', validation: { required: true } },
+          ],
+        },
+      },
+      {
+        id: 'result', type: 'result', title: 'Póliza guardada', description: 'Folio generado y balanza alimentada',
+        data: { debe: 70900, haber: 70900, folio: 'POL-egresos' },
+      },
+    ],
+    validation: [
+      { stepId: 'spreadsheet', field: 'row_Cuenta gasto', label: 'Cuenta gasto', type: 'exact', expected: '601-83', points: 1, feedback: { pass: 'Cuenta correcta', fail: 'La cuenta interna del gasto es 601-83.' } },
+      { stepId: 'spreadsheet', field: 'row_Agrupador gasto', label: 'Agrupador gasto', type: 'exact', expected: '601.45', points: 2, feedback: { pass: 'Agrupador correcto', fail: '601-83 viaja al SAT como 601.45.' } },
+      { stepId: 'spreadsheet', field: 'row_Monto gasto', label: 'Monto gasto', type: 'exact', expected: 70900, points: 2, feedback: { pass: 'Monto correcto', fail: 'El gasto va íntegro: 70,900 al DEBE.' } },
+      { stepId: 'spreadsheet', field: 'row_Cuenta retención', label: 'Cuenta retención', type: 'exact', expected: '216-03', points: 1, feedback: { pass: 'Cuenta correcta', fail: 'La retención va a 216-03.' } },
+      { stepId: 'spreadsheet', field: 'row_Monto retención', label: 'Monto retención', type: 'exact', expected: 7090, points: 3, feedback: { pass: 'Retención correcta', fail: '10% de 70,900 = 7,090 (Art. 116 LISR).' } },
+      { stepId: 'spreadsheet', field: 'row_Cuenta banco', label: 'Cuenta banco', type: 'exact', expected: '102-01-002', points: 1, feedback: { pass: 'Cuenta correcta', fail: 'El banco es 102-01-002.' } },
+      { stepId: 'spreadsheet', field: 'row_Monto banco', label: 'Monto banco', type: 'exact', expected: 63810, points: 2, feedback: { pass: 'Monto correcto', fail: 'Del banco sale el neto: 63,810.' } },
+      { stepId: 'spreadsheet', field: 'row_Diferencia cuadre', label: 'Diferencia cuadre', type: 'calculated', expected: 0, tolerance: 0.01, points: 3, feedback: { pass: 'Cuadre correcto', fail: 'DEBE debe igualar HABER (70,900).' } },
+      { stepId: 'form', field: 'tipoPol', label: 'Tipo de póliza', type: 'choice', expected: 'EGRESOS', points: 2, feedback: { pass: 'Tipo correcto', fail: 'PUE conciliado = EGRESOS.' } },
+      { stepId: 'form', field: 'ivaPPD', label: 'IVA de un PPD', type: 'choice', expected: '119.01 pendiente', points: 2, feedback: { pass: 'Cuenta correcta', fail: 'El IVA PPD va a 119.01 pendiente, no a 118.01.' } },
+      { stepId: 'form', field: 'tasaRet', label: 'ISR arrendamiento PF', type: 'choice', expected: '10%', points: 2, feedback: { pass: 'Tasa correcta', fail: 'Arrendamiento a PF retiene 10%.' } },
+      { stepId: 'form', field: 'metodo', label: 'Método de pago', type: 'choice', expected: '03 Transferencia', points: 1, feedback: { pass: 'Método correcto', fail: 'El pago por banco es 03 Transferencia (catálogo H).' } },
+    ],
+  };
+}
+
 // ─── MAIN ENTRY ───────────────────────────────────────────────
 
 export function generateWorkflow(taskType: string, userId?: string, trap?: string): Workflow {
@@ -1810,6 +1897,7 @@ export function generateWorkflow(taskType: string, userId?: string, trap?: strin
     case 'auditoria_practica': wf = generateAuditoriaPracticaWorkflow(); break;
     case 'nomina_practica': wf = generateNominaPracticaWorkflow(); break;
     case 'reporte_practica': wf = generateReportePracticaWorkflow(); break;
+    case 'poliza_practica': wf = generatePolizaPracticaWorkflow(); break;
     case 'depreciation': wf = generateDepreciationWorkflow(); break;
     case 'financial_statements': wf = generateFinancialStatementsWorkflow(); break;
     default: wf = generateGenericWorkflow(taskType);

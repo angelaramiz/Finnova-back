@@ -62,6 +62,7 @@ export const ACCOUNTING_SPECIALTY: Specialty = {
     'auditoria_practica',
     'nomina_practica',
     'reporte_practica',
+    'poliza_practica',
   ],
   exerciseTypes: ['balanza_comprobacion', 'poliza_diario', 'estado_resultados', 'conciliacion_bancaria', 'diot', 'depreciacion', 'cuentas_por_cobrar'],
   trapCategories: ['iva_incorrecto', 'pago_mal_aplicado', 'conciliacion_no_cuadra', 'nomina_isr_mal'],

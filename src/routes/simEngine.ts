@@ -8,7 +8,7 @@ import { simIso, simShort } from '../lib/simTime';
 import { calculateScore, checkProgression, checkDeadline, validateTransition, generateRandomEvent } from '../services/engines';
 import { generateInvoiceEntries, generatePaymentEntries, generateSupplierEntries, generatePayrollEntries, generateBusinessExpenseEntries, generateJournalEntryForType, JournalEntry } from '../services/autoEntries';
 import { suggestMatches, confirmMatch, getPendingInvoices } from '../services/paymentMatching';
-import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion } from '../services/chartOfAccounts';
+import { getChartOfAccounts, updateBalance, getAccountSummary, generateBalanceGeneral, generateEstadoResultados, generateBalanzaComprobacion, ensureSatAccount } from '../services/chartOfAccounts';
 import { getCompany, getClients, getSuppliers, getProducts, getTransactions } from '../services/persistentData';
 import { generateMonthPlan, getTodayTasks, getWeekTasks, getMonthStats } from '../services/taskPlanner';
 import { TRAP_SCENARIOS } from '../services/workflowEngine';
@@ -30,6 +30,8 @@ import { getStoryState, getActiveCase, completeScene, resetStory } from '../serv
 import { getChronicle } from '../services/chronicle';
 import { getArcsForRoute, type RouteId } from '../data/storyArcs';
 import { ingestEvents } from '../services/learningAnalytics';
+import { generarPoliza, validarUuid, validarRfc, type CfdiRow, type EdoCtaRow, type Poliza24 } from '../services/polizaEngine';
+import { SAT_CUENTAS, EQUIVALENCIAS, BANCOS_SAT, MONEDAS_SAT, METODOS_PAGO_SAT, resolverAgrupador } from '../services/satCatalog';
 
 // In-memory store for generated journal entries per user
 const journalStore = new Map<string, JournalEntry[]>();
@@ -214,6 +216,109 @@ simEngineRouter.get('/journal', requireSupabaseAuth, async (req: AuthenticatedRe
   if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
   const entries = journalStore.get(userId) || [];
   res.json(entries);
+});
+
+// ─── Motor de pólizas (Anexo 24) ───────────────────────────────────
+// Catálogo operativo para el autocomplete del Sim (cuentas, bancos G,
+// monedas F, métodos H + equivalencias cuenta interna → agrupador).
+simEngineRouter.get('/polizas/catalogo', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json({ cuentas: SAT_CUENTAS, equivalencias: EQUIVALENCIAS, bancos: BANCOS_SAT, monedas: MONEDAS_SAT, metodos: METODOS_PAGO_SAT });
+});
+
+// Genera la póliza desde CFDI + EDO DE CUENTA (5 etapas del motor).
+simEngineRouter.post('/polizas/generar', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { cfdi, edoCta, opciones } = req.body as { cfdi: CfdiRow; edoCta?: EdoCtaRow[]; opciones?: Record<string, string> };
+  if (!cfdi || !cfdi.uuid || !cfdi.producto) { res.status(400).json({ error: 'Falta el CFDI (uuid y producto obligatorios)' }); return; }
+  res.json(generarPoliza(cfdi, edoCta ?? [], opciones ?? {}));
+});
+
+// Guarda una póliza multilínea: valida cuadratura + agrupadores, la acumula
+// en el diario, actualiza saldos y la persiste en Supabase (sim_polizas).
+const polizasStore = new Map<string, Poliza24[]>();
+
+simEngineRouter.post('/polizas/guardar', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  const { poliza, fiscal } = req.body as { poliza: Poliza24; fiscal?: { uuid?: string; rfc?: string; metodo?: 'PUE' | 'PPD'; conciliado?: boolean } };
+  if (!poliza || !Array.isArray(poliza.lineas) || poliza.lineas.length === 0) {
+    res.status(400).json({ error: 'Póliza sin líneas' }); return;
+  }
+  const r = (n: number) => Math.round(n * 100) / 100;
+  const debe = r(poliza.lineas.reduce((s, l) => s + Number(l.debe || 0), 0));
+  const haber = r(poliza.lineas.reduce((s, l) => s + Number(l.haber || 0), 0));
+  if (Math.abs(debe - haber) > 0.01) { res.status(422).json({ error: `Póliza descuadrada: DEBE ${debe} ≠ HABER ${haber}` }); return; }
+  for (const l of poliza.lineas) {
+    if (!resolverAgrupador(l.cuentaInterna || '') && !resolverAgrupador(l.agrupador || '')) {
+      res.status(422).json({ error: `Línea sin código agrupador SAT: ${l.cuentaInterna}` }); return;
+    }
+    // 601.83 (no deducible) jamás convive con IVA acreditable/pendiente
+    if ((l.agrupador === '601.83' || resolverAgrupador(l.cuentaInterna || '') === '601.83')
+      && poliza.lineas.some(x => x.agrupador === '118.01' || x.agrupador === '119.01')) {
+      res.status(422).json({ error: '601.83 (no deducible) no admite IVA en 118.01/119.01: el IVA es parte del gasto' }); return;
+    }
+  }
+  // Coherencia fiscal del documento (cuando el Sim la envía)
+  if (fiscal) {
+    const eUuid = fiscal.uuid ? validarUuid(fiscal.uuid) : null;
+    if (eUuid) { res.status(422).json({ error: eUuid.mensaje }); return; }
+    const eRfc = fiscal.rfc ? validarRfc(fiscal.rfc) : null;
+    if (eRfc) { res.status(422).json({ error: eRfc.mensaje }); return; }
+    if (fiscal.metodo === 'PPD' && poliza.tipo !== 'PROVISION') {
+      res.status(422).json({ error: 'CFDI PPD sin pago solo admite póliza de PROVISIÓN (no EGRESOS)' }); return;
+    }
+    if (fiscal.metodo === 'PUE' && !fiscal.conciliado && poliza.tipo === 'EGRESOS') {
+      res.status(422).json({ error: 'PUE sin pago confirmado no admite póliza de EGRESOS' }); return;
+    }
+    if (fiscal.uuid) {
+      const enMemoria = (polizasStore.get(userId) || []).find(p => p.uuid === fiscal.uuid);
+      if (enMemoria) { res.status(422).json({ error: `UUID ya contabilizado: duplicarías el registro. Revisa tu póliza anterior.` }); return; }
+      if (isSupabaseReady()) {
+        try {
+          const { data } = await supabaseAdmin.from('sim_polizas').select('folio').eq('user_id', userId).eq('uuid_cfdi', fiscal.uuid).limit(1);
+          if (data && data.length > 0) { res.status(422).json({ error: `UUID ya contabilizado en folio ${(data[0] as { folio: string }).folio}: duplicarías el registro.` }); return; }
+        } catch { /* best-effort */ }
+      }
+    }
+  }
+  const folio = `POL-${Date.now()}`;
+  const guardada: Poliza24 = { ...poliza, lineas: poliza.lineas.map(l => ({ ...l, agrupador: resolverAgrupador(l.cuentaInterna || '') ?? l.agrupador })) };
+  if (!polizasStore.has(userId)) polizasStore.set(userId, []);
+  polizasStore.get(userId)!.push({ ...guardada });
+  if (!journalStore.has(userId)) journalStore.set(userId, []);
+  for (const l of guardada.lineas) {
+    ensureSatAccount(userId, l.cuentaInterna, l.agrupador, l.descripcion);
+    journalStore.get(userId)!.push({
+      date: guardada.fecha, ref: folio, desc: `${guardada.concepto} — ${l.descripcion}`,
+      account: l.cuentaInterna, debit: l.debe, credit: l.haber,
+      type: guardada.tipo === 'EGRESOS' ? 'Póliza egresos' : guardada.tipo === 'PROVISION' ? 'Póliza provisión' : 'Póliza diario',
+      agrupador: l.agrupador, uuid: guardada.uuid,
+    });
+    if (l.debe > 0) updateBalance(userId, l.cuentaInterna, l.debe, 'debit');
+    if (l.haber > 0) updateBalance(userId, l.cuentaInterna, l.haber, 'credit');
+  }
+  if (isSupabaseReady()) {
+    try {
+      await supabaseAdmin.from('sim_polizas').insert({
+        user_id: userId, folio, fecha: guardada.fecha, tipo: guardada.tipo,
+        concepto: guardada.concepto, uuid_cfdi: guardada.uuid, rfc_tercero: guardada.rfcTercero,
+        monto_total: guardada.montoTotal, moneda: guardada.moneda,
+        metodo_pago: guardada.metodoPago, banco: guardada.banco ?? null, lineas: guardada.lineas,
+      });
+    } catch { /* best-effort: memoria ya guardó */ }
+  }
+  res.json({ folio, lineas: guardada.lineas.length, totalDebe: debe, totalHaber: haber });
+});
+
+simEngineRouter.get('/polizas', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user?.id;
+  if (!userId) { res.status(401).json({ error: 'No autorizado' }); return; }
+  if (isSupabaseReady()) {
+    try {
+      const { data, error } = await supabaseAdmin.from('sim_polizas').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+      if (!error && data) { res.json(data); return; }
+    } catch { /* fallback a memoria */ }
+  }
+  res.json(polizasStore.get(userId) || []);
 });
 
 simEngineRouter.post('/journal', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {

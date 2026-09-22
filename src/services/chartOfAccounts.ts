@@ -1,5 +1,6 @@
 // ─── Catálogo de Cuentas Jerárquico ────────────────────────────
 // Modelo real mexicano: tipo de cuenta, código, subcuentas, saldos.
+import { getSatCuenta } from './satCatalog';
 
 export interface Account {
   code: string;          // Ej: '1', '1-01', '1-01-01'
@@ -10,6 +11,7 @@ export interface Account {
   nature: 'D' | 'H';    // Deudora o Acreedora
   balance: number;       // Saldo actual
   isDetail: boolean;     // ¿Se puede Registrar? (hoja del árbol)
+  agrupador?: string;    // código agrupador SAT (Anexo 24 A) cuando aplica
   children?: Account[];
 }
 
@@ -22,11 +24,11 @@ const SEED: Account[] = [
   // ACTIVO (Total: 2,510,000 = Pasivos + Capital)
   { code: '1', name: 'ACTIVO', type: 'Activo', level: 1, nature: 'D', balance: 2510000, isDetail: false },
   { code: '1-01', name: 'Caja', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 28500, isDetail: true },
-  { code: '1-02', name: 'Bancos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 350000, isDetail: true },
-  { code: '1-03', name: 'Clientes', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 185000, isDetail: true },
+  { code: '1-02', name: 'Bancos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 350000, isDetail: true, agrupador: '102.01' },
+  { code: '1-03', name: 'Clientes', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 185000, isDetail: true, agrupador: '105.01' },
   { code: '1-04', name: 'Deudores diversos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 28000, isDetail: true },
   { code: '1-05', name: 'Inventarios', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 310000, isDetail: true },
-  { code: '1-06', name: 'IVA acreditable', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 45000, isDetail: true },
+  { code: '1-06', name: 'IVA acreditable', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 45000, isDetail: true, agrupador: '118.01' },
   { code: '1-07', name: 'Terrenos', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 580000, isDetail: true },
   { code: '1-08', name: 'Edificios', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 420000, isDetail: true },
   { code: '1-09', name: 'Maquinaria y equipo', type: 'Activo', parentCode: '1', level: 2, nature: 'D', balance: 280000, isDetail: true },
@@ -39,14 +41,14 @@ const SEED: Account[] = [
 
   // PASIVO (Total: 660,000)
   { code: '2', name: 'PASIVO', type: 'Pasivo', level: 1, nature: 'H', balance: 660000, isDetail: false },
-  { code: '2-01', name: 'Proveedores', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 175000, isDetail: true },
+  { code: '2-01', name: 'Proveedores', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 175000, isDetail: true, agrupador: '201.01' },
   { code: '2-02', name: 'Acreedores diversos', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 32000, isDetail: true },
-  { code: '2-03', name: 'IVA por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 58000, isDetail: true },
-  { code: '2-04', name: 'ISR por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 42000, isDetail: true },
+  { code: '2-03', name: 'IVA por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 58000, isDetail: true, agrupador: '213.01' },
+  { code: '2-04', name: 'ISR por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 42000, isDetail: true, agrupador: '213.03' },
   { code: '2-05', name: 'PTU por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 18000, isDetail: true },
   { code: '2-06', name: 'Sueldos por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 85000, isDetail: true },
   { code: '2-07', name: 'Préstamos bancarios', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 250000, isDetail: true },
-  { code: '2-08', name: 'IMSS por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 0, isDetail: true },
+  { code: '2-08', name: 'IMSS por pagar', type: 'Pasivo', parentCode: '2', level: 2, nature: 'H', balance: 0, isDetail: true, agrupador: '216.11' },
 
   // CAPITAL (Total: 1,850,000 = 2510000 - 660000)
   { code: '3', name: 'CAPITAL', type: 'Capital', level: 1, nature: 'H', balance: 1850000, isDetail: false },
@@ -56,19 +58,20 @@ const SEED: Account[] = [
 
   // INGRESOS (Total: 1,435,500)
   { code: '4', name: 'INGRESOS', type: 'Ingreso', level: 1, nature: 'H', balance: 1435500, isDetail: false },
-  { code: '4-01', name: 'Ventas', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 1120000, isDetail: true },
+  { code: '4-01', name: 'Ventas', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 1120000, isDetail: true, agrupador: '401.01' },
   { code: '4-02', name: 'Servicios', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 205500, isDetail: true },
   { code: '4-03', name: 'Otros ingresos', type: 'Ingreso', parentCode: '4', level: 2, nature: 'H', balance: 110000, isDetail: true },
 
   // GASTOS (Total: 1,435,500 = Ingresos)
   { code: '5', name: 'GASTOS', type: 'Gasto', level: 1, nature: 'D', balance: 1435500, isDetail: false },
-  { code: '5-01', name: 'Costo de ventas', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 480000, isDetail: true },
+  { code: '5-01', name: 'Costo de ventas', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 480000, isDetail: true, agrupador: '502.01' },
   { code: '5-02', name: 'Gastos de venta', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 185000, isDetail: true },
-  { code: '5-03', name: 'Gastos de administración', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 285000, isDetail: true },
-  { code: '5-04', name: 'Gastos de nómina', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 320000, isDetail: true },
+  { code: '5-03', name: 'Gastos de administración', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 285000, isDetail: true, agrupador: '603.82' },
+  { code: '5-04', name: 'Gastos de nómina', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 320000, isDetail: true, agrupador: '603.01' },
   { code: '5-05', name: 'Gastos financieros', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 42000, isDetail: true },
   { code: '5-06', name: 'Impuestos y derechos', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 85000, isDetail: true },
   { code: '5-07', name: 'Depreciación', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 38500, isDetail: true },
+  { code: '5-08', name: 'Gastos no deducibles', type: 'Gasto', parentCode: '5', level: 2, nature: 'D', balance: 0, isDetail: true, agrupador: '601.83' },
 ];
 
 // In-memory store por usuario
@@ -113,8 +116,28 @@ export function updateBalance(userId: string, accountCode: string, amount: numbe
   return true;
 }
 
-export function getAccountSummary(userId: string) {
+// Crea la cuenta interna en el catálogo del usuario si no existe (cuentas
+// SAT del contribuyente como 601-83 que no están en el SEED). Tipo y
+// naturaleza vienen del catálogo operativo (Anexo 24) para no inventar datos.
+export function ensureSatAccount(userId: string, cuentaInterna: string, agrupador: string, nombre: string): boolean {
   const catalog = getCatalog(userId);
+  if (catalog.some(a => a.code === cuentaInterna)) return true;
+  const sat = getSatCuenta(agrupador);
+  const type: Account['type'] = sat
+    ? (sat.tipo === 'Costo' || sat.tipo === 'Orden' ? 'Gasto' : sat.tipo as Account['type'])
+    : 'Gasto';
+  const nature = sat ? sat.naturaleza : 'D';
+  const raiz = catalog.find(a => a.code === agrupador.charAt(0));
+  catalog.push({
+    code: cuentaInterna, name: nombre, type,
+    parentCode: raiz ? raiz.code : undefined,
+    level: 2, nature,
+    balance: 0, isDetail: true, agrupador,
+  });
+  return true;
+}
+
+export function getAccountSummary(userId: string) {  const catalog = getCatalog(userId);
   const activo = catalog.filter(a => a.type === 'Activo' && a.level === 2).reduce((s, a) => s + Math.abs(a.balance), 0);
   const pasivo = catalog.filter(a => a.type === 'Pasivo' && a.level === 2).reduce((s, a) => s + Math.abs(a.balance), 0);
   const capital = catalog.filter(a => a.type === 'Capital' && a.level === 2).reduce((s, a) => s + Math.abs(a.balance), 0);
