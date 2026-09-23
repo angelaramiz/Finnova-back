@@ -164,3 +164,31 @@ describe('POST /api/sim/polizas/guardar', () => {
     expect(res.body.error).toMatch(/601\.83/);
   });
 });
+
+describe('GET /api/sim/polizas/casos', () => {
+  it('expone los 21 casos con MARCELO primero y PPD sin banco', async () => {
+    const res = await request(app).get('/api/sim/polizas/casos');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(21);
+    expect(res.body[0].id).toBe('1317D7E0-38AC-489F-9082-E75019D8975E');
+    const ppd = res.body.filter((c: { cfdi: { metodo: string } }) => c.cfdi.metodo === 'PPD');
+    expect(ppd.length).toBeGreaterThan(0);
+    for (const c of ppd) expect(c.edo).toBeNull();
+  });
+});
+
+describe('GET /api/sim/polizas/semilla', () => {
+  it('sin excluidos devuelve el primero; con excluidos salta al libre; agotado da 404', async () => {
+    const r1 = await request(app).get('/api/sim/polizas/semilla');
+    expect(r1.status).toBe(200);
+    const primero = r1.body.id;
+    const r2 = await request(app).get(`/api/sim/polizas/semilla?exclude=${primero}`);
+    expect(r2.status).toBe(200);
+    expect(r2.body.id).not.toBe(primero);
+    const todos = await request(app).get('/api/sim/polizas/casos');
+    const excl = todos.body.map((c: { id: string }) => c.id).join(',');
+    const r3 = await request(app).get(`/api/sim/polizas/semilla?exclude=${excl}`);
+    expect(r3.status).toBe(404);
+    expect(r3.body.agotadas).toBe(true);
+  });
+});

@@ -225,6 +225,21 @@ simEngineRouter.get('/polizas/catalogo', requireSupabaseAuth, async (_req: Authe
   res.json({ cuentas: SAT_CUENTAS, equivalencias: EQUIVALENCIAS, bancos: BANCOS_SAT, monedas: MONEDAS_SAT, metodos: METODOS_PAGO_SAT });
 });
 
+import { getPolizaCasosServicio, getPolizaSemillaServicio } from '../services/polizaCasos';
+
+// Catálogo de casos de operación (21 filas CFDI↔banco) + semilla sin repetir.
+// Fuente: data/polizaDataset.ts; tabla poliza_casos en Supabase, memoria local.
+simEngineRouter.get('/polizas/casos', requireSupabaseAuth, async (_req: AuthenticatedRequest, res: Response) => {
+  res.json(await getPolizaCasosServicio());
+});
+
+simEngineRouter.get('/polizas/semilla', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const excl = String(req.query.exclude || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const caso = await getPolizaSemillaServicio(excl);
+  if (!caso) { res.status(404).json({ agotadas: true, mensaje: 'Ya operaste los 21 casos. Reinicia tus usadas para repasar.' }); return; }
+  res.json(caso);
+});
+
 // Genera la póliza desde CFDI + EDO DE CUENTA (5 etapas del motor).
 simEngineRouter.post('/polizas/generar', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { cfdi, edoCta, opciones } = req.body as { cfdi: CfdiRow; edoCta?: EdoCtaRow[]; opciones?: Record<string, string> };
