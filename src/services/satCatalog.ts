@@ -110,6 +110,20 @@ export const EQUIVALENCIAS: Equivalencia[] = [
   { cuentaInterna: '5-03', agrupador: '603.82' },
   { cuentaInterna: '5-04', agrupador: '603.01' },
   { cuentaInterna: '5-08', agrupador: '601.83' },
+  // Captura manual del Sim: cada agrupador del dataset tiene su interna.
+  { cuentaInterna: '601-45', agrupador: '601.45' },
+  { cuentaInterna: '601-46', agrupador: '601.46' },
+  { cuentaInterna: '601-48', agrupador: '601.48' },
+  { cuentaInterna: '601-49', agrupador: '601.49' },
+  { cuentaInterna: '601-55', agrupador: '601.55' },
+  { cuentaInterna: '601-56', agrupador: '601.56' },
+  { cuentaInterna: '601-72', agrupador: '601.72' },
+  { cuentaInterna: '601-34', agrupador: '601.34' },
+  { cuentaInterna: '401-01', agrupador: '401.01' },
+  { cuentaInterna: '301-01', agrupador: '301.01' },
+  { cuentaInterna: '701-10', agrupador: '701.10' },
+  { cuentaInterna: '105-01', agrupador: '105.01' },
+  { cuentaInterna: '209-01', agrupador: '209.01' },
 ];
 
 export interface BancoSat { clave: string; corto: string; nombre: string; }
