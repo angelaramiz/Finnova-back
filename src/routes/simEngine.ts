@@ -240,6 +240,31 @@ simEngineRouter.get('/polizas/semilla', requireSupabaseAuth, async (req: Authent
   res.json(caso);
 });
 
+// ─── Rutas públicas de Pólizas (pruebas reales sin credenciales) ───
+// Duplicado exacto de lectura + generar (sin efectos): el catálogo, los
+// casos, la semilla y el cálculo no escriben nada. Guardar NO se duplica:
+// persiste a tu nombre y necesita tu identidad (sigue con auth).
+simEngineRouter.get('/polizas/pub/catalogo', async (_req, res: Response) => {
+  res.json({ cuentas: SAT_CUENTAS, equivalencias: EQUIVALENCIAS, bancos: BANCOS_SAT, monedas: MONEDAS_SAT, metodos: METODOS_PAGO_SAT });
+});
+
+simEngineRouter.post('/polizas/pub/generar', async (req: AuthenticatedRequest, res: Response) => {
+  const { cfdi, edoCta, opciones } = req.body as { cfdi: CfdiRow; edoCta?: EdoCtaRow[]; opciones?: Record<string, string> };
+  if (!cfdi || !cfdi.uuid || !cfdi.producto) { res.status(400).json({ error: 'Falta el CFDI (uuid y producto obligatorios)' }); return; }
+  res.json(generarPoliza(cfdi, edoCta ?? [], opciones ?? {}));
+});
+
+simEngineRouter.get('/polizas/pub/casos', async (_req, res: Response) => {
+  res.json(await getPolizaCasosServicio());
+});
+
+simEngineRouter.get('/polizas/pub/semilla', async (req: AuthenticatedRequest, res: Response) => {
+  const excl = String(req.query.exclude || '').split(',').map((s) => s.trim()).filter(Boolean);
+  const caso = await getPolizaSemillaServicio(excl);
+  if (!caso) { res.status(404).json({ agotadas: true, mensaje: 'Ya operaste los 21 casos. Reinicia tus usadas para repasar.' }); return; }
+  res.json(caso);
+});
+
 // Genera la póliza desde CFDI + EDO DE CUENTA (5 etapas del motor).
 simEngineRouter.post('/polizas/generar', requireSupabaseAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { cfdi, edoCta, opciones } = req.body as { cfdi: CfdiRow; edoCta?: EdoCtaRow[]; opciones?: Record<string, string> };

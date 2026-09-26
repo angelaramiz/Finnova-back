@@ -165,6 +165,31 @@ describe('POST /api/sim/polizas/guardar', () => {
   });
 });
 
+describe('rutas públicas /polizas/pub (pruebas reales sin credenciales)', () => {
+  it('GET /pub/casos expone los 21 casos sin auth', async () => {
+    const res = await request(app).get('/api/sim/polizas/pub/casos');
+    expect(res.status).toBe(200);
+    expect(res.body.length).toBeGreaterThanOrEqual(21);
+  });
+  it('GET /pub/semilla devuelve semilla sin auth y respeta exclude', async () => {
+    const r1 = await request(app).get('/api/sim/polizas/pub/semilla');
+    expect(r1.status).toBe(200);
+    expect(r1.body.id).toBeDefined();
+    const r2 = await request(app).get(`/api/sim/polizas/pub/semilla?exclude=${r1.body.id}`);
+    expect(r2.body.id).not.toBe(r1.body.id);
+  });
+  it('GET /pub/catalogo expone el catálogo sin auth', async () => {
+    const res = await request(app).get('/api/sim/polizas/pub/catalogo');
+    expect(res.status).toBe(200);
+    expect(res.body.cuentas.length).toBeGreaterThan(30);
+  });
+  it('POST /pub/generar calcula la póliza sin auth (sin efectos)', async () => {
+    const res = await request(app).post('/api/sim/polizas/pub/generar').send({ cfdi: MARCELO, edoCta: EDO });
+    expect(res.status).toBe(200);
+    expect(res.body.poliza.totalDebe).toBe(70900);
+  });
+});
+
 describe('GET /api/sim/polizas/casos', () => {
   it('expone los 21 casos con MARCELO primero y PPD sin banco', async () => {
     const res = await request(app).get('/api/sim/polizas/casos');
@@ -177,8 +202,7 @@ describe('GET /api/sim/polizas/casos', () => {
   });
 });
 
-describe('GET /api/sim/polizas/semilla', () => {
-  it('sin excluidos devuelve el primero; con excluidos salta al libre; agotado da 404', async () => {
+describe('GET /api/sim/polizas/semilla', () => {  it('sin excluidos devuelve el primero; con excluidos salta al libre; agotado da 404', async () => {
     const r1 = await request(app).get('/api/sim/polizas/semilla');
     expect(r1.status).toBe(200);
     const primero = r1.body.id;
