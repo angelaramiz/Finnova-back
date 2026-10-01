@@ -160,9 +160,9 @@ export interface Calculo {
 const TASA_ISR_ARRENDAMIENTO = 0.10;
 
 export interface OpcionesCalculo {
-  cuentaGasto?: string;     // cuenta interna del gasto (default '601-83')
-  cuentaBanco?: string;     // cuenta interna del banco (default '102-01-002')
-  cuentaRetIsr?: string;    // cuenta interna retención (default '216-03')
+  cuentaGasto?: string;     // cuenta interna del gasto (default '601.45')
+  cuentaBanco?: string;     // cuenta interna del banco (default '102.01.002')
+  cuentaRetIsr?: string;    // cuenta interna retención (default '216.03')
   agrupadorRetIsr?: string; // default '216.03'
 }
 
@@ -197,7 +197,7 @@ export function calcularLineas(cfdi: CfdiRow, clasif: Clasificacion, conc: Conci
     return { lineas: [], errores };
   }
 
-  const ctaBanco = opts.cuentaBanco ?? '102-01-002';
+  const ctaBanco = opts.cuentaBanco ?? '102.01.002';
   const lineas: LineaPoliza[] = [];
 
   // Ruta ingreso/capital (naturaleza acreedora: el cobro entra en DEBE)
@@ -209,16 +209,16 @@ export function calcularLineas(cfdi: CfdiRow, clasif: Clasificacion, conc: Conci
     const esProvision = cfdi.metodo === 'PPD' || !conc.confirmado;
     if (esProvision) {
       // PPD no cobrado: clientes + IVA trasladado NO cobrado (209.01)
-      lineas.push({ cuentaInterna: '1-03', agrupador: '105.01', descripcion: 'Clientes nacionales', debe: cfdi.total, haber: 0 });
-      lineas.push({ cuentaInterna: clasif.agrupador.replace('.', '-'), agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
+      lineas.push({ cuentaInterna: '1.03', agrupador: '105.01', descripcion: 'Clientes nacionales', debe: cfdi.total, haber: 0 });
+      lineas.push({ cuentaInterna: clasif.agrupador, agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
       if (cfdi.iva16 > 0) {
-        lineas.push({ cuentaInterna: '209-01', agrupador: '209.01', descripcion: 'IVA trasladado no cobrado', debe: 0, haber: cfdi.iva16 });
+        lineas.push({ cuentaInterna: '209.01', agrupador: '209.01', descripcion: 'IVA trasladado no cobrado', debe: 0, haber: cfdi.iva16 });
       }
     } else {
       lineas.push({ cuentaInterna: ctaBanco, agrupador: '102.01', descripcion: `Bancos nacionales${conc.banco ? ` (${conc.banco})` : ''}`, debe: cfdi.total, haber: 0 });
-      lineas.push({ cuentaInterna: clasif.agrupador.replace('.', '-'), agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
+      lineas.push({ cuentaInterna: clasif.agrupador, agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: 0, haber: cfdi.subtotal });
       if (cfdi.iva16 > 0) {
-        lineas.push({ cuentaInterna: '208-01', agrupador: '208.01', descripcion: 'IVA trasladado cobrado', debe: 0, haber: cfdi.iva16 });
+        lineas.push({ cuentaInterna: '208.01', agrupador: '208.01', descripcion: 'IVA trasladado cobrado', debe: 0, haber: cfdi.iva16 });
       }
     }
     const debe = r(lineas.reduce((s, l) => s + l.debe, 0));
@@ -232,22 +232,22 @@ export function calcularLineas(cfdi: CfdiRow, clasif: Clasificacion, conc: Conci
     return { lineas, errores };
   }
 
-  const ctaGasto = opts.cuentaGasto ?? '601-83';
-  const ctaRet = opts.cuentaRetIsr ?? '216-03';
+  const ctaGasto = opts.cuentaGasto ?? '601.45';
+  const ctaRet = opts.cuentaRetIsr ?? '216.03';
   const agrRet = opts.agrupadorRetIsr ?? '216.03';
 
   if (cfdi.metodo === 'PPD' || !conc.confirmado) {
     // Ruta provisión: gasto + IVA pendiente contra proveedores
     lineas.push({ cuentaInterna: ctaGasto, agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: cfdi.subtotal, haber: 0 });
     if (cfdi.iva16 > 0) {
-      lineas.push({ cuentaInterna: '119-01', agrupador: '119.01', descripcion: 'IVA pendiente de pago', debe: cfdi.iva16, haber: 0 });
+      lineas.push({ cuentaInterna: '119.01', agrupador: '119.01', descripcion: 'IVA pendiente de pago', debe: cfdi.iva16, haber: 0 });
     }
-    lineas.push({ cuentaInterna: '201-01', agrupador: '201.01', descripcion: 'Proveedores nacionales', debe: 0, haber: cfdi.subtotal + cfdi.iva16 });
+    lineas.push({ cuentaInterna: '201.01', agrupador: '201.01', descripcion: 'Proveedores nacionales', debe: 0, haber: cfdi.subtotal + cfdi.iva16 });
   } else {
     // Ruta egreso pagado (PUE conciliado): gasto + retenciones + bancos
     lineas.push({ cuentaInterna: ctaGasto, agrupador: clasif.agrupador, descripcion: satGasto.nombre, debe: cfdi.subtotal, haber: 0 });
     if (cfdi.iva16 > 0) {
-      lineas.push({ cuentaInterna: '118-01', agrupador: '118.01', descripcion: 'IVA acreditable pagado', debe: cfdi.iva16, haber: 0 });
+      lineas.push({ cuentaInterna: '118.01', agrupador: '118.01', descripcion: 'IVA acreditable pagado', debe: cfdi.iva16, haber: 0 });
     }
     if (cfdi.isrRet > 0) {
       const esperadoRet = r(cfdi.subtotal * TASA_ISR_ARRENDAMIENTO);
@@ -260,7 +260,7 @@ export function calcularLineas(cfdi: CfdiRow, clasif: Clasificacion, conc: Conci
       lineas.push({ cuentaInterna: ctaRet, agrupador: agrRet, descripcion: 'Impuestos retenidos de ISR por arrendamiento', debe: 0, haber: cfdi.isrRet });
     }
     if (cfdi.ivaRet > 0) {
-      lineas.push({ cuentaInterna: '216-10', agrupador: '216.10', descripcion: 'Impuestos retenidos de IVA', debe: 0, haber: cfdi.ivaRet });
+      lineas.push({ cuentaInterna: '216.10', agrupador: '216.10', descripcion: 'Impuestos retenidos de IVA', debe: 0, haber: cfdi.ivaRet });
     }
     lineas.push({ cuentaInterna: ctaBanco, agrupador: '102.01', descripcion: `Bancos nacionales${conc.banco ? ` (${conc.banco})` : ''}`, debe: 0, haber: cfdi.total });
   }

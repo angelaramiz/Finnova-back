@@ -72,59 +72,102 @@ export interface Equivalencia {
   agrupador: string;      // código agrupador SAT (sección A: Código Agrupador)
 }
 
-// Caso real del curso: la póliza Contalink usa 601-83 / 102-01-002 / 216-03
-// para la misma operación que el Excel registra como 601.45 / 102.01 / 216.03.
+// Caso real del curso: la póliza Contalink usa 601.45 / 102.01.002 / 216.03
+// (solo punto, sin guion; la renta deducible ES su agrupador 601.45).
+// El Excel registra la misma operación como 601.45 / 102.01 / 216.03.
 export const EQUIVALENCIAS: Equivalencia[] = [
-  { cuentaInterna: '601-83', agrupador: '601.45' },
-  { cuentaInterna: '102-01-002', agrupador: '102.01' },
-  { cuentaInterna: '102-01-001', agrupador: '102.01' },
-  { cuentaInterna: '102-01', agrupador: '102.01' },
-  { cuentaInterna: '216-03', agrupador: '216.03' },
-  { cuentaInterna: '211-01', agrupador: '216.01' },
-  { cuentaInterna: '501-01', agrupador: '601.01' },
-  { cuentaInterna: '899-04', agrupador: '899.01' },
+  { cuentaInterna: '601.45', agrupador: '601.45' },
+  { cuentaInterna: '102.01.002', agrupador: '102.01' },
+  { cuentaInterna: '102.01.001', agrupador: '102.01' },
+  { cuentaInterna: '102.01', agrupador: '102.01' },
+  { cuentaInterna: '216.03', agrupador: '216.03' },
+  { cuentaInterna: '211.01', agrupador: '216.01' },
+  { cuentaInterna: '501.01', agrupador: '601.01' },
+  { cuentaInterna: '899.04', agrupador: '899.01' },
   { cuentaInterna: '899', agrupador: '899.01' },
   { cuentaInterna: '113', agrupador: '113.01' },
   { cuentaInterna: '118', agrupador: '118.01' },
-  { cuentaInterna: '118-01', agrupador: '118.01' },
+  { cuentaInterna: '118.01', agrupador: '118.01' },
   { cuentaInterna: '119', agrupador: '119.01' },
-  { cuentaInterna: '119-01', agrupador: '119.01' },
-  { cuentaInterna: '201-01', agrupador: '201.01' },
+  { cuentaInterna: '119.01', agrupador: '119.01' },
+  { cuentaInterna: '201.01', agrupador: '201.01' },
   { cuentaInterna: '207', agrupador: '207.01' },
   { cuentaInterna: '208', agrupador: '208.01' },
-  { cuentaInterna: '208-01', agrupador: '208.01' },
+  { cuentaInterna: '208.01', agrupador: '208.01' },
   { cuentaInterna: '209', agrupador: '209.01' },
   { cuentaInterna: '213', agrupador: '213.01' },
   { cuentaInterna: '216', agrupador: '216.10' },
-  { cuentaInterna: '216-10', agrupador: '216.10' },
+  { cuentaInterna: '216.10', agrupador: '216.10' },
   // Catálogo interno del simulador (chartOfAccounts) → agrupador SAT
-  { cuentaInterna: '1-02', agrupador: '102.01' },
-  { cuentaInterna: '1-03', agrupador: '105.01' },
-  { cuentaInterna: '1-06', agrupador: '118.01' },
-  { cuentaInterna: '2-01', agrupador: '201.01' },
-  { cuentaInterna: '2-03', agrupador: '213.01' },
-  { cuentaInterna: '2-04', agrupador: '213.03' },
-  { cuentaInterna: '2-08', agrupador: '216.11' },
-  { cuentaInterna: '4-01', agrupador: '401.01' },
-  { cuentaInterna: '5-01', agrupador: '502.01' },
-  { cuentaInterna: '5-03', agrupador: '603.82' },
-  { cuentaInterna: '5-04', agrupador: '603.01' },
-  { cuentaInterna: '5-08', agrupador: '601.83' },
+  { cuentaInterna: '1.02', agrupador: '102.01' },
+  { cuentaInterna: '1.03', agrupador: '105.01' },
+  { cuentaInterna: '1.06', agrupador: '118.01' },
+  { cuentaInterna: '2.01', agrupador: '201.01' },
+  { cuentaInterna: '2.03', agrupador: '213.01' },
+  { cuentaInterna: '2.04', agrupador: '213.03' },
+  { cuentaInterna: '2.08', agrupador: '216.11' },
+  { cuentaInterna: '4.01', agrupador: '401.01' },
+  { cuentaInterna: '5.01', agrupador: '502.01' },
+  { cuentaInterna: '5.03', agrupador: '603.82' },
+  { cuentaInterna: '5.04', agrupador: '603.01' },
+  { cuentaInterna: '5.08', agrupador: '601.83' },
   // Captura manual del Sim: cada agrupador del dataset tiene su interna.
-  { cuentaInterna: '601-45', agrupador: '601.45' },
-  { cuentaInterna: '601-46', agrupador: '601.46' },
-  { cuentaInterna: '601-48', agrupador: '601.48' },
-  { cuentaInterna: '601-49', agrupador: '601.49' },
-  { cuentaInterna: '601-55', agrupador: '601.55' },
-  { cuentaInterna: '601-56', agrupador: '601.56' },
-  { cuentaInterna: '601-72', agrupador: '601.72' },
-  { cuentaInterna: '601-34', agrupador: '601.34' },
-  { cuentaInterna: '401-01', agrupador: '401.01' },
-  { cuentaInterna: '301-01', agrupador: '301.01' },
-  { cuentaInterna: '701-10', agrupador: '701.10' },
-  { cuentaInterna: '105-01', agrupador: '105.01' },
-  { cuentaInterna: '209-01', agrupador: '209.01' },
+  { cuentaInterna: '601.46', agrupador: '601.46' },
+  { cuentaInterna: '601.48', agrupador: '601.48' },
+  { cuentaInterna: '601.49', agrupador: '601.49' },
+  { cuentaInterna: '601.55', agrupador: '601.55' },
+  { cuentaInterna: '601.56', agrupador: '601.56' },
+  { cuentaInterna: '601.72', agrupador: '601.72' },
+  { cuentaInterna: '601.34', agrupador: '601.34' },
+  { cuentaInterna: '401.01', agrupador: '401.01' },
+  { cuentaInterna: '301.01', agrupador: '301.01' },
+  { cuentaInterna: '701.10', agrupador: '701.10' },
+  { cuentaInterna: '105.01', agrupador: '105.01' },
+  { cuentaInterna: '209.01', agrupador: '209.01' },
 ];
+
+/** Códigos viejos con guion → su canónica con punto. Compatibilidad: resuelven
+ * (nunca caen a la trampa 601.83) pero ya no se enseñan. */
+const LEGADAS_BACK: Record<string, string> = {
+  '601-83': '601.45',
+  '601-45': '601.45',
+  '601-46': '601.46',
+  '601-48': '601.48',
+  '601-49': '601.49',
+  '601-55': '601.55',
+  '601-56': '601.56',
+  '601-72': '601.72',
+  '601-34': '601.34',
+  '401-01': '401.01',
+  '301-01': '301.01',
+  '701-10': '701.10',
+  '102-01-001': '102.01.001',
+  '102-01': '102.01',
+  '102-01-002': '102.01.002',
+  '105-01': '105.01',
+  '216-03': '216.03',
+  '216-10': '216.10',
+  '211-01': '211.01',
+  '201-01': '201.01',
+  '118-01': '118.01',
+  '119-01': '119.01',
+  '208-01': '208.01',
+  '209-01': '209.01',
+  '899-04': '899.04',
+  '501-01': '501.01',
+  '1-02': '1.02',
+  '1-03': '1.03',
+  '1-06': '1.06',
+  '2-01': '2.01',
+  '2-03': '2.03',
+  '2-04': '2.04',
+  '2-08': '2.08',
+  '4-01': '4.01',
+  '5-01': '5.01',
+  '5-03': '5.03',
+  '5-04': '5.04',
+  '5-08': '5.08',
+};
 
 export interface BancoSat { clave: string; corto: string; nombre: string; }
 // Subconjunto del catálogo G usado en el curso (021 HSBC sale en la póliza).
@@ -186,11 +229,20 @@ export function normalizarCuenta(cuenta: string): string {
   return cuenta.trim().replace(/[-_\s]+/g, '.');
 }
 
-/** Resuelve cuenta interna → agrupador SAT (acepta ambos formatos). */
+/** Resuelve cuenta interna → agrupador SAT (canónica con punto; el guion
+ * viejo resuelve vía LEGADAS_BACK y nunca cae a la trampa 601.83). */
 export function resolverAgrupador(cuenta: string): string | null {
-  const norm = normalizarCuenta(cuenta);
-  const eq = EQUIVALENCIAS.find(e => normalizarCuenta(e.cuentaInterna) === norm);
-  if (eq) return eq.agrupador;
+  const raw = (cuenta || '').trim();
+  const directa = EQUIVALENCIAS.find(e => e.cuentaInterna === raw);
+  if (directa) return directa.agrupador;
+  const legada = LEGADAS_BACK[raw];
+  if (legada) {
+    const eq = EQUIVALENCIAS.find(e => e.cuentaInterna === legada);
+    if (eq) return eq.agrupador;
+  }
+  const norm = normalizarCuenta(raw);
+  const porNorm = EQUIVALENCIAS.find(e => e.cuentaInterna === norm);
+  if (porNorm) return porNorm.agrupador;
   if (SAT_CUENTAS.some(c => c.agrupador === norm)) return norm;
   return null;
 }
@@ -272,14 +324,14 @@ export interface ResultadoBusqueda {
 
 // Colisiones didácticas: el código parecido con significado opuesto.
 const COLISIONES: Record<string, string> = {
-  '601.83': '⚠ 601.83 = gasto NO deducible. Si buscas renta deducible es 601-83 → 601.45.',
+  '601.83': '⚠ 601.83 = gasto NO deducible. Tu renta deducible es 601.45 (cuenta y agrupador con el mismo código).',
 };
 
 /** Primera cuenta interna del mapeo para un agrupador (la preferente). */
 export function internaPreferente(agrupador: string): string {
   const eq = EQUIVALENCIAS.find(e => e.agrupador === agrupador);
   if (eq) return eq.cuentaInterna;
-  return agrupador.replace(/\./g, '-');
+  return agrupador;
 }
 
 export function buscarCuentas(query: string, limite = 8): ResultadoBusqueda[] {
@@ -357,9 +409,10 @@ export function auditSatCatalog(): SatIssue[] {
       issues.push({ codigo: e.cuentaInterna, ok: false, error: `equivalencia apunta a agrupador inexistente ${e.agrupador}` });
     }
   }
-  // Caso real del curso debe resolverse (601-83 → 601.45)
-  if (resolverAgrupador('601-83') !== '601.45') issues.push({ codigo: '601-83', ok: false, error: 'caso real del curso no resuelve' });
-  if (resolverAgrupador('102-01-002') !== '102.01') issues.push({ codigo: '102-01-002', ok: false, error: 'caso real del curso no resuelve' });
-  if (resolverAgrupador('216-03') !== '216.03') issues.push({ codigo: '216-03', ok: false, error: 'caso real del curso no resuelve' });
+  // Caso real del curso debe resolverse (renta 601.45 con punto; el guion viejo sigue vivo)
+  if (resolverAgrupador('601.45') !== '601.45') issues.push({ codigo: '601.45', ok: false, error: 'caso real del curso no resuelve' });
+  if (resolverAgrupador('601-83') !== '601.45') issues.push({ codigo: '601-83', ok: false, error: 'compatibilidad con guion rota' });
+  if (resolverAgrupador('102.01.002') !== '102.01') issues.push({ codigo: '102.01.002', ok: false, error: 'caso real del curso no resuelve' });
+  if (resolverAgrupador('216.03') !== '216.03') issues.push({ codigo: '216.03', ok: false, error: 'caso real del curso no resuelve' });
   return issues;
 }

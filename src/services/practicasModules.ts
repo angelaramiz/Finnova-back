@@ -493,15 +493,15 @@ const PRUEBA_POLIZA: PracticaPrueba = {
       explicacion: 'PPD = provisión: gasto + IVA pendiente (119.01, no 118.01 acreditable) contra proveedores 201.01. El banco se toca hasta el pago.',
     },
     {
-      q: 'La póliza Contalink usa la cuenta 601-83 y tu Excel dice 601.45. ¿Qué significa?',
+      q: 'La póliza Contalink usa la cuenta 601.45 y tu Excel dice 601.45. ¿Qué significa?',
       opciones: [
         'Una de las dos está mal y hay que corregirla',
-        '601-83 es la cuenta interna y 601.45 su código agrupador SAT: es la equivalencia del Anexo 24',
+        'La cuenta y el agrupador SAT usan el mismo código: viaja directo a la balanza electrónica',
         'Son dos operaciones distintas',
         'El SAT cambió el código y nadie avisó',
       ],
       correcta: 1,
-      explicacion: 'El Anexo 24 sección A exige asociar cada cuenta del contribuyente (601-83) a su código agrupador (601.45) por naturaleza y preponderancia. La balanza electrónica se envía por agrupador.',
+      explicacion: 'El Anexo 24 sección A asocia cada cuenta del contribuyente a su código agrupador. En la renta, tu cuenta ES 601.45: viaja directo a la balanza electrónica sin traducción.',
     },
     {
       q: 'El arrendador es persona moral (RFC de 12 caracteres). ¿Qué cuenta usas y qué pasa con la retención?',
@@ -518,12 +518,12 @@ const PRUEBA_POLIZA: PracticaPrueba = {
       q: 'Quieres registrar la renta deducible. ¿Qué escribes en la póliza?',
       opciones: [
         '601.83',
-        '601-83 (que viaja como 601.45)',
+        '601.45, la cuenta de renta deducible',
         'Las dos son lo mismo',
         'Ninguna, la renta no se registra',
       ],
       correcta: 1,
-      explicacion: '601.83 con punto = gasto NO deducible (sin requisitos fiscales). 601-83 con guion es tu cuenta interna que viaja como 601.45 deducible. Un carácter decide la deducción.',
+      explicacion: '601.83 con punto = gasto NO deducible (sin requisitos fiscales). Tu renta deducible es 601.45. Un dígito decide la deducción.',
     },
   ],
 };
@@ -799,9 +799,9 @@ const CURSOS: Record<string, PracticaCurso> = {
         puntos: ['PUE = egreso', 'PPD = provisión', '118.01 solo al pagar'],
       },
       {
-        titulo: 'Cuenta interna vs agrupador',
-        texto: 'Tu póliza usa 601-83 pero el SAT recibe 601.45: esa equivalencia es la sección A del Anexo 24. Sin código agrupador la cuenta no entra a la balanza electrónica.',
-        puntos: ['601-83 → 601.45', 'Sección A obligatoria', 'Balanza por agrupador'],
+        titulo: 'Cuenta y agrupador',
+        texto: 'Tu póliza usa 601.45 y el SAT recibe 601.45: en la renta, cuenta y agrupador son el mismo código (sección A del Anexo 24). Sin código agrupador la cuenta no entra a la balanza electrónica.',
+        puntos: ['Cuenta = 601.45', 'Sección A obligatoria', 'Balanza por agrupador'],
       },
       {
         titulo: 'La retención del 10%',
@@ -809,9 +809,9 @@ const CURSOS: Record<string, PracticaCurso> = {
         puntos: ['10% exacto', 'Cuenta 216.03', '70,900 = 7,090 + 63,810'],
       },
       {
-        titulo: 'PF vs PM y la trampa del guion',
-        texto: 'Si quien factura es moral (RFC de 12), la cuenta es 601.46 y NO hay retención del 10%. Y ojo con 601.83 con punto: es gasto no deducible; tu cuenta deducible es 601-83 con guion, que viaja como 601.45.',
-        puntos: ['PM = 601.46 sin retención', '601.83 punto = no deducible', '601-83 guion → 601.45'],
+        titulo: 'PF vs PM y la trampa del dígito',
+        texto: 'Si quien factura es moral (RFC de 12), la cuenta es 601.46 y NO hay retención del 10%. Y ojo con 601.83: es gasto no deducible; tu cuenta deducible es 601.45. Un dígito decide la deducción.',
+        puntos: ['PM = 601.46 sin retención', '601.83 = no deducible', 'Renta deducible = 601.45'],
       },
     ],
     cierre: 'Ya tienes el mapa. Abre el Sim de Pólizas, carga el caso MARCELO F y guarda tu primera póliza. La 💡 Guía te acompaña línea por línea.',
@@ -1092,7 +1092,7 @@ export const PRACTICAS_MODULES: PracticaModulo[] = [
     prueba: PRUEBA_POLIZA,
     curso: CURSOS['mod-polizas'],
     pasos: [
-      { id: 'p1', tipo: 'guia', titulo: 'Del CFDI al asiento en 5 etapas', descripcion: 'Ingesta del CFDI y el estado de cuenta, cotejo de montos, clasificación al agrupador, cálculo fiscal y póliza cuadrada.', datos: ['UUID manda', 'Cotejo exacto', '601-83 → 601.45'] },
+      { id: 'p1', tipo: 'guia', titulo: 'Del CFDI al asiento en 5 etapas', descripcion: 'Ingesta del CFDI y el estado de cuenta, cotejo de montos, clasificación al agrupador, cálculo fiscal y póliza cuadrada.', datos: ['UUID manda', 'Cotejo exacto', 'Renta 601.45 directa'] },
       { id: 'p2', tipo: 'tarea', taskType: 'poliza_practica', titulo: 'Captura la póliza del arrendamiento', descripcion: 'Abre el Sim de Pólizas, carga el caso MARCELO F y guarda la póliza de egresos. Usa la 💡 Guía.', datos: ['70,900/7,090/63,810', 'PUE = egreso', 'DEBE = HABER'] },
       { id: 'p3', tipo: 'asiento', titulo: 'El asiento del arrendamiento', descripcion: 'El sistema genera el asiento al guardar la póliza.', asiento: { cargo: '601.45 Arrendamiento a personas físicas', abono: '216.03 ISR retenido + 102.01 Bancos', cuentas: '601.45 / 216.03 / 102.01', concepto: 'Póliza de egresos: arrendamiento MARCELO F UUID 1317D7E0' } },
     ],

@@ -38,7 +38,7 @@ describe('GET /api/sim/polizas/catalogo', () => {
     const res = await request(app).get('/api/sim/polizas/catalogo');
     expect(res.status).toBe(200);
     expect(res.body.cuentas.length).toBeGreaterThan(30);
-    expect(res.body.equivalencias).toContainEqual({ cuentaInterna: '601-83', agrupador: '601.45' });
+    expect(res.body.equivalencias).toContainEqual({ cuentaInterna: '601.45', agrupador: '601.45' });
     expect(res.body.bancos.map((b: { clave: string }) => b.clave)).toContain('021');
     expect(res.body.monedas.map((m: { codigo: string }) => m.codigo)).toContain('MXN');
     expect(res.body.metodos.map((m: { clave: string }) => m.clave)).toContain('03');
@@ -74,9 +74,9 @@ describe('POST /api/sim/polizas/generar', () => {
 
 describe('POST /api/sim/polizas/guardar', () => {
   const lineasOk = [
-    { cuentaInterna: '601-83', agrupador: '601.45', descripcion: 'Arrendamiento', debe: 70900, haber: 0 },
-    { cuentaInterna: '216-03', agrupador: '216.03', descripcion: 'ISR', debe: 0, haber: 7090 },
-    { cuentaInterna: '102-01-002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 63810 },
+    { cuentaInterna: '601.45', agrupador: '601.45', descripcion: 'Arrendamiento', debe: 70900, haber: 0 },
+    { cuentaInterna: '216.03', agrupador: '216.03', descripcion: 'ISR', debe: 0, haber: 7090 },
+    { cuentaInterna: '102.01.002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 63810 },
   ];
   const base = {
     tipo: 'EGRESOS', fecha: '02-01-2025', concepto: 'Arrendamiento', uuid: MARCELO.uuid,
@@ -95,7 +95,7 @@ describe('POST /api/sim/polizas/guardar', () => {
     expect(mias).toHaveLength(3);
     expect(mias[0].agrupador).toBe('601.45');
     const cat = await request(app).get('/api/sim/chart-of-accounts');
-    const cta = cat.body.find((a: { code: string }) => a.code === '601-83');
+    const cta = cat.body.find((a: { code: string }) => a.code === '601.45');
     expect(cta.agrupador).toBe('601.45');
   });
 
@@ -108,7 +108,7 @@ describe('POST /api/sim/polizas/guardar', () => {
 
   it('línea sin agrupador SAT se rechaza con 422', async () => {
     const mal = [{ cuentaInterna: 'XXX-FANTASMA', agrupador: '', descripcion: 'x', debe: 100, haber: 0 },
-      { cuentaInterna: '102-01-002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 100 }];
+      { cuentaInterna: '102.01.002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 100 }];
     const res = await request(app).post('/api/sim/polizas/guardar').send({ poliza: { ...base, lineas: mal } });
     expect(res.status).toBe(422);
   });
@@ -155,9 +155,9 @@ describe('POST /api/sim/polizas/guardar', () => {
 
   it('601.83 conviviendo con 118.01 se rechaza con 422', async () => {
     const mal = [
-      { cuentaInterna: '601-83', agrupador: '601.83', descripcion: 'No deducible', debe: 5800, haber: 0 },
-      { cuentaInterna: '118-01', agrupador: '118.01', descripcion: 'IVA', debe: 800, haber: 0 },
-      { cuentaInterna: '102-01-002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 6600 },
+      { cuentaInterna: '5.08', agrupador: '601.83', descripcion: 'No deducible', debe: 5800, haber: 0 },
+      { cuentaInterna: '118.01', agrupador: '118.01', descripcion: 'IVA', debe: 800, haber: 0 },
+      { cuentaInterna: '102.01.002', agrupador: '102.01', descripcion: 'Bancos', debe: 0, haber: 6600 },
     ];
     const res = await request(app).post('/api/sim/polizas/guardar').send({ poliza: { ...base, lineas: mal } });
     expect(res.status).toBe(422);
